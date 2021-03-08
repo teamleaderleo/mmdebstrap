@@ -3361,7 +3361,33 @@ else
 fi
 
 # regularly check whether more packages work with chrootless:
-# for p in $(grep-aptavail -F Essential yes -s Package -n | sort -u); do ./mmdebstrap --mode=chrootless --variant=custom --include=bsdutils,coreutils,debianutils,diffutils,dpkg,findutils,grep,gzip,hostname,init-system-helpers,ncurses-base,ncurses-bin,perl-base,sed,tar,$p unstable /dev/null; done
+# for p in $(grep-aptavail -F Essential yes -s Package -n | sort -u); do ./mmdebstrap --mode=chrootless --variant=custom --include=bsdutils,coreutils,debianutils,diffutils,dpkg,findutils,grep,gzip,hostname,init-system-helpers,ncurses-base,ncurses-bin,perl-base,sed,sysvinit-utils,tar,$p unstable /dev/null; done
+#
+# see https://bugs.debian.org/cgi-bin/pkgreport.cgi?users=debian-dpkg@lists.debian.org;tag=dpkg-root-support
+#
+# base-files: #824594
+# base-passwd: debconf
+# bash: depends base-files
+# bsdutils: ok
+# coreutils: ok
+# dash: debconf
+# debianutils: ok
+# diffutils: ok
+# dpkg: ok
+# findutils: ok
+# grep: ok
+# gzip: ok
+# hostname: ok
+# init-system-helpers: ok
+# libc-bin: #983412
+# login: debconf
+# ncurses-base: ok
+# ncurses-bin: ok
+# perl-base: ok
+# sed: ok
+# sysvinit-utils: ok
+# tar: ok
+# util-linux: debconf
 print_header "mode=chrootless,variant=custom: install known-good from essential:yes"
 cat << END > shared/test.sh
 #!/bin/sh
