@@ -6470,7 +6470,7 @@ argument. Otherwise, I<command> is executed under I<sh> and the chroot
 directory can be accessed via I<$1>. All environment variables set by
 B<mmdebstrap> (like C<APT_CONFIG>, C<DEBIAN_FRONTEND>, C<LC_ALL> and C<PATH>)
 are preserved. All environment variables set by the user are preserved, except
-for C<TMPDIR> which is cleared.
+for C<TMPDIR> which is cleared. See section B<TMPDIR>.
 
 The paths inside the chroot are relative to the root directory of the chroot.
 The path on the outside is relative to current directory of the original
@@ -6843,6 +6843,10 @@ When creating a tarball, a temporary directory is populated with the rootfs
 before the tarball is packed. The location of that temporary directory will be
 in F</tmp> or the location pointed to by C<TMPDIR> if that environment variable
 is set.
+
+Since C<TMPDIR> is only valid outside the chroot, the variable is being unset
+when running hook scripts. If you need a valid temporary directory in a hook,
+consider using F</tmp> inside your target directory.
 
 =back
 
