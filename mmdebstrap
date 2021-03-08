@@ -61,6 +61,7 @@ our ($CLONE_NEWNS, $CLONE_NEWUTS, $CLONE_NEWIPC,
     $CLONE_NEWUSER, $CLONE_NEWPID, $CLONE_NEWNET,
     $_LINUX_CAPABILITY_VERSION_3, $CAP_SYS_ADMIN);
 
+#<<<
 # type codes:
 #   0 -> normal file
 #   1 -> hardlink
@@ -69,23 +70,24 @@ our ($CLONE_NEWNS, $CLONE_NEWUTS, $CLONE_NEWIPC,
 #   4 -> block special
 #   5 -> directory
 my @devfiles = (
-    # filename         mode  type link target        major  minor
-    ["./dev/",        oct(755), 5, '',                undef, undef],
-    ["./dev/console", oct(666), 3, '',                5,     1],
-    ["./dev/fd",      oct(777), 2, '/proc/self/fd',   undef, undef],
-    ["./dev/full",    oct(666), 3, '',                1,     7],
-    ["./dev/null",    oct(666), 3, '',                1,     3],
-    ["./dev/ptmx",    oct(666), 3, '',                5,     2],
-    ["./dev/pts/",    oct(755), 5, '',                undef, undef],
-    ["./dev/random",  oct(666), 3, '',                1,     8],
-    ["./dev/shm/",    oct(755), 5, '',                undef, undef],
-    ["./dev/stderr",  oct(777), 2, '/proc/self/fd/2', undef, undef],
-    ["./dev/stdin",   oct(777), 2, '/proc/self/fd/0', undef, undef],
-    ["./dev/stdout",  oct(777), 2, '/proc/self/fd/1', undef, undef],
-    ["./dev/tty",     oct(666), 3, '',                5,     0],
-    ["./dev/urandom", oct(666), 3, '',                1,     9],
-    ["./dev/zero",    oct(666), 3, '',                1,     5],
+    # filename  mode      type link target        major  minor
+    ["",        oct(755), 5,   '',                undef, undef],
+    ["console", oct(666), 3,   '',                5,     1],
+    ["fd",      oct(777), 2,   '/proc/self/fd',   undef, undef],
+    ["full",    oct(666), 3,   '',                1,     7],
+    ["null",    oct(666), 3,   '',                1,     3],
+    ["ptmx",    oct(666), 3,   '',                5,     2],
+    ["pts/",    oct(755), 5,   '',                undef, undef],
+    ["random",  oct(666), 3,   '',                1,     8],
+    ["shm/",    oct(755), 5,   '',                undef, undef],
+    ["stderr",  oct(777), 2,   '/proc/self/fd/2', undef, undef],
+    ["stdin",   oct(777), 2,   '/proc/self/fd/0', undef, undef],
+    ["stdout",  oct(777), 2,   '/proc/self/fd/1', undef, undef],
+    ["tty",     oct(666), 3,   '',                5,     0],
+    ["urandom", oct(666), 3,   '',                1,     9],
+    ["zero",    oct(666), 3,   '',                1,     5],
 );
+#>>>
 
 # verbosity levels:
 #   0 -> print nothing
@@ -918,84 +920,111 @@ sub run_chroot {
             foreach my $file (@devfiles) {
                 my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
                   = @{$file};
-                next if $fname eq './dev/';
+                next if $fname eq '';
                 if ($type == 0) {    # normal file
                     error "type 0 not implemented";
                 } elsif ($type == 1) {    # hardlink
                     error "type 1 not implemented";
                 } elsif ($type == 2) {    # symlink
                     if (!$options->{havemknod}) {
-                        if (    $options->{mode} eq 'fakechroot'
-                            and $linkname =~ /^\/proc/) {
-                            # there is no /proc in fakechroot mode
+                        # If we had mknod, then the symlink was already created
+                        # in the run_setup function.
+                        if (!-d "$options->{root}/dev") {
+                            warning(
+                                "skipping creation of ./dev/$fname because the"
+                                  . " /dev directory is missing in the target"
+                            );
                             next;
                         }
-                        if (
-                            any { $_ eq $options->{mode} }
-                            ('root', 'unshare')
-                        ) {
-                            push @cleanup_tasks, sub {
-                                unlink "$options->{root}/$fname"
-                                  or warn "cannot unlink $fname: $!";
-                            }
-                        }
-                        symlink $linkname, "$options->{root}/$fname"
-                          or error "cannot create symlink $fname";
+                        push @cleanup_tasks, sub {
+                            unlink "$options->{root}/dev/$fname"
+                              or warn "cannot unlink ./dev/$fname: $!";
+                        };
+                        symlink $linkname, "$options->{root}/dev/$fname"
+                          or error
+                          "cannot create symlink ./dev/$fname -> $linkname";
                     }
                 } elsif ($type == 3 or $type == 4) {
                     # character/block special
                     if ($options->{mode} eq 'root' && !$options->{canmount}) {
-                        warning "skipping bind-mounting $fname";
+                        warning "skipping bind-mounting ./dev/$fname";
                     } elsif (!$options->{havemknod}) {
-                        open my $fh, '>', "$options->{root}/$fname"
-                          or error "cannot open $options->{root}/$fname: $!";
-                        close $fh;
-                        if ($options->{mode} eq 'unshare') {
-                            push @cleanup_tasks, sub {
-                                0 == system('umount', '--no-mtab',
-                                    "$options->{root}/$fname")
-                                  or warn "umount $fname failed: $?";
-                                unlink "$options->{root}/$fname"
-                                  or warn "cannot unlink $fname: $!";
-                            };
-                        } elsif ($options->{mode} eq 'root') {
-                            push @cleanup_tasks, sub {
-                                0 == system('umount',
-                                    "$options->{root}/$fname")
-                                  or warn "umount failed: $?";
-                                unlink "$options->{root}/$fname"
-                                  or warn "cannot unlink $fname: $!";
-                            };
-                        } else {
-                            error "unknown mode: $options->{mode}";
+                        if (!-d "$options->{root}/dev") {
+                            warning(
+                                "skipping creation of ./dev/$fname because the"
+                                  . " /dev directory is missing in the target"
+                            );
+                            next;
                         }
-                        0 == system('mount', '-o', 'bind', "/$fname",
-                            "$options->{root}/$fname")
-                          or error "mount $fname failed: $?";
+                        if (!-e "/dev/$fname") {
+                            warning("skipping creation of ./dev/$fname because"
+                                  . " /dev/$fname does not exist"
+                                  . " on the outside");
+                            next;
+                        }
+                        if (!-c "/dev/$fname") {
+                            warning("skipping creation of ./dev/$fname because"
+                                  . " /dev/$fname on the outside is not a"
+                                  . " character special file");
+                            next;
+                        }
+                        open my $fh, '>', "$options->{root}/dev/$fname"
+                          or error
+                          "cannot open $options->{root}/dev/$fname: $!";
+                        close $fh;
+                        my @umountopts = ();
+                        if ($options->{mode} eq 'unshare') {
+                            push @umountopts, '--no-mtab';
+                        }
+                        push @cleanup_tasks, sub {
+                            0 == system('umount', @umountopts,
+                                "$options->{root}/dev/$fname")
+                              or warn "umount ./dev/$fname failed: $?";
+                            unlink "$options->{root}/dev/$fname"
+                              or warn "cannot unlink ./dev/$fname: $!";
+                        };
+                        0 == system('mount', '-o', 'bind', "/dev/$fname",
+                            "$options->{root}/dev/$fname")
+                          or error "mount ./dev/$fname failed: $?";
                     }
                 } elsif ($type == 5
                     && $options->{mode} eq 'root'
                     && !$options->{canmount}) {
-                    warning "skipping bind-mounting $fname";
+                    warning "skipping bind-mounting ./dev/$fname";
                 } elsif ($type == 5) {    # directory
+                    if (!-d "$options->{root}/dev") {
+                        warning(
+                                "skipping creation of ./dev/$fname because the"
+                              . " /dev directory is missing in the target");
+                        next;
+                    }
+                    if (!-e "/dev/$fname") {
+                        warning("skipping creation of ./dev/$fname because"
+                              . " /dev/$fname does not exist"
+                              . " on the outside");
+                        next;
+                    }
+                    if (!-d "/dev/$fname") {
+                        warning("skipping creation of ./dev/$fname because"
+                              . " /dev/$fname on the outside is not a"
+                              . " directory");
+                        next;
+                    }
                     if (!$options->{havemknod}) {
-                        if (
-                            any { $_ eq $options->{mode} }
-                            ('root', 'unshare')
-                        ) {
-                            push @cleanup_tasks, sub {
-                                rmdir "$options->{root}/$fname"
-                                  or warn "cannot rmdir $fname: $!";
-                            }
-                        }
-                        if (-e "$options->{root}/$fname") {
-                            if (!-d "$options->{root}/$fname") {
-                                error "$fname already exists but is not a"
-                                  . " directory";
+                        # If had mknod, then the directory to bind-mount into
+                        # was already created in the run_setup function.
+                        push @cleanup_tasks, sub {
+                            rmdir "$options->{root}/dev/$fname"
+                              or warn "cannot rmdir ./dev/$fname: $!";
+                        };
+                        if (-e "$options->{root}/dev/$fname") {
+                            if (!-d "$options->{root}/dev/$fname") {
+                                error "./dev/$fname already exists but is not"
+                                  . " a directory";
                             }
                         } else {
                             my $num_created
-                              = make_path "$options->{root}/$fname",
+                              = make_path "$options->{root}/dev/$fname",
                               { error => \my $err };
                             if ($err && @$err) {
                                 error(
@@ -1007,29 +1036,25 @@ sub run_chroot {
                                         } @$err
                                     ));
                             } elsif ($num_created == 0) {
-                                error "cannot create $options->{root}/$fname";
+                                error
+                                  "cannot create $options->{root}/dev/$fname";
                             }
                         }
-                        chmod $mode, "$options->{root}/$fname"
-                          or error "cannot chmod $fname: $!";
+                        chmod $mode, "$options->{root}/dev/$fname"
+                          or error "cannot chmod ./dev/$fname: $!";
                     }
+                    my @umountopts = ();
                     if ($options->{mode} eq 'unshare') {
-                        push @cleanup_tasks, sub {
-                            0 == system('umount', '--no-mtab',
-                                "$options->{root}/$fname")
-                              or warn "umount $fname failed: $?";
-                        };
-                    } elsif ($options->{mode} eq 'root') {
-                        push @cleanup_tasks, sub {
-                            0 == system('umount', "$options->{root}/$fname")
-                              or warn "umount $fname failed: $?";
-                        };
-                    } else {
-                        error "unknown mode: $options->{mode}";
+                        push @umountopts, '--no-mtab';
                     }
-                    0 == system('mount', '-o', 'bind', "/$fname",
-                        "$options->{root}/$fname")
-                      or error "mount $fname failed: $?";
+                    push @cleanup_tasks, sub {
+                        0 == system('umount', @umountopts,
+                            "$options->{root}/dev/$fname")
+                          or warn "umount ./dev/$fname failed: $?";
+                    };
+                    0 == system('mount', '-o', 'bind', "/dev/$fname",
+                        "$options->{root}/dev/$fname")
+                      or error "mount ./dev/$fname failed: $?";
                 } else {
                     error "unsupported type: $type";
                 }
@@ -1049,6 +1074,9 @@ sub run_chroot {
         # to extract those
         if ($options->{mode} eq 'root' && !$options->{canmount}) {
             warning "skipping mount sysfs";
+        } elsif ($options->{mode} eq 'root' && !-d "$options->{root}/sys") {
+            warning("skipping mounting of sysfs because the"
+                  . " /sys directory is missing in the target");
         } elsif ($options->{mode} eq 'root') {
             push @cleanup_tasks, sub {
                 0 == system('umount', "$options->{root}/sys")
@@ -1059,6 +1087,15 @@ sub run_chroot {
                 '-o',    'ro,nosuid,nodev,noexec', 'sys',
                 "$options->{root}/sys"
             ) or error "mount /sys failed: $?";
+        } elsif ($options->{mode} eq 'unshare' && !-d "$options->{root}/sys") {
+            warning("skipping bind-mounting /sys because the"
+                  . " /sys directory is missing in the target");
+        } elsif ($options->{mode} eq 'unshare' && !-e "/sys") {
+            warning("skipping bind-mounting /sys because"
+                  . " /sys does not exist on the outside");
+        } elsif ($options->{mode} eq 'unshare' && !-d "/sys") {
+            warning("skipping bind-mounting /sys because"
+                  . " /sys on the outside is not a directory");
         } elsif ($options->{mode} eq 'unshare') {
             # naturally we have to clean up after ourselves in sudo mode where
             # we do a real mount. But we also need to unmount in unshare mode
@@ -1091,6 +1128,9 @@ sub run_chroot {
         }
         if ($options->{mode} eq 'root' && !$options->{canmount}) {
             warning "skipping mount proc";
+        } elsif ($options->{mode} eq 'root' && !-d "$options->{root}/proc") {
+            warning("skipping mounting of proc because the"
+                  . " /proc directory is missing in the target");
         } elsif ($options->{mode} eq 'root') {
             push @cleanup_tasks, sub {
                 # some maintainer scripts mount additional stuff into /proc
@@ -1110,6 +1150,16 @@ sub run_chroot {
             0 == system('mount', '-t', 'proc', '-o', 'ro', 'proc',
                 "$options->{root}/proc")
               or error "mount /proc failed: $?";
+        } elsif ($options->{mode} eq 'unshare' && !-d "$options->{root}/proc")
+        {
+            warning("skipping bind-mounting /proc because the"
+                  . " /proc directory is missing in the target");
+        } elsif ($options->{mode} eq 'unshare' && !-e "/proc") {
+            warning("skipping bind-mounting /proc because"
+                  . " /proc does not exist on the outside");
+        } elsif ($options->{mode} eq 'unshare' && !-d "/proc") {
+            warning("skipping bind-mounting /proc because"
+                  . " /proc on the outside is not a directory");
         } elsif ($options->{mode} eq 'unshare') {
             # naturally we have to clean up after ourselves in sudo mode where
             # we do a real mount. But we also need to unmount in unshare mode
@@ -1781,24 +1831,25 @@ sub run_setup() {
                     # there is no /proc in fakechroot mode
                     next;
                 }
-                symlink $linkname, "$options->{root}/$fname"
-                  or error "cannot create symlink $fname";
+                symlink $linkname, "$options->{root}/dev/$fname"
+                  or error "cannot create symlink ./dev/$fname";
                 next;                 # chmod cannot work on symlinks
             } elsif ($type == 3) {    # character special
-                0 == system('mknod', "$options->{root}/$fname", 'c',
+                0 == system('mknod', "$options->{root}/dev/$fname", 'c',
                     $devmajor, $devminor)
                   or error "mknod failed: $?";
             } elsif ($type == 4) {    # block special
-                0 == system('mknod', "$options->{root}/$fname", 'b',
+                0 == system('mknod', "$options->{root}/dev/$fname", 'b',
                     $devmajor, $devminor)
                   or error "mknod failed: $?";
             } elsif ($type == 5) {    # directory
-                if (-e "$options->{root}/$fname") {
-                    if (!-d "$options->{root}/$fname") {
-                        error "$fname already exists but is not a directory";
+                if (-e "$options->{root}/dev/$fname") {
+                    if (!-d "$options->{root}/dev/$fname") {
+                        error
+                          "./dev/$fname already exists but is not a directory";
                     }
                 } else {
-                    my $num_created = make_path "$options->{root}/$fname",
+                    my $num_created = make_path "$options->{root}/dev/$fname",
                       { error => \my $err };
                     if ($err && @$err) {
                         error(
@@ -1808,14 +1859,14 @@ sub run_setup() {
                                   @$err
                             ));
                     } elsif ($num_created == 0) {
-                        error "cannot create $options->{root}/$fname";
+                        error "cannot create $options->{root}/dev/$fname";
                     }
                 }
             } else {
                 error "unsupported type: $type";
             }
-            chmod $mode, "$options->{root}/$fname"
-              or error "cannot chmod $fname: $!";
+            chmod $mode, "$options->{root}/dev/$fname"
+              or error "cannot chmod ./dev/$fname: $!";
         }
     }
 
@@ -5314,9 +5365,12 @@ sub main() {
         foreach my $file (@devfiles) {
             my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
               = @{$file};
+            if (length "./dev/$fname" > 100) {
+                error "tar entry cannot exceed 100 characters";
+            }
             my $entry = pack(
                 'a100 a8 a8 a8 a12 a12 A8 a1 a100 a8 a32 a32 a8 a8 a155 x12',
-                $fname,
+                "./dev/$fname",
                 sprintf('%07o',  $mode),
                 sprintf('%07o',  0),        # uid
                 sprintf('%07o',  0),        # gid

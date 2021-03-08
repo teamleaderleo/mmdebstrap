@@ -120,7 +120,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=191
+total=193
 skipped=0
 runtests=0
 i=1
@@ -935,6 +935,51 @@ elif [ "$defaultmode" = "root" ]; then
 else
 	./run_null.sh
 	runtests=$((runtests+1))
+fi
+
+print_header "mode=unshare,variant=apt: missing device nodes outside the chroot"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+rm /dev/console
+adduser --gecos user --disabled-password user
+sysctl -w kernel.unprivileged_userns_clone=1
+runuser -u user -- $CMD --mode=unshare --variant=apt $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+rm /tmp/debian-chroot.tar
+END
+if [ "$HAVE_QEMU" = "yes" ]; then
+	./run_qemu.sh
+	runtests=$((runtests+1))
+else
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
+fi
+
+print_header "mode=unshare,variant=custom: missing /dev, /sys, /proc inside the chroot"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+adduser --gecos user --disabled-password user
+sysctl -w kernel.unprivileged_userns_clone=1
+runuser -u user -- $CMD --mode=unshare --variant=custom --include=dpkg,dash,diffutils,coreutils,libc-bin,sed $DEFAULT_DIST /dev/null $mirror
+END
+if [ "$HAVE_QEMU" = "yes" ]; then
+	./run_qemu.sh
+	runtests=$((runtests+1))
+else
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
 fi
 
 print_header "mode=root,variant=apt: chroot directory not accessible by _apt user"
