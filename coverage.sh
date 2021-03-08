@@ -3402,7 +3402,7 @@ if [ "\$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
 fi
 prefix=
 [ "\$(id -u)" -eq 0 ] && prefix="runuser -u user --"
-\$prefix $CMD --mode=chrootless --variant=custom --include=bsdutils,coreutils,debianutils,diffutils,dpkg,findutils,grep,gzip,hostname,init-system-helpers,ncurses-base,ncurses-bin,perl-base,sed,tar $DEFAULT_DIST /dev/null $mirror
+\$prefix $CMD --mode=chrootless --variant=custom --include=bsdutils,coreutils,debianutils,diffutils,dpkg,findutils,grep,gzip,hostname,init-system-helpers,ncurses-base,ncurses-bin,perl-base,sed,sysvinit-utils,tar $DEFAULT_DIST /dev/null $mirror
 END
 if [ "$DEFAULT_DIST" = "stable" ]; then
 	echo "chrootless doesn't work in stable -- Skipping test..." >&2
