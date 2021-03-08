@@ -3755,12 +3755,12 @@ if [ -e shared/cover_db.img ]; then
 	# otherwise we might get:
 	# Can't read shared/cover_db/runs/1598213854.252.64287/cover.14 with Sereal: Sereal: Error: Bad Sereal header: Not a valid Sereal document. at offset 1 of input at srl_decoder.c line 600 at /usr/lib/x86_64-linux-gnu/perl5/5.30/Devel/Cover/DB/IO/Sereal.pm line 34, <$fh> chunk 1.
 	cat << END > shared/test.sh
-cover -nogcov -report html_basic cover_db
+cover -nogcov -report html_basic cover_db >&2
 mkdir -p report
 for f in common.js coverage.html cover.css css.js mmdebstrap--branch.html mmdebstrap--condition.html mmdebstrap.html mmdebstrap--subroutine.html standardista-table-sorting.js; do
 	cp -a cover_db/\$f report
 done
-cover -delete cover_db
+cover -delete cover_db >&2
 END
 	if [ "$HAVE_QEMU" = "yes" ]; then
 		./run_qemu.sh
