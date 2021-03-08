@@ -1219,16 +1219,16 @@ sub run_hooks {
     # If the hook script needs a writable TMPDIR, then it can always use /tmp
     # inside the chroot. This is also why we do not set a new MMDEBSTRAP_TMPDIR
     # environment variable.
-    if (defined $ENV{TMPDIR} && $ENV{TMPDIR} ne "") {
+    if (length $ENV{TMPDIR}) {
         push @env_opts, '--unset=TMPDIR';
     }
     # The APT_CONFIG variable, if set, will confuse any manual calls to
     # apt-get. If you want to use the same config used by mmdebstrap, the
     # original value is stored in MMDEBSTRAP_APT_CONFIG.
-    if (defined $ENV{APT_CONFIG} && $ENV{APT_CONFIG} ne "") {
+    if (length $ENV{APT_CONFIG}) {
         push @env_opts, '--unset=APT_CONFIG';
     }
-    if (defined $ENV{APT_CONFIG} && $ENV{APT_CONFIG} ne "") {
+    if (length $ENV{APT_CONFIG}) {
         push @env_opts, "MMDEBSTRAP_APT_CONFIG=$ENV{APT_CONFIG}";
     }
     # Storing the mode is important for hook scripts to potentially change
@@ -1871,7 +1871,7 @@ sub run_setup() {
     }
 
     # setting PATH for chroot, ldconfig, start-stop-daemon...
-    if (defined $ENV{PATH} && $ENV{PATH} ne "") {
+    if (length $ENV{PATH}) {
         ## no critic (Variables::RequireLocalizedPunctuationVars)
         $ENV{PATH} = "$ENV{PATH}:/usr/sbin:/usr/bin:/sbin:/bin";
     } else {
