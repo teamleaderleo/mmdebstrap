@@ -4440,7 +4440,8 @@ sub main() {
     if ($format eq 'dir') {
         $format = 'directory';
     }
-    my @valid_formats = ('auto', 'directory', 'tar', 'squashfs', 'ext2');
+    my @valid_formats
+      = ('auto', 'directory', 'tar', 'squashfs', 'ext2', 'null');
     if (none { $_ eq $format } @valid_formats) {
         error "invalid format. Choose from " . (join ', ', @valid_formats);
     }
@@ -5142,7 +5143,9 @@ sub main() {
 
     # figure out the right format
     if ($format eq 'auto') {
-        if ($options->{target} ne '-' and -d $options->{target}) {
+        if ($options->{target} eq '/dev/null') {
+            $format = 'null';
+        } elsif ($options->{target} ne '-' and -d $options->{target}) {
             $format = 'directory';
         } elsif (
             defined $tar_compressor
@@ -5213,30 +5216,33 @@ sub main() {
         info "automatically chosen format: $format";
     }
 
-    if ($options->{target} eq '-' and $format ne 'tar') {
+    if ($options->{target} eq '-' and $format ne 'tar' and $format ne 'null') {
         error "the $format format is unable to write to standard output";
     }
 
-    if (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
-        if (      any { $_ eq $options->{variant} } ('extract', 'custom')
-              and any { $_ eq $options->{mode} } ('fakechroot', 'proot')) {
-            info "creating a tarball or squashfs image or ext2 image in"
-              . " fakechroot mode or proot mode might fail in extract and"
-              . " custom variants because there might be no tar inside the"
-              . " chroot";
-        }
-        # try to fail early if target tarball or squashfs image cannot be
-        # opened for writing
-        if ($options->{target} ne '-') {
-            if ($options->{dryrun}) {
-                if (-e $options->{target}) {
-                    info "not overwriting $options->{target} because in"
-                      . " dry-run mode";
+    if (any { $_ eq $format } ('tar', 'squashfs', 'ext2', 'null')) {
+        if ($format ne 'null') {
+            if (      any { $_ eq $options->{variant} } ('extract', 'custom')
+                  and any { $_ eq $options->{mode} } ('fakechroot', 'proot')) {
+                info "creating a tarball or squashfs image or ext2 image in"
+                  . " fakechroot mode or proot mode might fail in extract and"
+                  . " custom variants because there might be no tar inside the"
+                  . " chroot";
+            }
+            # try to fail early if target tarball or squashfs image cannot be
+            # opened for writing
+            if ($options->{target} ne '-') {
+                if ($options->{dryrun}) {
+                    if (-e $options->{target}) {
+                        info "not overwriting $options->{target} because in"
+                          . " dry-run mode";
+                    }
+                } else {
+                    open my $fh, '>', $options->{target}
+                      or error
+                      "cannot open $options->{target} for writing: $!";
+                    close $fh;
                 }
-            } else {
-                open my $fh, '>', $options->{target}
-                  or error "cannot open $options->{target} for writing: $!";
-                close $fh;
             }
         }
         # since the output is a tarball, we create the rootfs in a temporary
@@ -5391,7 +5397,7 @@ sub main() {
               = sprintf("%06o\0", unpack("%16C*", $entry));
             $devtar .= $entry;
         }
-    } elsif ($format eq 'directory') {
+    } elsif (any { $_ eq $format } ('directory', 'null')) {
         # nothing to do
     } else {
         error "unknown format: $format";
@@ -5494,7 +5500,7 @@ sub main() {
                       or error "tar failed: $?";
 
                     info "done";
-                } elsif ($format eq 'directory') {
+                } elsif (any { $_ eq $format } ('directory', 'null')) {
                     # nothing to do
                 } else {
                     error "unknown format: $format";
@@ -5596,7 +5602,7 @@ sub main() {
                 }
 
                 info "done";
-            } elsif ($format eq 'directory') {
+            } elsif (any { $_ eq $format } ('directory', 'null')) {
                 # nothing to do
             } else {
                 error "unknown format: $format";
@@ -5667,7 +5673,7 @@ sub main() {
 
     if ($options->{dryrun}) {
         # nothing to do
-    } elsif ($format eq 'directory') {
+    } elsif (any { $_ eq $format } ('directory', 'null')) {
         # nothing to do
     } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
         # we use eval() so that error() doesn't take this process down and
@@ -5765,7 +5771,7 @@ sub main() {
     # change signal handler message
     $waiting_for = "cleanup";
 
-    if ($format eq 'directory') {
+    if (any { $_ eq $format } ('directory', 'null')) {
         # nothing to do
     } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
         if (!-e $options->{root}) {
@@ -5953,8 +5959,8 @@ information.
 =item B<--format>=I<name>
 
 Choose the output format. Valid format I<name>s are B<auto>, B<directory>,
-B<tar>, B<squashfs>, and B<ext2>. The default format is B<auto>. See the
-section B<FORMATS> for more information.
+B<tar>, B<squashfs>, B<ext2> and B<null>. The default format is B<auto>. See
+the section B<FORMATS> for more information.
 
 =item B<--aptopt>=I<option>|I<file>
 
@@ -6393,7 +6399,8 @@ Without that option the default format is I<auto>. The following formats exist:
 
 When selecting this format (the default), the actual format will be inferred
 from the I<TARGET> positional argument. If I<TARGET> was not specified, then
-the B<tar> format will be chosen. If I<TARGET> is an existing directory, and
+the B<tar> format will be chosen. If I<TARGET> happens to be F</dev/null>, then
+the B<null> format will be chosen. If I<TARGET> is an existing directory, and
 does not equal to C<->, then the B<directory> format will be chosen. If
 I<TARGET> ends with C<.tar> or with one of the filename extensions listed in
 the section B<COMPRESSION>, or if I<TARGET> equals C<->, or if I<TARGET> is a
@@ -6448,6 +6455,14 @@ to it like F<./->. To convert the result to an ext3 image, use C<tune2fs -O
 has_journal TARGET> and to convert it to ext4, use C<tune2fs -O
 extents,uninit_bg,dir_index,has_journal TARGET>. Since C<genext2fs> does not
 support extended attributes, the resulting image will not contain them.
+
+=item B<null>
+
+A temporary chroot directory will be created in C<$TMPDIR> or F</tmp> if
+C<$TMPDIR> is not set. After the bootstrap is complete, the temporary chroot
+will be deleted without being part of the output. This is most useful when the
+desired artifact is generated inside the chroot and it is transferred using
+special hooks such as B<sync-out>.
 
 =back
 
