@@ -4937,30 +4937,37 @@ sub main() {
                       . " signed-by value";
                     last;
                 }
+                # initialize gpg trustdb with empty one
+                {
+                    `@gpgcmd --update-trustdb >/dev/null 2>/dev/null`;
+                    $? == 0 or error "gpg failed to initialize trustdb: $?";
+                }
                 # find all the fingerprints of the keys apt currently
                 # knows about
-                my @keyringopts = ();
+                my @keyrings = ();
                 opendir my $dh, "$options->{apttrustedparts}"
                   or error "cannot read $options->{apttrustedparts}";
                 while (my $filename = readdir $dh) {
                     if ($filename !~ /\.(asc|gpg)$/) {
                         next;
                     }
-                    push @keyringopts, '--keyring',
-                      "$options->{apttrustedparts}/$filename";
+                    $filename = "$options->{apttrustedparts}/$filename";
+                    # skip empty keyrings
+                    -s "$filename" || next;
+                    push @keyrings, "$filename";
                 }
                 closedir $dh;
-                if (-e $options->{apttrusted}) {
-                    push @keyringopts, '--keyring', $options->{apttrusted};
+                if (-s $options->{apttrusted}) {
+                    push @keyrings, $options->{apttrusted};
                 }
                 my @aptfingerprints = ();
-                if (scalar @keyringopts == 0) {
+                if (scalar @keyrings == 0) {
                     $signedby = " [signed-by=\"$keyring\"]";
                     last;
                 }
                 {
-                    open my $fh, '-|', @gpgcmd, @keyringopts, '--with-colons',
-                      '--list-keys' // error "failed to fork(): $!";
+                    open(my $fh, '-|', @gpgcmd, '--with-colons', '--show-keys',
+                        @keyrings) // error "failed to fork(): $!";
                     while (my $line = <$fh>) {
                         if ($line !~ /^fpr:::::::::([^:]+):/) {
                             next;
@@ -4981,9 +4988,8 @@ sub main() {
                 # the case
                 my @suitefingerprints = ();
                 {
-                    open my $fh, '-|', @gpgcmd, '--keyring', $keyring,
-                      '--with-colons',
-                      '--list-keys' // error "failed to fork(): $!";
+                    open(my $fh, '-|', @gpgcmd, '--with-colons', '--show-keys',
+                        $keyring) // error "failed to fork(): $!";
                     while (my $line = <$fh>) {
                         if ($line !~ /^fpr:::::::::([^:]+):/) {
                             next;
