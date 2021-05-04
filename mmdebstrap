@@ -42,6 +42,7 @@ use Carp;
 use Term::ANSIColor;
 use Socket;
 use Time::HiRes;
+use Math::BigInt;
 use version;
 
 ## no critic (InputOutput::RequireBriefOpen)
@@ -173,6 +174,25 @@ sub error {
     } else {
         die "$msg\n";
     }
+}
+
+# The encoding of dev_t is MMMM Mmmm mmmM MMmm, where M is a hex digit of
+# the major number and m is a hex digit of the minor number.
+sub major {
+    my $rdev = shift;
+    my $right
+      = Math::BigInt->from_hex("0x00000000000fff00")->band($rdev)->brsft(8);
+    my $left
+      = Math::BigInt->from_hex("0xfffff00000000000")->band($rdev)->brsft(32);
+    return $right->bior($left);
+}
+
+sub minor {
+    my $rdev  = shift;
+    my $right = Math::BigInt->from_hex("0x00000000000000ff")->band($rdev);
+    my $left
+      = Math::BigInt->from_hex("0x00000ffffff00000")->band($rdev)->brsft(12);
+    return $right->bior($left);
 }
 
 # check whether a directory is mounted by comparing the device number of the
@@ -5149,7 +5169,22 @@ sub main() {
 
     # figure out the right format
     if ($format eq 'auto') {
-        if ($options->{target} eq '/dev/null') {
+        # (stat(...))[6] is the device identifier which contains the major and
+        # minor numbers for character special files
+        # major 1 and minor 3 is /dev/null on Linux
+        if (    $options->{target} eq '/dev/null'
+            and $OSNAME eq 'linux'
+            and -c '/dev/null'
+            and major((stat("/dev/null"))[6]) == 1
+            and minor((stat("/dev/null"))[6]) == 3) {
+            $format = 'null';
+        } elsif ($options->{target} eq '-'
+            and $OSNAME eq 'linux'
+            and major((stat(STDOUT))[6]) == 1
+            and minor((stat(STDOUT))[6]) == 3) {
+            # by checking the major and minor number of the STDOUT fd we also
+            # can detect redirections to /dev/null and choose the null format
+            # accordingly
             $format = 'null';
         } elsif ($options->{target} ne '-' and -d $options->{target}) {
             $format = 'directory';
@@ -5224,6 +5259,11 @@ sub main() {
 
     if ($options->{target} eq '-' and $format ne 'tar' and $format ne 'null') {
         error "the $format format is unable to write to standard output";
+    }
+
+    if ($format eq 'null'
+        and none { $_ eq $options->{target} } ('-', '/dev/null')) {
+        info "ignoring target $options->{target} with null format";
     }
 
     if (any { $_ eq $format } ('tar', 'squashfs', 'ext2', 'null')) {
@@ -5777,9 +5817,9 @@ sub main() {
     # change signal handler message
     $waiting_for = "cleanup";
 
-    if (any { $_ eq $format } ('directory', 'null')) {
+    if (any { $_ eq $format } ('directory')) {
         # nothing to do
-    } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
+    } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2', 'null')) {
         if (!-e $options->{root}) {
             error "$options->{root} does not exist";
         }
@@ -6405,16 +6445,17 @@ Without that option the default format is I<auto>. The following formats exist:
 
 When selecting this format (the default), the actual format will be inferred
 from the I<TARGET> positional argument. If I<TARGET> was not specified, then
-the B<tar> format will be chosen. If I<TARGET> happens to be F</dev/null>, then
-the B<null> format will be chosen. If I<TARGET> is an existing directory, and
-does not equal to C<->, then the B<directory> format will be chosen. If
-I<TARGET> ends with C<.tar> or with one of the filename extensions listed in
-the section B<COMPRESSION>, or if I<TARGET> equals C<->, or if I<TARGET> is a
-named pipe (fifo) or if I<TARGET> is a character special file like
-F</dev/null>, then the B<tar> format will be chosen. If I<TARGET> ends with
-C<.squashfs> or C<.sqfs>, then the B<squashfs> format will be chosen. If
-<TARGET> ends with C<.ext2> then the B<ext2> format will be chosen. If none of
-these conditions apply, the B<directory> format will be chosen.
+the B<tar> format will be chosen. If I<TARGET> happens to be F</dev/null> or if
+standard output is F</dev/null>, then the B<null> format will be chosen. If
+I<TARGET> is an existing directory, and does not equal to C<->, then the
+B<directory> format will be chosen. If I<TARGET> ends with C<.tar> or with one
+of the filename extensions listed in the section B<COMPRESSION>, or if
+I<TARGET> equals C<->, or if I<TARGET> is a named pipe (fifo) or if I<TARGET>
+is a character special file, then the B<tar> format will be chosen. If
+I<TARGET> ends with C<.squashfs> or C<.sqfs>, then the B<squashfs> format will
+be chosen. If <TARGET> ends with C<.ext2> then the B<ext2> format will be
+chosen. If none of these conditions apply, the B<directory> format will be
+chosen.
 
 =item B<directory>, B<dir>
 
@@ -6468,7 +6509,8 @@ A temporary chroot directory will be created in C<$TMPDIR> or F</tmp> if
 C<$TMPDIR> is not set. After the bootstrap is complete, the temporary chroot
 will be deleted without being part of the output. This is most useful when the
 desired artifact is generated inside the chroot and it is transferred using
-special hooks such as B<sync-out>.
+special hooks such as B<sync-out>. It is also useful in situations where only
+the exit code or stdout or stderr of a process run in a hook is of interest.
 
 =back
 
