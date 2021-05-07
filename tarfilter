@@ -80,8 +80,6 @@ dpkg(1) for information on how these two options work in detail.
                 prefix = prefix_prog.sub(r"\1", r.pattern)
                 prefix = prefix.rstrip("/")
                 if member.name[1:].startswith(prefix):
-                    if member.name == "./usr/share/doc/doc-debian":
-                        print("foo", prefix, "bar", file=sys.stderr)
                     return False
         return skip
 
