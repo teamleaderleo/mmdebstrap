@@ -5463,7 +5463,8 @@ sub main() {
     );
     # tar2sqfs and genext2fs do not support extended attributes
     if ($format eq "squashfs") {
-        warning "tar2sqfs does not support extended attributes";
+        warning
+          "disabling extended attributes because tar2sqfs only supports some";
     } elsif ($format eq "ext2") {
         warning "genext2fs does not support extended attributes";
     } else {
@@ -6487,8 +6488,11 @@ C<tar2sqfs> utility, which will create an xz compressed squashfs image with a
 blocksize of 1048576 bytes in I<TARGET>.  The special I<TARGET> C<-> does not
 work with this format because C<tar2sqfs> can only write to a regular file. If
 you need your squashfs image be named C<->, then just explicitly pass the
-relative path to it like F<./->. Since C<tar2sqfs> does not support extended
-attributes, the resulting image will not contain them.
+relative path to it like F<./->. The C<tar2sqfs> tool only supports a limited
+set of extended attribute prefixes. Therefore, extended attributes are disabled
+in the resulting image. If you need them, create a tarball first and remove the
+extended attributes from its pax headers. Refer to the B<EXAMPLES> section for
+how to achieve this.
 
 =item B<ext2>
 
@@ -6767,7 +6771,16 @@ Instead of a tarball, a squashfs image can be created:
 
 By default, B<mmdebstrap> runs B<tar2sqfs> with C<--no-skip --exportable
 --compressor xz --block-size 1048576>. To choose a different set of options,
-pipe the output of B<mmdebstrap> into B<tar2sqfs> manually.
+and to filter out all extended attributes not supported by B<tar2sqfs>, pipe
+the output of B<mmdebstrap> into B<tar2sqfs> manually like so:
+
+    $ mmdebstrap unstable \
+        | mmtarfilter --pax-exclude='*' \
+            --pax-include='SCHILY.xattr.user.*' \
+            --pax-include='SCHILY.xattr.trusted.*' \
+            --pax-include='SCHILY.xattr.security.*' \
+        | tar2sqfs --quiet --no-skip --force --exportable --compressor xz \
+            --block-size 1048576 unstable-chroot.squashfs
 
 By default, debootstrapping a stable distribution will add mirrors for security
 and updates to the sources.list.

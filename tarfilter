@@ -25,12 +25,20 @@ import fnmatch
 import re
 
 
-class FilterAction(argparse.Action):
+class PathFilterAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        items = getattr(namespace, "filter", [])
+        items = getattr(namespace, "pathfilter", [])
         regex = re.compile(fnmatch.translate(values))
         items.append((self.dest, regex))
-        setattr(namespace, "filter", items)
+        setattr(namespace, "pathfilter", items)
+
+
+class PaxFilterAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        items = getattr(namespace, "paxfilter", [])
+        regex = re.compile(fnmatch.translate(values))
+        items.append((self.dest, regex))
+        setattr(namespace, "paxfilter", items)
 
 
 def main():
@@ -39,22 +47,46 @@ def main():
 Filters a tarball on standard input by the same rules as the dpkg --path-exclude
 and --path-include options and writes resulting tarball to standard output. See
 dpkg(1) for information on how these two options work in detail.
+
+Similarly, filter out unwanted pax extended headers. This is useful in cases
+where a tool only accepts certain xattr prefixes. For example tar2sqfs only
+supports SCHILY.xattr.user.*, SCHILY.xattr.trusted.* and
+SCHILY.xattr.security.* but not SCHILY.xattr.system.posix_acl_default.*.
+
+Both types of options use Unix shell-style wildcards:
+
+       * matches everything
+       ? matches any single character
+   [seq] matches any character in seq
+  [!seq] matches any character not in seq
 """
     )
     parser.add_argument(
         "--path-exclude",
         metavar="pattern",
-        action=FilterAction,
+        action=PathFilterAction,
         help="Exclude path matching the given shell pattern.",
     )
     parser.add_argument(
         "--path-include",
         metavar="pattern",
-        action=FilterAction,
+        action=PathFilterAction,
         help="Re-include a pattern after a previous exclusion.",
     )
+    parser.add_argument(
+        "--pax-exclude",
+        metavar="pattern",
+        action=PaxFilterAction,
+        help="Exclude pax header matching the given globbing pattern.",
+    )
+    parser.add_argument(
+        "--pax-include",
+        metavar="pattern",
+        action=PaxFilterAction,
+        help="Re-include a pax header after a previous exclusion.",
+    )
     args = parser.parse_args()
-    if not hasattr(args, "filter"):
+    if not hasattr(args, "pathfilter") and not hasattr(args, "paxfilter"):
         from shutil import copyfileobj
 
         copyfileobj(sys.stdin.buffer, sys.stdout.buffer)
@@ -63,18 +95,18 @@ dpkg(1) for information on how these two options work in detail.
     # same logic as in dpkg/src/filters.c/filter_should_skip()
     prefix_prog = re.compile(r"^([^*?[\\]*).*")
 
-    def filter_should_skip(member):
+    def path_filter_should_skip(member):
         skip = False
-        if not args.filter:
+        if not hasattr(args, "pathfilter"):
             return False
-        for (t, r) in args.filter:
+        for (t, r) in args.pathfilter:
             if r.match(member.name[1:]) is not None:
                 if t == "path_include":
                     skip = False
                 else:
                     skip = True
         if skip and (member.isdir() or member.issym()):
-            for (t, r) in args.filter:
+            for (t, r) in args.pathfilter:
                 if t != "path_include":
                     continue
                 prefix = prefix_prog.sub(r"\1", r.pattern)
@@ -83,14 +115,32 @@ dpkg(1) for information on how these two options work in detail.
                     return False
         return skip
 
+    def pax_filter_should_skip(header):
+        if not hasattr(args, "paxfilter"):
+            return False
+        skip = False
+        for (t, r) in args.paxfilter:
+            if r.match(header) is None:
+                continue
+            if t == "pax_include":
+                skip = False
+            else:
+                skip = True
+        return skip
+
     # starting with Python 3.8, the default format became PAX_FORMAT, so this
     # is only for compatibility with older versions of Python 3
     with tarfile.open(fileobj=sys.stdin.buffer, mode="r|*") as in_tar, tarfile.open(
         fileobj=sys.stdout.buffer, mode="w|", format=tarfile.PAX_FORMAT
     ) as out_tar:
         for member in in_tar:
-            if filter_should_skip(member):
+            if path_filter_should_skip(member):
                 continue
+            member.pax_headers = {
+                k: v
+                for k, v in member.pax_headers.items()
+                if not pax_filter_should_skip(k)
+            }
             if member.isfile():
                 with in_tar.extractfile(member) as file:
                     out_tar.addfile(member, file)
