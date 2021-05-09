@@ -241,7 +241,7 @@ sub get_tar_compressor {
     } elsif ($filename =~ /\.(xz|txz)$/) {
         return ['xz', '--threads=0'];
     } elsif ($filename =~ /\.zst$/) {
-        return ['zstd'];
+        return ['zstd', '--threads=0'];
     }
     return;
 }
