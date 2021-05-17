@@ -5480,8 +5480,9 @@ sub main() {
     );
     # tar2sqfs and genext2fs do not support extended attributes
     if ($format eq "squashfs") {
-        warning
-          "disabling extended attributes because tar2sqfs only supports some";
+        warning("tar2sqfs does not support extended attributes"
+              . " from the 'system' namespace");
+        push @taropts, '--xattrs', '--xattrs-exclude=system.*';
     } elsif ($format eq "ext2") {
         warning "genext2fs does not support extended attributes";
     } else {
