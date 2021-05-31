@@ -6224,10 +6224,13 @@ Example: Setup chroot for installing a sub-essential busybox-based chroot with
 
     --setup-hook='mkdir -p "$1/bin"'
     --setup-hook='for p in awk cat chmod chown cp diff echo env grep less ln
-        mkdir mount rm rmdir sed sh sleep sort touch uname; do
+        mkdir mount rm rmdir sed sh sleep sort touch uname mktemp; do
         ln -s busybox "$1/bin/$p"; done'
     --setup-hook='echo root:x:0:0:root:/root:/bin/sh > "$1/etc/passwd"'
     --setup-hook='printf "root:x:0:\nmail:x:8:\nutmp:x:43:\n" > "$1/etc/group"'
+
+For a more elegant way to setup merged-/usr via symlinks and for setting up a
+sub-essential busybox-based chroot, see the B<--hook-dir> option below.
 
 =item B<--extract-hook>=I<command>
 
@@ -6300,9 +6303,13 @@ if the scripts in two directories depend upon each other, the scripts must be
 placed into a common directory and be named such that they get added in the
 correct order.
 
-Example: Run mmdebstrap with eatmydata
+Example 1: Run mmdebstrap with eatmydata
 
     --hook-dir=/usr/share/mmdebstrap/hooks/eatmydata
+
+Example 2: Setup chroot for installing a sub-essential busybox-based chroot
+
+    --hook-dir=/usr/share/mmdebstrap/hooks/busybox
 
 =item B<--skip>=I<stage>[,I<stage>,...]
 
