@@ -857,7 +857,23 @@ sub run_apt_progress {
         $line_has_error = sub {
             # apt-get doesn't report a non-zero exit if the update failed.
             # Thus, we have to parse its output. See #778357, #776152, #696335
-            # and #745735
+            # and #745735 for the parsing bugs as well as #594813, #696335,
+            # #776152, #778357 and #953726 for non-zero exit on transient
+            # network errors.
+            #
+            # For example, we want to fail with the following warning:
+            # W: Some index files failed to download. They have been ignored,
+            # or old ones used instead.
+            # But since this message is meant for human consumption it is not
+            # guaranteed to be stable across different apt versions and may
+            # change arbitrarily in the future. Thus, we error out on any W:
+            # lines as well. The downside is, that apt also unconditionally
+            # and by design prints a warning for unsigned repositories, even
+            # if they were allowed with Acquire::AllowInsecureRepositories "1"
+            # or with trusted=yes.
+            #
+            # A workaround was introduced by apt 2.1.16 with the --error-on=any
+            # option to apt-get update.
             if ($_[0] =~ /^(W: |Err:)/) {
                 return 1;
             }
@@ -1956,12 +1972,30 @@ sub run_setup() {
 sub run_update() {
     my $options = shift;
 
+    my $aptversion = version->new(0);
+    {
+        my $pid = open my $fh, '-|', 'apt-get',
+          '--version' // error "failed to fork(): $!";
+        chomp(my $firstline = <$fh>);
+        close $fh;
+        if (    $? == 0
+            and $firstline =~ /^apt ([0-9]+\.[0-9]+\.[0-9]+) \([a-z0-9-]+\)$/)
+        {
+            $aptversion = version->new($1);
+        }
+    }
+    my $aptopts = {
+        ARGV  => ['apt-get', 'update'],
+        CHDIR => $options->{root},
+    };
+    if ($aptversion < "2.1.16") {
+        $aptopts->{FIND_APT_WARNINGS} = 1;
+    } else {
+        push @{ $aptopts->{ARGV} }, '--error-on=any';
+    }
+
     info "running apt-get update...";
-    run_apt_progress({
-        ARGV              => ['apt-get', 'update'],
-        CHDIR             => $options->{root},
-        FIND_APT_WARNINGS => 1
-    });
+    run_apt_progress($aptopts);
 
     # check if anything was downloaded at all
     {
@@ -7022,7 +7056,7 @@ https://gitlab.mister-muffin.de/josch/mmdebstrap/issues
 
 https://bugs.debian.org/src:mmdebstrap
 
-As of version 1.19.5, dpkg does not provide facilities preventing it from
+As of version 1.20.9, dpkg does not provide facilities preventing it from
 reading the dpkg configuration of the machine running B<mmdebstrap>.
 Therefore, until this dpkg limitation is fixed, a default dpkg configuration is
 recommended on machines running B<mmdebstrap>. If you are using B<mmdebstrap>
@@ -7030,12 +7064,13 @@ as the non-root user, then as a workaround you could run C<chmod 600
 /etc/dpkg/dpkg.cfg.d/*> so that the config files are only accessible by the
 root user.
 
-Setting [trusted=yes] to allow signed archives without a known public key will
-fail because of a gpg warning in the apt output. Since apt does not
-communicate its status via any other means than human readable strings,
-B<mmdebstrap> treats any warning from "apt-get update" as an error. Fixing
-this will require apt to provide a machine readable status interface. See
-Debian bugs #778357, #776152, #696335, and #745735.
+With apt versions before 2.1.16, setting C<[trusted=yes]> or
+C<Acquire::AllowInsecureRepositories "1"> to allow signed archives without a
+known public key or unsigned archives will fail because of a gpg warning in the
+apt output. Since apt does not communicate its status via any other means than
+human readable strings, and because B<mmdebstrap> wants to treat transient
+network errors as errors, B<mmdebstrap> treats any warning from "apt-get
+update" as an error.
 
 =head1 SEE ALSO
 
