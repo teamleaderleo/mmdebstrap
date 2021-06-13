@@ -3016,8 +3016,15 @@ sub run_cleanup() {
         # apt since 1.6 creates the auxfiles directory. If apt inside the
         # chroot is older than that, then it will not know how to clean it.
         if (-e "$options->{root}/var/lib/apt/lists/auxfiles") {
-            rmdir "$options->{root}/var/lib/apt/lists/auxfiles"
-              or die "cannot rmdir /var/lib/apt/lists/auxfiles: $!";
+            remove_tree("$options->{root}/var/lib/apt/lists/auxfiles",
+                { error => \my $err });
+            if (@$err) {
+                for my $diag (@$err) {
+                    my ($file, $message) = %$diag;
+                    if ($file eq '') { warning "general error: $message"; }
+                    else { warning "problem unlinking $file: $message"; }
+                }
+            }
         }
     }
 
