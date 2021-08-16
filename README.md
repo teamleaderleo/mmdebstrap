@@ -139,7 +139,7 @@ https://gitlab.mister-muffin.de/josch/mmdebstrap/issues
 Contributors
 ============
 
- - Johannes Schauer (main author)
+ - Johannes Schauer Marin Rodrigues (main author)
  - Helmut Grohne
  - Benjamin Drung
  - Steve Dodd
