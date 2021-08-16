@@ -54,7 +54,7 @@ fi
 
 # check if all required debootstrap tarballs exist
 notfound=0
-for dist in stable testing unstable; do
+for dist in oldstable stable testing unstable; do
 	for variant in minbase buildd -; do
 		if [ ! -e "shared/cache/debian-$dist-$variant.tar" ]; then
 			echo "shared/cache/debian-$dist-$variant.tar does not exist" >&2
@@ -120,7 +120,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=193
+total=196
 skipped=0
 runtests=0
 i=1
@@ -160,7 +160,7 @@ fi
 : "${CMD:=perl -MDevel::Cover=-silent,-nogcov ./mmdebstrap}"
 mirror="http://127.0.0.1/debian"
 
-for dist in stable testing unstable; do
+for dist in oldstable stable testing unstable; do
 	for variant in minbase buildd -; do
 		print_header "mode=$defaultmode,variant=$variant: check against debootstrap $dist"
 		cat << END > shared/test.sh
@@ -265,7 +265,7 @@ if [ "$variant" = "-" ]; then
 
 	cap=\$(chroot /tmp/debian-$dist-debootstrap /sbin/getcap /bin/ping)
 	expected="/bin/ping cap_net_raw=ep"
-	if [ "$dist" = stable ]; then
+	if [ "$dist" = oldstable ]; then
 		expected="/bin/ping = cap_net_raw+ep"
 	fi
 	if [ "\$cap" != "\$expected" ]; then
@@ -678,18 +678,18 @@ for variant in essential apt minbase buildd important standard; do
 			skipped=$((skipped+1))
 			continue
 		fi
-		if [ "$variant" = "important" ] && [ "$DEFAULT_DIST" = "stable" ]; then
-			echo "skipping test on stable because /var/lib/systemd/catalog/database differs" >&2
+		if [ "$variant" = "important" ] && [ "$DEFAULT_DIST" = "oldstable" ]; then
+			echo "skipping test on oldstable because /var/lib/systemd/catalog/database differs" >&2
 			skipped=$((skipped+1))
 			continue
 		fi
-		if [ "$format" = "squashfs" ] && [ "$DEFAULT_DIST" = "stable" ]; then
-			echo "skipping test on stable because squashfs-tools-ng is not available" >&2
+		if [ "$format" = "squashfs" ] && [ "$DEFAULT_DIST" = "oldstable" ]; then
+			echo "skipping test on oldstable because squashfs-tools-ng is not available" >&2
 			skipped=$((skipped+1))
 			continue
 		fi
-		if [ "$format" = "ext2" ] && [ "$DEFAULT_DIST" = "stable" ]; then
-			echo "skipping test on stable because genext2fs does not support SOURCE_DATE_EPOCH" >&2
+		if [ "$format" = "ext2" ] && [ "$DEFAULT_DIST" = "oldstable" ]; then
+			echo "skipping test on oldstable because genext2fs does not support SOURCE_DATE_EPOCH" >&2
 			skipped=$((skipped+1))
 			continue
 		fi
@@ -790,8 +790,8 @@ runuser -u user -- $CMD --unshare-helper /usr/sbin/chroot /tmp/debian-chroot get
 rm /tmp/debian-chroot.tar /tmp/debian-chroot-shifted.tar /tmp/debian-chroot.txt /tmp/debian-chroot-shiftedback.tar /tmp/expected
 rm -r /tmp/debian-chroot
 END
-if [ "$DEFAULT_DIST" = "stable" ]; then
-	echo "the python3 tarfile module in stable does not preserve xattrs -- Skipping test..." >&2
+if [ "$DEFAULT_DIST" = "oldstable" ]; then
+	echo "the python3 tarfile module in oldstable does not preserve xattrs -- Skipping test..." >&2
 	skipped=$((skipped+1))
 elif [ "$HAVE_QEMU" = "yes" ]; then
 	./run_qemu.sh
@@ -1115,8 +1115,8 @@ sqfs2tar --no-skip --root-becomes . /tmp/debian-chroot.squashfs | tar -t \
 	| sort | diff -u /tmp/tar1noslash.txt -
 rm /tmp/debian-chroot.squashfs /tmp/tar1noslash.txt
 END
-if [ "$DEFAULT_DIST" = "stable" ]; then
-	echo "skipping test on stable because squashfs-tools-ng is not available" >&2
+if [ "$DEFAULT_DIST" = "oldstable" ]; then
+	echo "skipping test on oldstable because squashfs-tools-ng is not available" >&2
 	skipped=$((skipped+1))
 elif [ "$HAVE_QEMU" = "yes" ]; then
 	./run_qemu.sh
@@ -1131,8 +1131,8 @@ fi
 
 for mode in root unshare fakechroot proot; do
 	print_header "mode=$mode,variant=apt: test ext2 image"
-	if [ "$DEFAULT_DIST" = "stable" ]; then
-		echo "skipping test on stable because genext2fs does not support SOURCE_DATE_EPOCH" >&2
+	if [ "$DEFAULT_DIST" = "oldstable" ]; then
+		echo "skipping test on oldstable because genext2fs does not support SOURCE_DATE_EPOCH" >&2
 		skipped=$((skipped+1))
 		continue
 	fi
@@ -1344,7 +1344,7 @@ $CMD --mode=root --variant=apt stable /tmp/debian-chroot
 cat << SOURCES | cmp /tmp/debian-chroot/etc/apt/sources.list
 deb http://deb.debian.org/debian stable main
 deb http://deb.debian.org/debian stable-updates main
-deb http://security.debian.org/debian-security stable/updates main
+deb http://security.debian.org/debian-security stable-security main
 SOURCES
 rm -r /tmp/debian-chroot
 END
@@ -2933,8 +2933,8 @@ for variant in extract custom essential apt minbase buildd important standard; d
 		skipped=$((skipped+1))
 		continue
 	fi
-	if [ "$variant" = "important" ] && [ "$DEFAULT_DIST" = "stable" ]; then
-		echo "skipping test on stable because /var/lib/systemd/catalog/database differs" >&2
+	if [ "$variant" = "important" ] && [ "$DEFAULT_DIST" = "oldstable" ]; then
+		echo "skipping test on oldstable because /var/lib/systemd/catalog/database differs" >&2
 		skipped=$((skipped+1))
 		continue
 	fi
@@ -3404,8 +3404,8 @@ prefix=
 [ "\$(id -u)" -eq 0 ] && prefix="runuser -u user --"
 \$prefix $CMD --mode=chrootless --variant=custom --include=bsdutils,coreutils,debianutils,diffutils,dpkg,findutils,grep,gzip,hostname,init-system-helpers,ncurses-base,ncurses-bin,perl-base,sed,sysvinit-utils,tar $DEFAULT_DIST /dev/null $mirror
 END
-if [ "$DEFAULT_DIST" = "stable" ]; then
-	echo "chrootless doesn't work in stable -- Skipping test..." >&2
+if [ "$DEFAULT_DIST" = "oldstable" ]; then
+	echo "chrootless doesn't work in oldstable -- Skipping test..." >&2
 	skipped=$((skipped+1))
 elif [ "$HAVE_QEMU" = "yes" ]; then
 	./run_qemu.sh

@@ -20,7 +20,7 @@ deletecache() {
 		return 1
 	fi
 	# be very careful with removing the old directory
-	for dist in stable testing unstable; do
+	for dist in oldstable stable testing unstable; do
 		for variant in minbase buildd -; do
 			if [ -e "$dir/debian-$dist-$variant.tar" ]; then
 				rm "$dir/debian-$dist-$variant.tar"
@@ -33,18 +33,30 @@ deletecache() {
 		else
 			echo "does not exist: $dir/debian/dists/$dist" >&2
 		fi
-		if [ "$dist" = "stable" ]; then
-			if [ -e "$dir/debian/dists/stable-updates" ]; then
-				rm --one-file-system --recursive "$dir/debian/dists/stable-updates"
+		case "$dist" in oldstable|stable)
+			if [ -e "$dir/debian/dists/$dist-updates" ]; then
+				rm --one-file-system --recursive "$dir/debian/dists/$dist-updates"
 			else
-				echo "does not exist: $dir/debian/dists/stable-updates" >&2
+				echo "does not exist: $dir/debian/dists/$dist-updates" >&2
 			fi
-			if [ -e "$dir/debian-security/dists/stable/updates" ]; then
-				rm --one-file-system --recursive "$dir/debian-security/dists/stable/updates"
-			else
-				echo "does not exist: $dir/debian-security/dists/stable/updates" >&2
-			fi
-		fi
+			;;
+		esac
+		case "$dist" in
+			oldstable)
+				if [ -e "$dir/debian-security/dists/$dist/updates" ]; then
+					rm --one-file-system --recursive "$dir/debian-security/dists/$dist/updates"
+				else
+					echo "does not exist: $dir/debian-security/dists/$dist/updates" >&2
+				fi
+				;;
+			stable)
+				if [ -e "$dir/debian-security/dists/$dist-security" ]; then
+					rm --one-file-system --recursive "$dir/debian-security/dists/$dist-security"
+				else
+					echo "does not exist: $dir/debian-security/dists/$dist-security" >&2
+				fi
+				;;
+		esac
 	done
 	if [ -e $dir/debian-*.qcow ]; then
 		rm --one-file-system "$dir"/debian-*.qcow
@@ -216,7 +228,6 @@ END
 
 	> "$rootdir/var/lib/dpkg/status"
 
-
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get update
 
 	# before downloading packages and before replacing the old Packages
@@ -225,10 +236,18 @@ END
 	# packages that we already have
 	{
 		get_oldaptnames "$oldmirrordir" "dists/$dist/main/binary-$nativearch/Packages.gz"
-		if grep --quiet security.debian.org "$rootdir/etc/apt/sources.list"; then
-			get_oldaptnames "$oldmirrordir" "dists/stable-updates/main/binary-$nativearch/Packages.gz"
-			get_oldaptnames "$oldcachedir/debian-security" "dists/stable/updates/main/binary-$nativearch/Packages.gz"
-		fi
+		case "$dist" in oldstable|stable)
+			get_oldaptnames "$oldmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.gz"
+			;;
+		esac
+		case "$dist" in
+			oldstable)
+				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.gz"
+				;;
+			stable)
+				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.gz"
+				;;
+		esac
 	} | sort -u > "$rootdir/oldaptnames"
 
 	pkgs=$(APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get indextargets \
@@ -248,16 +267,27 @@ END
 	curl --location "$mirror/dists/$dist/Release" > "$newmirrordir/dists/$dist/Release"
 	curl --location "$mirror/dists/$dist/Release.gpg" > "$newmirrordir/dists/$dist/Release.gpg"
 	curl --location "$mirror/dists/$dist/main/binary-$nativearch/Packages.gz" > "$newmirrordir/dists/$dist/main/binary-$nativearch/Packages.gz"
-	if grep --quiet security.debian.org "$rootdir/etc/apt/sources.list"; then
-		mkdir -p "$newmirrordir/dists/stable-updates/main/binary-$nativearch/"
-		curl --location "$mirror/dists/stable-updates/Release" > "$newmirrordir/dists/stable-updates/Release"
-		curl --location "$mirror/dists/stable-updates/Release.gpg" > "$newmirrordir/dists/stable-updates/Release.gpg"
-		curl --location "$mirror/dists/stable-updates/main/binary-$nativearch/Packages.gz" > "$newmirrordir/dists/stable-updates/main/binary-$nativearch/Packages.gz"
-		mkdir -p "$newcachedir/debian-security/dists/stable/updates/main/binary-$nativearch/"
-		curl --location "$security_mirror/dists/stable/updates/Release" > "$newcachedir/debian-security/dists/stable/updates/Release"
-		curl --location "$security_mirror/dists/stable/updates/Release.gpg" > "$newcachedir/debian-security/dists/stable/updates/Release.gpg"
-		curl --location "$security_mirror/dists/stable/updates/main/binary-$nativearch/Packages.gz" > "$newcachedir/debian-security/dists/stable/updates/main/binary-$nativearch/Packages.gz"
-	fi
+	case "$dist" in oldstable|stable)
+		mkdir -p "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/"
+		curl --location "$mirror/dists/$dist-updates/Release" > "$newmirrordir/dists/$dist-updates/Release"
+		curl --location "$mirror/dists/$dist-updates/Release.gpg" > "$newmirrordir/dists/$dist-updates/Release.gpg"
+		curl --location "$mirror/dists/$dist-updates/main/binary-$nativearch/Packages.gz" > "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/Packages.gz"
+		;;
+	esac
+	case "$dist" in
+		oldstable)
+			mkdir -p "$newcachedir/debian-security/dists/$dist/updates/main/binary-$nativearch/"
+			curl --location "$security_mirror/dists/$dist/updates/Release" > "$newcachedir/debian-security/dists/$dist/updates/Release"
+			curl --location "$security_mirror/dists/$dist/updates/Release.gpg" > "$newcachedir/debian-security/dists/$dist/updates/Release.gpg"
+			curl --location "$security_mirror/dists/$dist/updates/main/binary-$nativearch/Packages.gz" > "$newcachedir/debian-security/dists/$dist/updates/main/binary-$nativearch/Packages.gz"
+			;;
+		stable)
+			mkdir -p "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/"
+			curl --location "$security_mirror/dists/$dist-security/Release" > "$newcachedir/debian-security/dists/$dist-security/Release"
+			curl --location "$security_mirror/dists/$dist-security/Release.gpg" > "$newcachedir/debian-security/dists/$dist-security/Release.gpg"
+			curl --location "$security_mirror/dists/$dist-security/main/binary-$nativearch/Packages.gz" > "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/Packages.gz"
+			;;
+	esac
 
 	# the deb files downloaded by apt must be moved to their right locations in the
 	# pool directory
@@ -269,10 +299,18 @@ END
 	# This way, it doesn't matter where the mirror ends up storing the package.
 	{
 		get_newaptnames "$newmirrordir" "dists/$dist/main/binary-$nativearch/Packages.gz";
-		if grep --quiet security.debian.org "$rootdir/etc/apt/sources.list"; then
-			get_newaptnames "$newmirrordir" "dists/stable-updates/main/binary-$nativearch/Packages.gz"
-			get_newaptnames "$newcachedir/debian-security" "dists/stable/updates/main/binary-$nativearch/Packages.gz"
-		fi
+		case "$dist" in oldstable|stable)
+			get_newaptnames "$newmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.gz"
+			;;
+		esac
+		case "$dist" in
+			oldstable)
+				get_newaptnames "$newcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.gz"
+				;;
+			stable)
+				get_newaptnames "$newcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.gz"
+				;;
+		esac
 	} | sort -u > "$rootdir/newaptnames"
 
 	rm "$rootdir/var/cache/apt/archives/lock"
@@ -363,22 +401,33 @@ else
 fi
 
 for nativearch in $arches; do
-	for dist in stable testing unstable; do
+	for dist in oldstable stable testing unstable; do
 		# non-host architectures are only downloaded for $DEFAULT_DIST
 		if [ $nativearch != $HOSTARCH ] && [ $DEFAULT_DIST != $dist ]; then
 			continue
 		fi
-		cat << END | update_cache "$dist" "$nativearch"
+		# we need a first pass without updates and security patches
+		# because otherwise, old package versions needed by
+		# debootstrap will not get included
+		echo "deb [arch=$nativearch] $mirror $dist $components" | update_cache "$dist" "$nativearch"
+		# we need to include the base mirror again or otherwise
+		# packages like build-essential will be missing
+		case "$dist" in
+			oldstable)
+				cat << END | update_cache "$dist" "$nativearch"
 deb [arch=$nativearch] $mirror $dist $components
+deb [arch=$nativearch] $mirror $dist-updates main
+deb [arch=$nativearch] $security_mirror $dist/updates main
 END
-		if [ "$dist" = "stable" ]; then
-			# starting wit bullseye, stable/updates becomes stable-security
-			cat << END | update_cache "$dist" "$nativearch"
+				;;
+			stable)
+				cat << END | update_cache "$dist" "$nativearch"
 deb [arch=$nativearch] $mirror $dist $components
-deb [arch=$nativearch] $mirror stable-updates main
-deb [arch=$nativearch] $security_mirror stable/updates main
+deb [arch=$nativearch] $mirror $dist-updates main
+deb [arch=$nativearch] $security_mirror $dist-security main
 END
-		fi
+				;;
+		esac
 	done
 done
 
@@ -427,7 +476,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	trap "cleanuptmpdir; cleanup_newcachedir" EXIT INT TERM
 
 	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils
-	if [ "$DEFAULT_DIST" != "stable" ]; then
+	if [ "$DEFAULT_DIST" != "oldstable" ]; then
 		pkgs="$pkgs,squashfs-tools-ng,genext2fs"
 	fi
 	if [ "$HAVE_PROOT" = "yes" ]; then
@@ -579,7 +628,7 @@ END
 fi
 
 mirror="http://127.0.0.1/debian"
-for dist in stable testing unstable; do
+for dist in oldstable stable testing unstable; do
 	for variant in minbase buildd -; do
 		echo "running debootstrap --no-merged-usr --variant=$variant $dist \${TEMPDIR} $mirror"
 		cat << END > shared/test.sh

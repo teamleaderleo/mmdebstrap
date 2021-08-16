@@ -4163,6 +4163,8 @@ sub get_sourceslist_by_suite {
               or error "cannot open $distro_info: $!";
             my $i = 0;
             my $matching_version;
+            my @releases;
+            my $today = POSIX::strftime "%Y-%m-%d", localtime;
             while (my $line = <$fh>) {
                 chomp($line);
                 $i++;
@@ -4185,6 +4187,11 @@ sub get_sourceslist_by_suite {
                 if ($i == 1) {
                     next;
                 }
+                if (    scalar @cells > 4
+                    and $cells[4] =~ m/^\d\d\d\d-\d\d-\d\d$/
+                    and $cells[4] lt $today) {
+                    push @releases, $cells[0];
+                }
                 if (lc $cells[1] eq $suite or lc $cells[2] eq $suite) {
                     $matching_version = $cells[0];
                     last;
@@ -4194,9 +4201,15 @@ sub get_sourceslist_by_suite {
             if (defined $matching_version and $matching_version >= 11) {
                 $bullseye_or_later = 1;
             }
+            if ($suite eq "stable" and $releases[-1] >= 11) {
+                $bullseye_or_later = 1;
+            }
         } else {
             # neither libdistro-info-perl nor distro-info-data is installed
-            if (any { $_ eq $suite } ('bullseye', 'bookworm', 'trixie')) {
+            if (
+                any { $_ eq $suite }
+                ('stable', 'bullseye', 'bookworm', 'trixie')
+            ) {
                 $bullseye_or_later = 1;
             }
         }
