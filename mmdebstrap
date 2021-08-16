@@ -2776,6 +2776,13 @@ sub run_essential() {
         # we need --force-depends because dpkg does not take Pre-Depends
         # into account and thus doesn't install them in the right order
         # And the --predep-package option is broken: #539133
+        #
+        # We could use apt from outside the chroot using DPkg::Chroot-Directory
+        # but then the preinst script of base-passwd will not be called early
+        # enough and packages will fail to install because they are missing
+        # /etc/passwd. Also, with plain dpkg the essential variant can finish
+        # within 9 seconds. If we use apt instead, it becomes 12 seconds. We
+        # prefer speed here.
         if ($options->{dryrun}) {
             info "simulate installing essential packages...";
         } else {
@@ -2839,176 +2846,26 @@ sub run_install() {
     ) {
         if ($options->{variant} ne 'custom'
             and scalar @{$pkgs_to_install} > 0) {
-            # some packages have to be installed from the outside before
-            # anything can be installed from the inside.
+            # Advantage of running apt on the outside instead of inside the
+            # chroot:
             #
-            # we do not need to install any *-archive-keyring packages
-            # inside the chroot prior to installing the packages, because
-            # the keyring is only used when doing "apt-get update" and that
-            # was already done at the beginning using key material from the
-            # outside. Since the apt cache is already filled and we are not
-            # calling "apt-get update" again, the keyring can be installed
-            # later during installation. But: if it's not installed during
-            # installation, then we might end up with a fully installed
-            # system without keyrings that are valid for its sources.list.
-            my @pkgs_to_install_from_outside;
-
-            # install apt if necessary
-            if ($options->{variant} ne 'apt') {
-                push @pkgs_to_install_from_outside, 'apt';
-            }
-
-            # since apt will be run inside the chroot, make sure that
-            # apt-transport-https and ca-certificates gets installed first
-            # if any mirror is a https URI
-            open(my $pipe_apt, '-|', 'apt-get', 'indextargets',
-                '--format', '$(URI)', 'Created-By: Packages')
-              or error "cannot start apt-get indextargets: $!";
-            while (my $uri = <$pipe_apt>) {
-                if ($uri =~ /^https:\/\//) {
-                    info "https mirror found -- adding apt-transport-https "
-                      . "and ca-certificates";
-                    # FIXME: support for https is part of apt >= 1.5
-                    push @pkgs_to_install_from_outside, 'apt-transport-https';
-                    push @pkgs_to_install_from_outside, 'ca-certificates';
-                    last;
-                } elsif ($uri =~ /^tor(\+[a-z]+)*:\/\//) {
-                    # tor URIs can be tor+http://, tor+https:// or even
-                    # tor+mirror+file://
-                    info "tor mirror found -- adding apt-transport-tor";
-                    push @pkgs_to_install_from_outside, 'apt-transport-tor';
-                    last;
-                }
-            }
-            close $pipe_apt;
-            $? == 0 or error "apt-get indextargets failed";
-
-            if (scalar @pkgs_to_install_from_outside > 0) {
-                my @cached_debs = ();
-                my @dl_debs     = ();
-                # /var/cache/apt/archives/ might not be empty either because
-                # the user used hooks to populate it or because skip options
-                # like essential/unlink or check/empty were used.
-                {
-                    my $apt_archives = "/var/cache/apt/archives/";
-                    opendir my $dh, "$options->{root}/$apt_archives"
-                      or error "cannot read $apt_archives";
-                    while (my $deb = readdir $dh) {
-                        if ($deb !~ /\.deb$/) {
-                            next;
-                        }
-                        if (!-f "$options->{root}/$apt_archives/$deb") {
-                            next;
-                        }
-                        push @cached_debs, $deb;
-                    }
-                    closedir $dh;
-                }
-                my %result = ();
-                if ($options->{dryrun}) {
-                    info 'simulate downloading '
-                      . (join ', ', @pkgs_to_install_from_outside) . "...";
-                } else {
-                    if (scalar @cached_debs > 0) {
-                        $result{EDSP_RES} = \@dl_debs;
-                    }
-                    info 'downloading '
-                      . (join ', ', @pkgs_to_install_from_outside) . "...";
-                }
-                run_apt_progress({
-                        ARGV => [
-                            'apt-get',
-                            '--yes',
-                            '-oApt::Get::Download-Only=true',
-                            $options->{dryrun}
-                            ? '-oAPT::Get::Simulate=true'
-                            : (),
-                            'install'
-                        ],
-                        PKGS => [@pkgs_to_install_from_outside],
-                        %result
-                    });
-                if ($options->{dryrun}) {
-                    info 'simulate installing '
-                      . (join ', ', @pkgs_to_install_from_outside) . "...";
-                } else {
-                    my @debs_to_install;
-                    if (scalar @cached_debs > 0 && scalar @dl_debs > 0) {
-                        my $archives = "/var/cache/apt/archives/";
-                        my $prefix   = "$options->{root}/$archives";
-                        # for each package in @dl_debs, check if it's in
-                        # /var/cache/apt/archives/ and add it to
-                        # @debs_to_install
-                        foreach my $p (@dl_debs) {
-                            my ($pkg, $ver_epoch) = @{$p};
-                            # apt appends the architecture at the end of the
-                            # package name
-                            ($pkg, my $arch) = split ':', $pkg, 2;
-                            # apt replaces the colon by its percent encoding
-                            my $ver = $ver_epoch;
-                            $ver =~ s/:/%3a/;
-                            # the architecture returned by apt is the native
-                            # architecture. Since we don't know whether the
-                            # package is architecture independent or not, we
-                            # first try with the native arch and then
-                            # with "all" and only error out if neither exists.
-                            if (-e "$prefix/${pkg}_${ver}_$arch.deb") {
-                                push @debs_to_install,
-                                  "$archives/${pkg}_${ver}_$arch.deb";
-                            } elsif (-e "$prefix/${pkg}_${ver}_all.deb") {
-                                push @debs_to_install,
-                                  "$archives/${pkg}_${ver}_all.deb";
-                            } else {
-                                error(  "cannot find package for "
-                                      . "$pkg:$arch (= $ver_epoch) "
-                                      . "in /var/cache/apt/archives/");
-                            }
-                        }
-                    } else {
-                        my $apt_archives = "/var/cache/apt/archives/";
-                        opendir my $dh, "$options->{root}/$apt_archives"
-                          or error "cannot read $apt_archives";
-                        while (my $deb = readdir $dh) {
-                            if ($deb !~ /\.deb$/) {
-                                next;
-                            }
-                            $deb = "$apt_archives/$deb";
-                            if (!-f "$options->{root}/$deb") {
-                                next;
-                            }
-                            push @debs_to_install, $deb;
-                        }
-                        closedir $dh;
-                    }
-                    if (scalar @debs_to_install == 0) {
-                        warning "nothing got downloaded -- maybe the packages"
-                          . " were already installed?";
-                    } else {
-                        # we need --force-depends because dpkg does not take
-                        # Pre-Depends into account and thus doesn't install
-                        # them in the right order
-                        info 'installing '
-                          . (join ', ', @pkgs_to_install_from_outside) . "...";
-                        run_dpkg_progress({
-                                ARGV => [
-                                    @{$chrootcmd}, 'dpkg',
-                                    '--install',   '--force-depends'
-                                ],
-                                PKGS => \@debs_to_install,
-                            });
-                        foreach my $deb (@debs_to_install) {
-                            # do not unlink those packages that were in
-                            # /var/cache/apt/archive before the install phase
-                            next
-                              if any { "/var/cache/apt/archives/$_" eq $deb }
-                            @cached_debs;
-                            unlink "$options->{root}/$deb"
-                              or error "cannot unlink $deb: $!";
-                        }
-                    }
-                }
-            }
-
+            #  - we can build chroots without apt (for example from buildinfo
+            #    files)
+            #
+            #  - we do not need to install additional packages like
+            #    apt-transport-* or ca-certificates inside the chroot
+            #
+            #  - we do not not need additional key material inside the chroot
+            #
+            #  - we can make use of file:// and copy://
+            #
+            # The DPkg::Install::Recursive::force=true workaround can be
+            # dropped after this issue is fixed:
+            # https://salsa.debian.org/apt-team/apt/-/merge_requests/178
+            #
+            # We could also move the dpkg call to the outside and run dpkg with
+            # --root but this would only make sense in situations where there
+            # is no dpkg inside the chroot.
             if (!$options->{dryrun}) {
                 run_chroot(
                     sub {
@@ -3016,8 +2873,19 @@ sub run_install() {
                           . " chroot...";
                         run_apt_progress({
                                 ARGV => [
-                                    @{$chrootcmd}, 'apt-get',
-                                    '--yes',       'install'
+                                    'apt-get',
+                                    '-o',
+                                    'Dir::Bin::dpkg=env',
+                                    '-o',
+                                    'DPkg::Options::=--unset=TMPDIR',
+                                    '-o',
+                                    'DPkg::Options::=dpkg',
+                                    '-o',
+                                    'DPkg::Install::Recursive::force=true',
+                                    '-o',
+                                    "DPkg::Chroot-Directory=$options->{root}",
+                                    '--yes',
+                                    'install'
                                 ],
                                 PKGS => $pkgs_to_install,
                             });
@@ -4494,12 +4362,6 @@ sub main() {
     # debootstrap and - are an alias for important
     if (any { $_ eq $options->{variant} } ('-', 'debootstrap')) {
         $options->{variant} = 'important';
-    }
-
-    if ($options->{variant} eq 'essential'
-        and scalar @{ $options->{include} } > 0) {
-        warning "cannot install extra packages with variant essential because"
-          . " apt is missing";
     }
 
     # fakeroot is an alias for fakechroot
@@ -6166,9 +6028,7 @@ option depends on the selected variant. The B<extract> and B<custom> variants
 install no packages by default, so for these variants, the packages specified
 by this option will be the only ones that get either extracted or installed by
 dpkg, respectively.  For all other variants, apt is used to install the
-additional packages. The B<essential> variant does not include apt and thus,
-the include option will only work when the B<chrootless> mode is selected and
-thus apt from the outside can be used. Package names are directly passed to
+additional packages. Package names are directly passed to
 apt and thus, you can use apt features like C<pkg/suite>, C<pkg=version>,
 C<pkg-> or use a glob or regex for C<pkg>. See apt(8) for the supported
 syntax. The option can be specified multiple times and the packages are

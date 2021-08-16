@@ -168,7 +168,14 @@ for dist in oldstable stable testing unstable; do
 set -eu
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
-$CMD --variant=$variant --mode=$defaultmode $dist /tmp/debian-$dist-mm.tar $mirror
+
+# we create the apt user ourselves or otherwise its uid/gid will differ
+# compared to the one chosen in debootstrap because of different installation
+# order in comparison to the systemd users
+# https://bugs.debian.org/969631
+$CMD --variant=$variant --mode=$defaultmode \
+	--essential-hook='if [ $variant = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "\$1"/etc/passwd; fi' \
+	$dist /tmp/debian-$dist-mm.tar $mirror
 
 mkdir /tmp/debian-$dist-mm
 tar --xattrs --xattrs-include='*' -C /tmp/debian-$dist-mm -xf /tmp/debian-$dist-mm.tar
@@ -2887,7 +2894,7 @@ cat << END > shared/test.sh
 set -eu
 export LC_ALL=C.UTF-8
 $CMD --mode=$defaultmode --variant=essential --include=apt --setup-hook="apt-get update" --setup-hook="apt-get --yes -oApt::Get::Download-Only=true install apt" $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
-tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+tar -tf /tmp/debian-chroot.tar | sort | grep -v ./var/lib/apt/extended_states | diff -u tar1.txt -
 rm /tmp/debian-chroot.tar
 END
 if [ "$HAVE_QEMU" = "yes" ]; then
