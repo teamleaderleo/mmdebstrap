@@ -143,3 +143,7 @@ Contributors
  - Helmut Grohne
  - Benjamin Drung
  - Steve Dodd
+ - Josh Triplett
+ - Konstantin Demin
+ - Trent W. Buck
+ - Vagrant Cascadian
