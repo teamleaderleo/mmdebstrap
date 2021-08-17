@@ -2142,12 +2142,54 @@ sub run_download() {
                 ],
                 %result
             });
+    } elsif ($options->{variant} eq 'essential') {
+        # 2021-06-07, #debian-apt on OFTC, times in UTC+2
+        # 17:27 < DonKult> (?essential includes 'apt' through)
+        # 17:30 < josch> DonKult: no, because pkgCacheGen::ForceEssential ",";
+        # 17:32 < DonKult> touché
+        my %result = ();
+        if ($options->{dryrun}) {
+            info "simulate downloading packages with apt...";
+        } else {
+            # if there are already packages in /var/cache/apt/archives/, we
+            # need to use our proxysolver to obtain the solution chosen by apt
+            if (scalar @cached_debs > 0) {
+                $result{EDSP_RES} = \@dl_debs;
+            }
+            info "downloading packages with apt...";
+        }
+        run_apt_progress({
+                ARGV => [
+                    'apt-get',
+                    '--yes',
+                    '-oApt::Get::Download-Only=true',
+                    $options->{dryrun} ? '-oAPT::Get::Simulate=true' : (),
+                    'install',
+                    '?narrow('
+                      . (
+                        defined($options->{suite})
+                        ? '?archive(' . $options->{suite} . '),'
+                        : ''
+                      )
+                      . '?architecture('
+                      . $options->{nativearch}
+                      . '),?essential)'
+                ],
+                %result
+            });
     } elsif (
-        any { $_ eq $options->{variant} } (
-            'essential', 'standard', 'important', 'required', 'buildd',
-            'minbase'
-        )
+        any { $_ eq $options->{variant} }
+        ('standard', 'important', 'required', 'minbase', 'buildd')
     ) {
+        # In the future, after bug https://bugs.debian.org/989558 is fixed, we
+        # want to use apt patterns to select the packages to install:
+        #
+        # ?narrow(?archive(unstable),?architecture(amd64),?priority(important))
+        #
+        # Once this is possible, we can append above statement to the apt-get
+        # install call in run_download() instead of assembling the package list
+        # here and passing it through all the way. Then this function only
+        # takes care of retrieving the essential packages.
         my %ess_pkgs;
         my %ess_pkgs_target;
         my %pkgs_to_install_target = %pkgs_to_install;
@@ -5880,8 +5922,7 @@ symbolic name (eg, unstable, testing, stable, oldstable). Any suite name that
 works with apt on the given mirror will work. If no I<SUITE> was specified,
 then a single I<MIRROR> C<-> is added and thus the information of the desired
 suite has to come from standard input as part of a valid apt sources.list file.
-If mmdebstrap is instructed to retrieve packages from multiple releases, then
-the value of the I<SUITE> argument will be used to determine which apt index to
+The value of the I<SUITE> argument will be used to determine which apt index to
 use for finding out the set of C<Essential:yes> packages and/or the set of
 packages with the right priority for the selected variant. See the section
 B<VARIANTS> for more information.
@@ -6322,9 +6363,9 @@ B<chroot(1)>.
 All package sets also include the direct and indirect hard dependencies (but
 not recommends) of the selected package sets. The variants B<minbase>,
 B<buildd> and B<->, resemble the package sets that debootstrap would install
-with the same I<--variant> argument. If multiple releases are passed as apt
-sources to B<mmdebstrap>, then the release with a name matching the I<SUITE>
-argument will be used to determine the C<Essential:yes> and priority values.
+with the same I<--variant> argument. The release with a name matching the
+I<SUITE> argument will be used to determine the C<Essential:yes> and priority
+values.
 
 =over 8
 
