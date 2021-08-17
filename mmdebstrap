@@ -1444,11 +1444,19 @@ sub setup {
         warning "cannot read $options->{apttrustedparts}";
     }
 
-    run_setup($options);
+    if (any { $_ eq 'setup' } @{ $options->{skip} }) {
+        info "skipping setup as requested";
+    } else {
+        run_setup($options);
+    }
 
     run_hooks('setup', $options);
 
-    run_update($options);
+    if (any { $_ eq 'update' } @{ $options->{skip} }) {
+        info "skipping update as requested";
+    } else {
+        run_update($options);
+    }
 
     (my $pkgs_to_install, my $essential_pkgs, my $cached_debs)
       = run_download($options);
@@ -1480,7 +1488,11 @@ sub setup {
         run_hooks('customize', $options);
     }
 
-    run_cleanup($options);
+    if (any { $_ eq 'cleanup' } @{ $options->{skip} }) {
+        info "skipping cleanup as requested";
+    } else {
+        run_cleanup($options);
+    }
 
     return;
 }
@@ -6614,7 +6626,7 @@ Upon startup, several checks are carried out, like:
 
 =item B<setup>
 
-The following tasks are carried out:
+The following tasks are carried out unless B<--skip=setup> is used:
 
 =over 4
 
@@ -6639,7 +6651,7 @@ Run B<--setup-hook> options and all F<setup*> scripts in B<--hook-dir>.
 =item B<update>
 
 Runs C<apt-get update> using the temporary apt configuration file created in
-the B<setup> step.
+the B<setup> step. This can be disabled using B<--skip=update>.
 
 =item B<download>
 
@@ -6696,7 +6708,7 @@ This step is not carried out in B<extract> mode.
 
 =item B<cleanup>
 
-Performs cleanup tasks like:
+Performs cleanup tasks, unless B<--skip=cleanup> is used:
 
 =over 4
 
