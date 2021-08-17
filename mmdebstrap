@@ -1461,15 +1461,13 @@ sub setup {
     (my $pkgs_to_install, my $essential_pkgs, my $cached_debs)
       = run_download($options);
 
-    if (   $options->{mode} ne 'chrootless'
-        or $options->{variant} eq 'extract') {
-        # We have to extract the packages from @essential_pkgs either if we run
-        # in chrootless mode and extract variant or in any other mode.  In
-        # other words, the only scenario in which the @essential_pkgs are not
-        # extracted are in chrootless mode in any other than the extract
-        # variant.
-        run_extract($options, $essential_pkgs);
-    }
+    # in theory, we don't have to extract the packages in chrootless mode
+    # but we do it anyways because otherwise directory creation timestamps
+    # will differ compared to non-chrootless and we want to create bit-by-bit
+    # identical tar output
+    #
+    # FIXME: dpkg could be changed to produce the same results
+    run_extract($options, $essential_pkgs);
 
     run_hooks('extract', $options);
 
@@ -1552,8 +1550,10 @@ sub run_setup() {
         }
         # if dpkg and apt operate from the outside we need some more
         # directories because dpkg and apt might not even be installed inside
-        # the chroot
-        if ($options->{mode} eq 'chrootless') {
+        # the chroot. Thus, the following block is not strictly necessary in
+        # chrootless mode. We unconditionally add it anyways, so that the
+        # output with and without chrootless mode is equal.
+        {
             push @directories, '/var/log/apt';
             # since we do not know the dpkg version inside the chroot at this
             # point, we can only omit it in chrootless mode
@@ -2818,10 +2818,23 @@ sub run_essential() {
                 $ENV{QEMU_LD_PREFIX} = $options->{root};
             }
         }
-        run_apt_progress({
-            ARGV => ['apt-get', '--yes', @chrootless_opts, 'install'],
-            PKGS => [map { "$options->{root}/$_" } @{$essential_pkgs}],
-        });
+        # we don't use apt because that will not run the base-passwd preinst
+        # early enough
+        #run_apt_progress({
+        #    ARGV => ['apt-get', '--yes', @chrootless_opts, 'install'],
+        #    PKGS => [map { "$options->{root}/$_" } @{$essential_pkgs}],
+        #});
+        run_dpkg_progress({
+                ARGV => [
+                    'dpkg',
+                    '--force-not-root',
+                    '--force-script-chrootless',
+                    "--root=$options->{root}",
+                    "--log=$options->{root}/var/log/dpkg.log",
+                    '--install',
+                    '--force-depends'
+                ],
+                PKGS => [map { "$options->{root}/$_" } @{$essential_pkgs}] });
     } elsif (
         any { $_ eq $options->{mode} }
         ('root', 'unshare', 'fakechroot', 'proot')
@@ -5278,7 +5291,9 @@ sub main() {
         # in unshare and root mode, other users than the current user need to
         # access the rootfs, most prominently, the _apt user. Thus, make the
         # temporary directory world readable.
-        if (any { $_ eq $options->{mode} } ('unshare', 'root')) {
+        if (any { $_ eq $options->{mode} } ('unshare', 'root')
+              or
+            ($EFFECTIVE_USER_ID == 0 and $options->{mode} eq 'chrootless')) {
             chmod 0755, $options->{root} or error "cannot chmod root: $!";
         }
     } elsif ($format eq 'directory') {
@@ -6667,8 +6682,7 @@ the required priority.
 
 =item B<extract>
 
-Extract the downloaded packages into the rootfs. This step is not carried out
-in chrootless mode if the variant is not B<extract>.
+Extract the downloaded packages into the rootfs.
 
 =item B<extract-hook>
 

@@ -405,7 +405,7 @@ diff --no-dereference --recursive /tmp/debian-debootstrap /tmp/debian-mm
 
 # check permissions, ownership, symlink targets, modification times using tar
 # mtimes of directories created by mmdebstrap will differ, thus we equalize them first
-for d in etc/apt/preferences.d/ etc/apt/sources.list.d/ etc/dpkg/dpkg.cfg.d/; do
+for d in etc/apt/preferences.d/ etc/apt/sources.list.d/ etc/dpkg/dpkg.cfg.d/ var/log/apt/; do
 	touch --date="@$SOURCE_DATE_EPOCH" /tmp/debian-debootstrap/\$d /tmp/debian-mm/\$d
 done
 # debootstrap never ran apt -- fixing permissions
@@ -3321,8 +3321,6 @@ fi
 prefix=
 [ "\$(id -u)" -eq 0 ] && prefix="runuser -u user --"
 \$prefix $CMD --mode=chrootless --variant=custom --include=doc-debian $DEFAULT_DIST /tmp/debian-chroot $mirror
-# preserve output with permissions and timestamps for later test
-chmod 700 /tmp/debian-chroot
 tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@$SOURCE_DATE_EPOCH --iso-8601=seconds) -cf /tmp/debian-chroot.tar .
 tar tvf /tmp/debian-chroot.tar > doc-debian.tar.list
 rm /tmp/debian-chroot.tar
@@ -3340,7 +3338,6 @@ rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-rm /tmp/debian-chroot/var/lib/apt/extended_states
 if [ "$mode" != "chrootless" ] || dpkg --compare-versions "\$(dpkg --robot --version)" lt 1.20.0; then
 rm /tmp/debian-chroot/var/lib/dpkg/available
 rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
@@ -3467,10 +3464,9 @@ if [ "\$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
 fi
 prefix=
 [ "\$(id -u)" -eq 0 ] && prefix="runuser -u user --"
-\$prefix $CMD --mode=chrootless --variant=custom --include=doc-debian --setup-hook='touch "\$1/setup"' --customize-hook='touch "\$1/customize"' $DEFAULT_DIST /tmp/debian-chroot $mirror
-rm /tmp/debian-chroot/setup
-rm /tmp/debian-chroot/customize
-chmod 700 /tmp/debian-chroot
+\$prefix $CMD --mode=chrootless --skip=cleanup/tmp --variant=custom --include=doc-debian --setup-hook='touch "\$1/tmp/setup"' --customize-hook='touch "\$1/tmp/customize"' $DEFAULT_DIST /tmp/debian-chroot $mirror
+rm /tmp/debian-chroot/tmp/setup
+rm /tmp/debian-chroot/tmp/customize
 tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@$SOURCE_DATE_EPOCH --iso-8601=seconds) -cf /tmp/debian-chroot.tar .
 tar tvf /tmp/debian-chroot.tar | grep -v ' ./dev' | diff -u doc-debian.tar.list -
 rm /tmp/debian-chroot.tar
@@ -3488,7 +3484,6 @@ rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-rm /tmp/debian-chroot/var/lib/apt/extended_states
 if dpkg --compare-versions "\$(dpkg --robot --version)" lt 1.20.0; then
 rm /tmp/debian-chroot/var/lib/dpkg/available
 rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
@@ -3551,7 +3546,6 @@ rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-rm /tmp/debian-chroot/var/lib/apt/extended_states
 if dpkg --compare-versions "\$(dpkg --robot --version)" lt 1.20.0; then
 rm /tmp/debian-chroot/var/lib/dpkg/available
 rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
