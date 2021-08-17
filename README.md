@@ -75,11 +75,11 @@ reproducible** if the `$SOURCE_DATE_EPOCH` environment variable is set.
 The author believes, that it should not be necessary to have superuser
 privileges to create a file (the chroot tarball) in one's home directory.
 Thus, mmdebstrap provides multiple options to create a chroot tarball with the
-right permissions **without superuser privileges**.  Depending on what is
-available, it uses either Linux user namespaces, fakechroot or proot.
-Debootstrap supports fakechroot but will not create a tarball with the right
-permissions by itself. Support for Linux user namespaces and proot is missing
-(see bugs #829134 and #698347, respectively).
+right permissions **without superuser privileges**. This avoids a whole class
+of bugs like #921815. Depending on what is available, it uses either Linux user
+namespaces, fakechroot or proot.  Debootstrap supports fakechroot but will not
+create a tarball with the right permissions by itself. Support for Linux user
+namespaces and proot is missing (see bugs #829134 and #698347, respectively).
 
 When creating a chroot tarball with debootstrap, the temporary chroot directory
 cannot be on a filesystem that has been mounted with nodev. In unprivileged
@@ -93,7 +93,10 @@ Limitations in comparison to debootstrap
 ----------------------------------------
 
 Debootstrap supports creating a Debian chroot on non-Debian systems but
-mmdebstrap requires apt and is thus limited to Debian and derivatives.
+mmdebstrap requires apt and is thus limited to Debian and derivatives. This
+means that mmdebstrap can never fully replace debootstrap and debootstrap will
+continue to be relevant in situations where you want to create a Debian chroot
+from a platform without apt and dpkg.
 
 There is no `SCRIPT` argument.
 
