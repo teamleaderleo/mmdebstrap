@@ -120,7 +120,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=196
+total=198
 skipped=0
 runtests=0
 i=1
@@ -524,6 +524,63 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 else
 	./run_null.sh SUDO
 	runtests=$((runtests+1))
+fi
+
+print_header "mode=unshare,variant=apt: fail without /etc/subuid"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+adduser --gecos user --disabled-password user
+sysctl -w kernel.unprivileged_userns_clone=1
+rm /etc/subuid
+ret=0
+runuser -u user -- $CMD --mode=unshare --variant=apt $DEFAULT_DIST /tmp/debian-chroot $mirror || ret=\$?
+if [ "\$ret" = 0 ]; then
+	echo expected failure but got exit \$ret >&2
+	exit 1
+fi
+rm -r /tmp/debian-chroot
+END
+if [ "$HAVE_QEMU" = "yes" ]; then
+	./run_qemu.sh
+	runtests=$((runtests+1))
+else
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
+fi
+
+print_header "mode=unshare,variant=apt: fail without username in /etc/subuid"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+adduser --gecos user --disabled-password user
+sysctl -w kernel.unprivileged_userns_clone=1
+awk -F: '\$1!="user"' /etc/subuid > /etc/subuid.tmp
+mv /etc/subuid.tmp /etc/subuid
+ret=0
+runuser -u user -- $CMD --mode=unshare --variant=apt $DEFAULT_DIST /tmp/debian-chroot $mirror || ret=\$?
+if [ "\$ret" = 0 ]; then
+	echo expected failure but got exit \$ret >&2
+	exit 1
+fi
+rm -r /tmp/debian-chroot
+END
+if [ "$HAVE_QEMU" = "yes" ]; then
+	./run_qemu.sh
+	runtests=$((runtests+1))
+else
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
 fi
 
 # Before running unshare mode as root, we run "unshare --mount" but that fails

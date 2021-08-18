@@ -345,6 +345,14 @@ sub read_subuid_subgid() {
         last if ($n eq $username);
     }
     close $fh;
+    if (!length $subid) {
+        warning "/etc/subuid is empty";
+        return;
+    }
+    if ($n ne $username) {
+        warning "no entry in /etc/subuid for $username";
+        return;
+    }
     push @result, ["u", 0, $subid, $num_subid];
 
     if (scalar(@result) < 1) {
@@ -363,6 +371,14 @@ sub read_subuid_subgid() {
         last if ($n eq $username);
     }
     close $fh;
+    if (!length $subid) {
+        warning "/etc/subgid is empty";
+        return;
+    }
+    if ($n ne $username) {
+        warning "no entry in /etc/subgid for $username";
+        return;
+    }
     push @result, ["g", 0, $subid, $num_subid];
 
     if (scalar(@result) < 2) {
@@ -4250,8 +4266,11 @@ sub main() {
         if ($EFFECTIVE_USER_ID != 0 && !test_unshare_userns(1)) {
             exit 1;
         }
-        my @idmap = read_subuid_subgid;
-        my $pid   = get_unshare_cmd(
+        my @idmap = ();
+        if ($EFFECTIVE_USER_ID != 0) {
+            @idmap = read_subuid_subgid;
+        }
+        my $pid = get_unshare_cmd(
             sub {
                 0 == system @ARGV[1 .. $#ARGV] or error "system failed: $?";
             },
@@ -5372,12 +5391,14 @@ sub main() {
     my @idmap;
     # for unshare mode the rootfs directory has to have appropriate
     # permissions
-    if ($options->{mode} eq 'unshare') {
+    if ($EFFECTIVE_USER_ID != 0 and $options->{mode} eq 'unshare') {
         @idmap = read_subuid_subgid;
         # sanity check
         if (   scalar(@idmap) != 2
             || $idmap[0][0] ne 'u'
-            || $idmap[1][0] ne 'g') {
+            || $idmap[1][0] ne 'g'
+            || !length $idmap[0][2]
+            || !length $idmap[1][2]) {
             error "invalid idmap";
         }
 
