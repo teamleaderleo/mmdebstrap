@@ -4239,7 +4239,7 @@ sub main() {
     # lxc-usernsexec -- lxc-unshare -s 'MOUNT|PID|UTSNAME|IPC' ...
     # but without needing lxc
     if ($ARGV[0] eq "--unshare-helper") {
-        if (!test_unshare_userns(1)) {
+        if ($EFFECTIVE_USER_ID != 0 && !test_unshare_userns(1)) {
             exit 1;
         }
         my @idmap = read_subuid_subgid;
