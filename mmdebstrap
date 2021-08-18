@@ -3077,6 +3077,7 @@ sub run_cleanup() {
               or error "cannot unlink /etc/machine-id: $!";
             open my $fh, '>', "$options->{root}/etc/machine-id"
               or error "failed to open(): $!";
+            print $fh "uninitialized";
             close $fh;
         }
     }
