@@ -325,7 +325,7 @@ sub test_unshare_userns {
 }
 
 sub read_subuid_subgid() {
-    my $username = getpwuid $<;
+    my $username = getpwuid $REAL_USER_ID;
     my ($subid, $num_subid, $fh, $n);
     my @result = ();
 
@@ -364,29 +364,40 @@ sub read_subuid_subgid() {
         return;
     }
 
+    my $groupname = getgrgid $REAL_GROUP_ID;
+
+    if (!-e "/etc/subgid") {
+        warning "/etc/subgid doesn't exist";
+        return;
+    }
+    if (!-r "/etc/subgid") {
+        warning "/etc/subgid is not readable";
+        return;
+    }
+
     open $fh, "<", "/etc/subgid"
       or error "cannot open /etc/subgid for reading: $!";
     while (my $line = <$fh>) {
         ($n, $subid, $num_subid) = split(/:/, $line, 3);
-        last if ($n eq $username);
+        last if ($n eq $groupname);
     }
     close $fh;
     if (!length $subid) {
         warning "/etc/subgid is empty";
         return;
     }
-    if ($n ne $username) {
-        warning "no entry in /etc/subgid for $username";
+    if ($n ne $groupname) {
+        warning "no entry in /etc/subgid for $groupname";
         return;
     }
     push @result, ["g", 0, $subid, $num_subid];
 
     if (scalar(@result) < 2) {
-        warning "/etc/subgid does not contain an entry for $username";
+        warning "/etc/subgid does not contain an entry for $groupname";
         return;
     }
     if (scalar(@result) > 2) {
-        warning "/etc/subgid contains multiple entries for $username";
+        warning "/etc/subgid contains multiple entries for $groupname";
         return;
     }
 
