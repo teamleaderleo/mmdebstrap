@@ -46,7 +46,10 @@ def main():
         description="""\
 Filters a tarball on standard input by the same rules as the dpkg --path-exclude
 and --path-include options and writes resulting tarball to standard output. See
-dpkg(1) for information on how these two options work in detail.
+dpkg(1) for information on how these two options work in detail. Since this is
+meant for filtering tarballs storing a rootfs, notice that paths must be given
+as /path and not as ./path even though they might be stored as such in the
+tarball.
 
 Similarly, filter out unwanted pax extended headers. This is useful in cases
 where a tool only accepts certain xattr prefixes. For example tar2sqfs only
