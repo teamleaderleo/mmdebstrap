@@ -7051,6 +7051,12 @@ as the non-root user, then as a workaround you could run C<chmod 600
 /etc/dpkg/dpkg.cfg.d/*> so that the config files are only accessible by the
 root user.
 
+The C<file://> URI type cannot be used to install the essential packages. This
+is because B<mmdebstrap> uses dpkg to install the packages that apt places into
+F</var/cache/apt/archives> but with C<file://> apt will not copy the files even
+with C<--download-only>. Use C<copy://> instead, which is equivalent to
+C<file://> but copies the archives into F</var/cache/apt/archives>.
+
 With apt versions before 2.1.16, setting C<[trusted=yes]> or
 C<Acquire::AllowInsecureRepositories "1"> to allow signed archives without a
 known public key or unsigned archives will fail because of a gpg warning in the
