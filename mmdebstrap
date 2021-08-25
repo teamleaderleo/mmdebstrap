@@ -2825,7 +2825,7 @@ sub run_essential() {
         # FIXME: the dpkg config from the host is parsed before the command
         # line arguments are parsed and might break this mode
         # Example: if the host has --path-exclude set, then this will also
-        # affect the chroot.
+        # affect the chroot. See #808203
         my @chrootless_opts = (
             '-oDPkg::Options::=--force-not-root',
             '-oDPkg::Options::=--force-script-chrootless',
@@ -7049,7 +7049,7 @@ Therefore, until this dpkg limitation is fixed, a default dpkg configuration is
 recommended on machines running B<mmdebstrap>. If you are using B<mmdebstrap>
 as the non-root user, then as a workaround you could run C<chmod 600
 /etc/dpkg/dpkg.cfg.d/*> so that the config files are only accessible by the
-root user.
+root user. See Debian bug #808203.
 
 The C<file://> URI type cannot be used to install the essential packages. This
 is because B<mmdebstrap> uses dpkg to install the packages that apt places into
