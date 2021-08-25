@@ -1619,6 +1619,10 @@ sub run_setup() {
     # This will affect calls to tempfile() as well as runs of "apt-get update"
     # which will create temporary clearsigned.message.XXXXXX files to verify
     # signatures.
+    #
+    # Setting TMPDIR to inside the chroot is also necessary for when packages
+    # are installed with apt from outside the chroot with
+    # DPkg::Chroot-Directory
     {
         ## no critic (Variables::RequireLocalizedPunctuationVars)
         $ENV{"TMPDIR"} = "$options->{root}/tmp";
@@ -2081,6 +2085,18 @@ sub run_download() {
     #  - no simulation run is done, and
     #  - the variant is not extract or custom or the number to be
     #    installed packages not zero
+    #
+    # We could also unconditionally use the proxysolver and then "apt-get
+    # download" any missing packages but using the proxysolver requires
+    # /usr/lib/apt/solvers/apt from the apt-utils package and we want to avoid
+    # that dependency.
+    #
+    # In the future we want to replace downloading packages with "apt-get
+    # install --download-only" and installing them with dpkg by just installing
+    # the essential packages with apt from the outside with
+    # DPkg::Chroot-Directory. We are not doing that because then the preinst
+    # script of base-passwd will not be called early enough and packages will
+    # fail to install because they are missing /etc/passwd.
     my @cached_debs = ();
     my @dl_debs     = ();
     if (
@@ -2543,6 +2559,7 @@ sub run_extract() {
         }
         # not using dpkg-deb --extract as that would replace the
         # merged-usr symlinks with plain directories
+        # https://bugs.debian.org/989602
         # not using dpkg --unpack because that would try running preinst
         # maintainer scripts
         my $pid1 = fork() // error "fork() failed: $!";
@@ -5498,6 +5515,11 @@ sub main() {
     );
     # tar2sqfs and genext2fs do not support extended attributes
     if ($format eq "squashfs") {
+        # tar2sqfs supports user.*, trusted.* and security.* but not system.*
+        # https://bugs.debian.org/988100
+        # lib/sqfs/xattr/xattr.c of https://github.com/AgentD/squashfs-tools-ng
+        # https://github.com/AgentD/squashfs-tools-ng/issues/83
+        # https://github.com/AgentD/squashfs-tools-ng/issues/25
         warning("tar2sqfs does not support extended attributes"
               . " from the 'system' namespace");
         push @taropts, '--xattrs', '--xattrs-exclude=system.*';
