@@ -120,7 +120,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=218
+total=217
 skipped=0
 runtests=0
 i=1
@@ -655,19 +655,18 @@ else
 	runtests=$((runtests+1))
 fi
 
-print_header "mode=root,variant=apt: fail with root without cap_sys_admin"
+print_header "mode=unshare,variant=apt: root without cap_sys_admin"
 cat << END > shared/test.sh
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
-ret=0
+[ "\$(whoami)" = "root" ]
 capsh --drop=cap_sys_admin -- -c 'exec "\$@"' exec \
-	$CMD --mode=root --variant=apt $DEFAULT_DIST /tmp/debian-chroot $mirror || ret=\$?
-if [ "\$ret" = 0 ]; then
-	echo expected failure but got exit \$ret >&2
-	exit 1
-fi
-[ ! -e /tmp/debian-chroot ]
+	$CMD --mode=root --variant=apt \
+	--customize-hook='chroot "\$1" sh -c "test ! -e /proc/self/fd"' \
+	$DEFAULT_DIST /tmp/debian-chroot.tar $mirror
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+rm /tmp/debian-chroot.tar
 END
 if [ "$CONTAINER" = "lxc" ]; then
 	# see https://stackoverflow.com/questions/65748254/
@@ -681,45 +680,19 @@ else
 	runtests=$((runtests+1))
 fi
 
-print_header "mode=root,variant=apt: fail without mounted /proc"
+print_header "mode=root,variant=apt: mount is missing"
 cat << END > shared/test.sh
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
-# success with /proc mounted
-$CMD --mode=root --variant=apt \
-	--customize-hook='chroot "\$1" bash -c "test \\"\\\$(cat <(echo foobar))\\" = foobar"' \
-	$DEFAULT_DIST /dev/null $mirror
-# failure without /proc mounted (using --skip=check/canmount)
-ret=0
-$CMD --mode=root --variant=apt \
-	--customize-hook='chroot "\$1" bash -c "test \\"\\\$(cat <(echo foobar))\\" = foobar"' \
-	--skip=check/canmount $DEFAULT_DIST /tmp/debian-chroot $mirror || ret=\$?
-if [ "\$ret" = 0 ]; then
-	echo expected failure but got exit \$ret >&2
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
 	exit 1
 fi
-rm -r /tmp/debian-chroot
-END
-if [ "$HAVE_QEMU" = "yes" ]; then
-	./run_qemu.sh
-	runtests=$((runtests+1))
-else
-	./run_null.sh SUDO
-	runtests=$((runtests+1))
-fi
-
-
-print_header "mode=unshare,variant=apt: root without cap_sys_admin but --skip=check/canmount"
-cat << END > shared/test.sh
-#!/bin/sh
-set -eu
-export LC_ALL=C.UTF-8
-[ "\$(whoami)" = "root" ]
-capsh --drop=cap_sys_admin -- -c 'exec "\$@"' exec \
-	$CMD --mode=root --variant=apt \
-	--customize-hook='chroot "\$1" sh -c "test ! -e /proc/self/fd"' \
-	--skip=check/canmount $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
+for p in /bin /usr/bin /sbin /usr/sbin; do
+	rm -f "\$p/mount"
+done
+$CMD --mode=root --variant=apt $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
 tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
 rm /tmp/debian-chroot.tar
 END
@@ -727,8 +700,8 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	./run_qemu.sh
 	runtests=$((runtests+1))
 else
-	./run_null.sh SUDO
-	runtests=$((runtests+1))
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
 fi
 
 for variant in essential apt minbase buildd important standard; do
