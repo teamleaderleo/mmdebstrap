@@ -5993,10 +5993,11 @@ option happens to be an existing file, then its contents are pasted into the
 chroot's sources.list.  This can be used to supply a deb822 style
 sources.list. If I<MIRROR> is C<-> then standard input is pasted into the
 chroot's sources.list.  More than one mirror can be specified and are appended
-to the chroot's sources.list in the given order. If any mirror contains a
-https URI, then the packages apt-transport-https and ca-certificates will be
-installed inside the chroot.  If any mirror contains a tor+xxx URI, then the
-apt-transport-tor package will be installed inside the chroot.
+to the chroot's sources.list in the given order. If you specify a https or tor
+I<MIRROR> and you want the chroot to be able to update itself, don't forget to
+also install the ca-certificates package, the apt-transport-https package for
+apt versions less than 1.5 and/or the apt-transport-tor package using the
+B<--include> option, as necessary.
 
 The optional I<TARGET> argument can either be the path to a directory, the path
 to a tarball filename, the path to a squashfs image, the path to an ext2 image,
