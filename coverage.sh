@@ -120,7 +120,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=198
+total=218
 skipped=0
 runtests=0
 i=1
@@ -3097,7 +3097,9 @@ fi
 
 # test all --dry-run variants
 
-for variant in extract custom essential apt; do
+# we are testing all variants here because with 0.7.5 we had a bug:
+# mmdebstrap sid /dev/null --simulate ==> E: cannot read /var/cache/apt/archives/
+for variant in extract custom essential apt minbase buildd important standard; do
 	for mode in root unshare fakechroot proot chrootless; do
 		print_header "mode=$mode,variant=$variant: create tarball --dry-run"
 		if [ "$mode" = "unshare" ] && [ "$HAVE_UNSHARE" != "yes" ]; then
