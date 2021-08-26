@@ -39,6 +39,7 @@ Summary:
  - foreign architecture chroots with qemu-user
  - variant installing only Essential:yes packages and dependencies
  - temporary chroots by redirecting to /dev/null
+ - chroots without apt inside (for chroot from buildinfo file with debootsnap)
 
 The author believes that a chroot of a Debian stable release should include the
 latest packages including security fixes by default. This has been a wontfix
