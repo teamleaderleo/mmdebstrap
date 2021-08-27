@@ -753,7 +753,15 @@ else
 fi
 runuser -u user -- $CMD --mode=unshare --variant=$variant $DEFAULT_DIST /tmp/debian-chroot-unshare.$format $mirror
 cmp /tmp/debian-chroot-root.$format /tmp/debian-chroot-unshare.$format
-rm /tmp/debian-chroot-root.$format /tmp/debian-chroot-unshare.$format
+rm /tmp/debian-chroot-unshare.$format
+case $variant in essential|apt|minbase)
+	# /etc/ld.so.cache differs with some variants
+	runuser -u user -- $CMD --mode=fakechroot --variant=$variant $DEFAULT_DIST /tmp/debian-chroot-fakechroot.$format $mirror
+	cmp /tmp/debian-chroot-root.$format /tmp/debian-chroot-fakechroot.$format
+	rm /tmp/debian-chroot-fakechroot.$format
+	;;
+esac
+rm /tmp/debian-chroot-root.$format
 END
 		if [ "$HAVE_QEMU" = "yes" ]; then
 			./run_qemu.sh
@@ -1208,12 +1216,7 @@ prefix=
 mkdir /tmp/mnt
 mount /tmp/debian-chroot.ext2 /tmp/mnt
 rmdir /tmp/mnt/lost+found
-# in fakechroot mode, we use a fake ldconfig, so we have to
-# artificially add some files
-{ tar -C /tmp/mnt -c . | tar -t;
-  [ "$mode" = "fakechroot" ] && printf "./etc/ld.so.cache\n./var/cache/ldconfig/\n";
-  [ "$mode" = "fakechroot" ] && printf "./etc/.pwd.lock\n";
-} | sort | diff -u tar1.txt -
+tar -C /tmp/mnt -c . | tar -t | sort | diff -u tar1.txt -
 umount /tmp/mnt
 rmdir /tmp/mnt
 rm /tmp/debian-chroot.ext2
@@ -1239,9 +1242,7 @@ fi
 adduser --gecos user --disabled-password user
 sysctl -w kernel.unprivileged_userns_clone=0
 runuser -u user -- $CMD --mode=auto --variant=apt $DEFAULT_DIST /tmp/debian-chroot.tar.gz $mirror
-{ tar -tf /tmp/debian-chroot.tar.gz;
-  printf "./etc/ld.so.cache\n./var/cache/ldconfig/\n./etc/.pwd.lock\n";
-} | sort | diff -u tar1.txt -
+tar -tf /tmp/debian-chroot.tar.gz | sort | diff -u tar1.txt -
 rm /tmp/debian-chroot.tar.gz
 END
 if [ "$HAVE_QEMU" = "yes" ]; then
@@ -2651,12 +2652,7 @@ echo upload-customize | cmp /tmp/download-customize -
 echo sync-in-setup | cmp /tmp/sync-out-setup/file -
 echo sync-in-essential | cmp /tmp/sync-out-essential/file -
 echo sync-in-customize | cmp /tmp/sync-out-customize/file -
-# in fakechroot mode, we use a fake ldconfig, so we have to
-# artificially add some files
-{ tar -tf /tmp/debian-chroot.tar;
-  [ "$mode" = "fakechroot" ] && printf "./etc/ld.so.cache\n./var/cache/ldconfig/\n";
-  [ "$mode" = "fakechroot" ] && [ "$variant" != "essential" ] && printf "./etc/.pwd.lock\n";
-} | sort | diff -u tar1.txt -
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
 rm /tmp/debian-chroot.tar \
 	/tmp/copy-in-setup /tmp/copy-in-essential /tmp/copy-in-customize \
 	/tmp/copy-out-setup /tmp/copy-out-essential /tmp/copy-out-customize \
@@ -3192,12 +3188,7 @@ fi
 prefix=
 [ "\$(id -u)" -eq 0 ] && prefix="runuser -u user --"
 \$prefix $CMD --mode=$mode --variant=$variant $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
-# in fakechroot mode, we use a fake ldconfig, so we have to
-# artificially add some files
-{ tar -tf /tmp/debian-chroot.tar;
-  [ "$mode" = "fakechroot" ] && printf "./etc/ld.so.cache\n./var/cache/ldconfig/\n";
-  [ "$mode" = "fakechroot" ] && [ "$variant" != "essential" ] && printf "./etc/.pwd.lock\n";
-} | sort | diff -u "./$variant.txt" -
+tar -tf /tmp/debian-chroot.tar | sort | diff -u "./$variant.txt" -
 rm /tmp/debian-chroot.tar
 END
 		if [ "$HAVE_QEMU" = "yes" ]; then
@@ -3714,8 +3705,6 @@ prefix=
 \$prefix $CMD --mode=$mode --variant=apt --architectures=arm64 $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
 # we ignore differences between architectures by ignoring some files
 # and renaming others
-# in fakechroot mode, we use a fake ldconfig, so we have to
-# artificially add some files
 # in proot mode, some extra files are put there by proot
 { tar -tf /tmp/debian-chroot.tar \
 	| grep -v '^\./lib/ld-linux-aarch64\.so\.1$' \
@@ -3723,7 +3712,6 @@ prefix=
 	| grep -v '^\./usr/share/doc/[^/]\+/changelog\(\.Debian\)\?\.arm64\.gz$' \
 	| sed 's/aarch64-linux-gnu/x86_64-linux-gnu/' \
 	| sed 's/arm64/amd64/';
-	[ "$mode" = "fakechroot" ] && printf "./etc/ld.so.cache\n./var/cache/ldconfig/\n./etc/.pwd.lock\n";
 } | sort > tar2.txt
 { cat tar1.txt \
 	| grep -v '^\./usr/bin/i386$' \
