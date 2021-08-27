@@ -6980,6 +6980,14 @@ Create a system that can be used with docker:
     root
     $ sudo docker rmi debian
 
+Create a system that can be used with podman:
+
+    $ mmdebstrap unstable | podman import - debian
+    [...]
+    $ podman run --network=none -it --rm debian whoami
+    root
+    $ podman rmi debian
+
 =head1 ENVIRONMENT VARIABLES
 
 =over 8
