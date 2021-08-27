@@ -58,9 +58,14 @@ use version;
 *CLONE_NEWNET                = \0x40000000;    # net
 *_LINUX_CAPABILITY_VERSION_3 = \0x20080522;
 *CAP_SYS_ADMIN               = \21;
-our ($CLONE_NEWNS, $CLONE_NEWUTS, $CLONE_NEWIPC,
-    $CLONE_NEWUSER, $CLONE_NEWPID, $CLONE_NEWNET,
-    $_LINUX_CAPABILITY_VERSION_3, $CAP_SYS_ADMIN);
+*PR_CAPBSET_READ             = \23;
+our (
+    $CLONE_NEWNS,                 $CLONE_NEWUTS,
+    $CLONE_NEWIPC,                $CLONE_NEWUSER,
+    $CLONE_NEWPID,                $CLONE_NEWNET,
+    $_LINUX_CAPABILITY_VERSION_3, $CAP_SYS_ADMIN,
+    $PR_CAPBSET_READ
+);
 
 #<<<
 # type codes:
@@ -4669,8 +4674,13 @@ sub main() {
           or error "capget failed: $!";
         my ($effective, undef) = unpack "LLLLLL", $datap;
         if (($effective >> $CAP_SYS_ADMIN) & 1 != 1) {
-            # we don't have CAP_SYS_ADMIN, and thus cannot mount
-            warning "cannot mount because of missing capability CAP_SYS_ADMIN";
+            warning
+              "cannot mount because CAP_SYS_ADMIN is not in the effective set";
+            $options->{canmount} = 0;
+        }
+        if (0 == syscall &SYS_prctl, $PR_CAPBSET_READ, $CAP_SYS_ADMIN) {
+            warning
+              "cannot mount because CAP_SYS_ADMIN is not in the bounding set";
             $options->{canmount} = 0;
         }
         # To test whether we can use mount without actually trying to mount
