@@ -5,7 +5,13 @@
 #
 # Using this hook script, you can emulate what debootstrap does to set up
 # merged /usr via directory symlinks, even using the exact same shell function
-# that debootstrap uses.
+# that debootstrap uses by running mmdebstrap with:
+#
+#     --setup-hook=/usr/share/mmdebstrap/hooks/merged-usr/setup00.sh
+#
+# Alternatively, you can setup merged-/usr by installing the usrmerge package:
+#
+#     --include=usrmerge
 #
 # mmdebstrap will not include this functionality via a --merged-usr option
 # because there are many reasons against implementing merged-/usr that way:
@@ -23,6 +29,10 @@
 # Using directory symlinks as used by debootstrap contradicts this principle.
 # The information whether a distribution uses this approach to merged-/usr or
 # not is not anymore contained in its packages but in a tool from the outside.
+#
+# Example real world problem: I'm using debbisect to bisect Debian unstable
+# between 2015 and today. For which snapshot.d.o timestamp should a merged-/usr
+# chroot be created and for which ones not?
 #
 # The problem is not the idea of merged-/usr but the problem is the way how it
 # got implemented in debootstrap via directory symlinks. That way of rolling

@@ -6227,6 +6227,10 @@ package list is free of duplicates. So the following are equivalent:
     --include=pkg1/stable,pkg2=1.0,pkg3-
     --incl=pkg1/stable --incl="pkg2=1.0 pkg3-" --incl=pkg2=1.0,pkg3-
 
+Example: setting up merged-/usr via the usrmerge package
+
+    --include=usrmerge
+
 =item B<--components>=I<comp1>[,I<comp2>,...]
 
 Comma or whitespace separated list of components like main, contrib and
@@ -6273,13 +6277,19 @@ installed. At that point, the chroot directory does not contain any
 executables and thus cannot be chroot-ed into. See section B<HOOKS> for more
 information.
 
-Example: Setup merged-/usr via symlinks
+Example 1: Setup merged-/usr via symlinks, omitting the architecture specific
+symlinks
 
     --setup-hook='for d in bin sbin lib; do ln -s usr/$d "$1/$d";
         mkdir -p "$1/usr/$d"; done'
 
-Example: Setup chroot for installing a sub-essential busybox-based chroot with
---variant=custom
+Example 2: Setup merged-/usr using debootstrap-method which takes care of the
+architecture specific symlinks
+
+    --setup-hook=/usr/share/mmdebstrap/hooks/merged-usr/setup00.sh
+
+Example 3: Setup chroot for installing a sub-essential busybox-based chroot
+with --variant=custom
 --include=dpkg,busybox,libc-bin,base-files,base-passwd,debianutils
 
     --setup-hook='mkdir -p "$1/bin"'
@@ -6370,6 +6380,11 @@ Example 1: Run mmdebstrap with eatmydata
 Example 2: Setup chroot for installing a sub-essential busybox-based chroot
 
     --hook-dir=/usr/share/mmdebstrap/hooks/busybox
+
+Example 3: Setup merged-/usr using debootstrap-method which takes care of the
+architecture specific symlinks
+
+    --hook-dir=/usr/share/mmdebstrap/hooks/merged-usr
 
 =item B<--skip>=I<stage>[,I<stage>,...]
 
