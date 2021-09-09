@@ -6135,6 +6135,7 @@ the file will be appended to 99mmdebstrap verbatim.
 Example: This is necessary for allowing old timestamps from snapshot.debian.org
 
     --aptopt='Acquire::Check-Valid-Until "false"'
+    --aptopt='Apt::Key::gpgvcommand "/usr/libexec/mmdebstrap/gpgvnoexpkeysig"'
 
 Example: Settings controlling download of package description translations
 
