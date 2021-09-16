@@ -7135,7 +7135,7 @@ extension to compressor applies:
  .lz4      lz4
  .xz       xz --threads=0
  .txz      xz --threads=0
- .zst      zstd
+ .zst      zstd --threads=0
 
 To change compression specific options, either use the respecitve environment
 variables like B<XZ_OPT> or send B<mmdebstrap> output to your compressor of
