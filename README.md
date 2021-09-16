@@ -104,6 +104,9 @@ There is no `SCRIPT` argument.
 The following options, don't exist: `--second-stage`, `--exclude`,
 `--resolve-deps`, `--force-check-gpg`, `--merged-usr` and `--no-merged-usr`.
 
+The quirks from debootstrap are needed to create chroots of Debian unstable
+from snapshot.d.o before timestamp 20141107T220431Z or Debian 8 (Jessie) or
+later.
 
 Tests
 =====
