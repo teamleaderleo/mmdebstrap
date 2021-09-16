@@ -2,6 +2,8 @@
 #
 # This script is in the public domain
 #
+# Author: Johannes Schauer Marin Rodrigues <josch@mister-muffin.de>
+#
 # This script accepts a tarball on standard input and filters it according to
 # the same rules used by dpkg --path-exclude and --path-include, using command
 # line options of the same name. The result is then printed on standard output.

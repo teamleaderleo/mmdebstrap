@@ -2,6 +2,8 @@
 #
 # This script is in the public domain
 #
+# Author: Johannes Schauer Marin Rodrigues <josch@mister-muffin.de>
+#
 # This script accepts a tarball on standard input and prints a tarball on
 # standard output with the same contents but all uid and gid ownership
 # information shifted by the value given as first command line argument.

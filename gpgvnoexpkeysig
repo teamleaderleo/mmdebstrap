@@ -2,6 +2,8 @@
 #
 # This script is in the public domain
 #
+# Author: Johannes Schauer Marin Rodrigues <josch@mister-muffin.de>
+#
 # This is a wrapper around gpgv as invoked by apt. It turns EXPKEYSIG results
 # from gpgv into GOODSIG results. This is necessary for apt to access very old
 # timestamps from snapshot.debian.org for which the GPG key is already expired:

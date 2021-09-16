@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-
+#
+# This script is in the public domain
+#
+# Author: Johannes Schauer Marin Rodrigues <josch@mister-muffin.de>
+#
 # thin layer around /usr/lib/apt/solvers/apt, so that we can capture the solver
 # result
 #
