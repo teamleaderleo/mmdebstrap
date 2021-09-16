@@ -4591,7 +4591,7 @@ sub main() {
         my $content = do { local $/; <$rfh> };
         waitpid $pid, 0;
         my $result = 0;
-        if ($? == 0 and $content =~ /^fakechroot \d\.\d+$/) {
+        if ($? == 0 and $content =~ /^fakechroot [0-9.]+$/) {
             $result = 1;
         }
         return $result;
