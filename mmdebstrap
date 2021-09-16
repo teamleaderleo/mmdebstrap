@@ -4297,6 +4297,9 @@ sub approx_disk_usage {
             $installed_size += scalar @devfiles;
         } elsif ($File::Find::name =~ /^$directory\/dev\//) {
             # ignore everything below /dev
+        } elsif (-l $File::Find::name) {
+            # -f follows symlinks, so we first check if we have a symlink
+            $installed_size += 1;
         } elsif (-f $File::Find::name) {
             # add file size in 1024 byte blocks, rounded up
             $installed_size += int(((-s $File::Find::name) + 1024) / 1024);
