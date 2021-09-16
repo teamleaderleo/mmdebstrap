@@ -96,6 +96,13 @@ if [ ! -e shared/proxysolver ] || [ proxysolver -nt shared/proxysolver ]; then
 		cp -a /usr/lib/apt/solvers/mmdebstrap-dump-solution shared/proxysolver
 	fi
 fi
+if [ ! -e shared/ldconfig.fakechroot ] || [ ldconfig.fakechroot -nt shared/ldconfig.fakechroot ]; then
+	if [ -e ./ldconfig.fakechroot ]; then
+		cp -a ldconfig.fakechroot shared
+	else
+		cp -a /usr/libexec/mmdebstrap/ldconfig.fakechroot shared/ldconfig.fakechroot
+	fi
+fi
 mkdir -p shared/hooks
 if [ ! -e shared/hooks/setup00-merged-usr.sh ] || [ hooks/setup00-merged-usr.sh -nt shared/hooks/setup00-merged-usr.sh ]; then
 	if [ -e hooks/setup00-merged-usr.sh ]; then
@@ -754,8 +761,10 @@ fi
 runuser -u user -- $CMD --mode=unshare --variant=$variant $DEFAULT_DIST /tmp/debian-chroot-unshare.$format $mirror
 cmp /tmp/debian-chroot-root.$format /tmp/debian-chroot-unshare.$format
 rm /tmp/debian-chroot-unshare.$format
-case $variant in essential|apt|minbase)
-	# /etc/ld.so.cache differs with some variants
+case $variant in essential|apt|minbase|buildd)
+	# variants important and standard differ because permissions drwxr-sr-x
+	# and extended attributes of ./var/log/journal/ cannot be preserved
+	# in fakechroot mode
 	runuser -u user -- $CMD --mode=fakechroot --variant=$variant $DEFAULT_DIST /tmp/debian-chroot-fakechroot.$format $mirror
 	cmp /tmp/debian-chroot-root.$format /tmp/debian-chroot-fakechroot.$format
 	rm /tmp/debian-chroot-fakechroot.$format

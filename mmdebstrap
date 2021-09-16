@@ -2660,28 +2660,15 @@ sub run_prepare {
         # /etc/fakechroot/debootstrap.env and
         # /etc/fakechroot/chroot.env
         {
-            # we add "$@" before "-r" such that any other "-r" options will be
-            # overwritten by the one we set
-            my $escapedroot = shellescape $options->{root};
-            my ($fh, $filename) = tempfile(
-                "mmdebstrap.ldconfig.XXXXXXXXXXXX",
-                UNLINK => 1,
-                TMPDIR => 1
-            );
-            print $fh <<EOF;
-#!/bin/sh
-set -e
-if [ ! -e $escapedroot/sbin/ldconfig ]; then exit 0; fi
-mkdir --mode=700 --parents $escapedroot/var/cache/ldconfig
-$escapedroot/sbin/ldconfig "\$@" -r $escapedroot
-EOF
-            close $fh;
-            chmod 0755, $filename or error "cannot chmod $filename";
+            my $ldconfig = getcwd() . '/ldconfig.fakechroot';
+            if (!-x $ldconfig) {
+                $ldconfig = '/usr/libexec/mmdebstrap/ldconfig.fakechroot';
+            }
             my @fakechrootsubst = ();
             foreach my $d ('/usr/sbin', '/usr/bin', '/sbin', '/bin') {
                 push @fakechrootsubst, "$d/chroot=/usr/sbin/chroot.fakechroot";
                 push @fakechrootsubst, "$d/mkfifo=/bin/true";
-                push @fakechrootsubst, "$d/ldconfig=$filename";
+                push @fakechrootsubst, "$d/ldconfig=$ldconfig";
                 push @fakechrootsubst, "$d/ldd=/usr/bin/ldd.fakechroot";
                 push @fakechrootsubst, "$d/ischroot=/bin/true";
             }
