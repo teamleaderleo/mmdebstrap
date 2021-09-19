@@ -3019,8 +3019,12 @@ sub run_install() {
                                     'DPkg::Options::=--unset=TMPDIR',
                                     '-o',
                                     'DPkg::Options::=dpkg',
-                                    '-o',
-                                    'DPkg::Install::Recursive::force=true',
+                                    $options->{mode} eq 'fakechroot'
+                                    ? (
+                                        '-o',
+                                        'DPkg::Install::Recursive::force=true'
+                                      )
+                                    : (),
                                     '-o',
                                     "DPkg::Chroot-Directory=$options->{root}",
                                     '--yes',
