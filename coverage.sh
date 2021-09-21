@@ -127,7 +127,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=217
+total=212
 skipped=0
 runtests=0
 i=1
@@ -1153,91 +1153,6 @@ else
 	./run_null.sh
 	runtests=$((runtests+1))
 fi
-
-print_header "mode=$defaultmode,variant=apt: test squashfs image"
-cat << END > shared/test.sh
-#!/bin/sh
-set -eu
-export LC_ALL=C.UTF-8
-$CMD --mode=$defaultmode --variant=apt $DEFAULT_DIST /tmp/debian-chroot.squashfs $mirror
-printf 'hsqs' | cmp --bytes=4 /tmp/debian-chroot.squashfs -
-# workaround for https://github.com/AgentD/squashfs-tools-ng/issues/37
-sed 's#\\([^.]\\)/\$#\\1#' tar1.txt | sort > /tmp/tar1noslash.txt
-# workaround for https://github.com/AgentD/squashfs-tools-ng/issues/42
-sqfs2tar --no-skip --root-becomes . /tmp/debian-chroot.squashfs | tar -t \
-	| sed 's#\\([^.]\\)/\$#\\1#' \
-	| sort | diff -u /tmp/tar1noslash.txt -
-rm /tmp/debian-chroot.squashfs /tmp/tar1noslash.txt
-END
-if [ "$DEFAULT_DIST" = "oldstable" ]; then
-	echo "skipping test on oldstable because squashfs-tools-ng is not available" >&2
-	skipped=$((skipped+1))
-elif [ "$HAVE_QEMU" = "yes" ]; then
-	./run_qemu.sh
-	runtests=$((runtests+1))
-elif [ "$defaultmode" = "root" ]; then
-	./run_null.sh SUDO
-	runtests=$((runtests+1))
-else
-	./run_null.sh
-	runtests=$((runtests+1))
-fi
-
-for mode in root unshare fakechroot proot; do
-	print_header "mode=$mode,variant=apt: test ext2 image"
-	if [ "$DEFAULT_DIST" = "oldstable" ]; then
-		echo "skipping test on oldstable because genext2fs does not support SOURCE_DATE_EPOCH" >&2
-		skipped=$((skipped+1))
-		continue
-	fi
-	if [ "$mode" = "unshare" ] && [ "$HAVE_UNSHARE" != "yes" ]; then
-		echo "HAVE_UNSHARE != yes -- Skipping test..." >&2
-		skipped=$((skipped+1))
-		continue
-	fi
-	if [ "$mode" = "proot" ] && [ "$HAVE_PROOT" != "yes" ]; then
-		echo "HAVE_PROOT != yes -- Skipping test..." >&2
-		skipped=$((skipped+1))
-		continue
-	fi
-	cat << END > shared/test.sh
-#!/bin/sh
-set -eu
-export LC_ALL=C.UTF-8
-if [ "\$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	if [ ! -e /mmdebstrap-testenv ]; then
-		echo "this test modifies the system and should only be run inside a container" >&2
-		exit 1
-	fi
-	adduser --gecos user --disabled-password user
-fi
-if [ "$mode" = unshare ]; then
-	if [ ! -e /mmdebstrap-testenv ]; then
-		echo "this test modifies the system and should only be run inside a container" >&2
-		exit 1
-	fi
-	sysctl -w kernel.unprivileged_userns_clone=1
-fi
-prefix=
-[ "\$(id -u)" -eq 0 ] && [ "$mode" != "root" ] && prefix="runuser -u user --"
-[ "$mode" = "fakechroot" ] && prefix="\$prefix fakechroot fakeroot"
-\$prefix $CMD --mode=$mode --variant=apt $DEFAULT_DIST /tmp/debian-chroot.ext2 $mirror
-mkdir /tmp/mnt
-mount /tmp/debian-chroot.ext2 /tmp/mnt
-rmdir /tmp/mnt/lost+found
-tar -C /tmp/mnt -c . | tar -t | sort | diff -u tar1.txt -
-umount /tmp/mnt
-rmdir /tmp/mnt
-rm /tmp/debian-chroot.ext2
-END
-	if [ "$HAVE_QEMU" = "yes" ]; then
-		./run_qemu.sh
-		runtests=$((runtests+1))
-	else
-		echo "HAVE_QEMU != yes -- Skipping test..." >&2
-		skipped=$((skipped+1))
-	fi
-done
 
 print_header "mode=auto,variant=apt: test auto-mode without unshare capabilities"
 cat << END > shared/test.sh
