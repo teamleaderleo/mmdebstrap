@@ -713,7 +713,7 @@ fi
 
 for variant in essential apt minbase buildd important standard; do
 	for format in tar squashfs ext2; do
-		print_header "mode=unshare/root,variant=$variant: check for bit-by-bit identical $format output"
+		print_header "mode=root/unshare/fakechroot,variant=$variant: check for bit-by-bit identical $format output"
 		# fontconfig doesn't install reproducibly because differences
 		# in /var/cache/fontconfig/. See
 		# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=864082
