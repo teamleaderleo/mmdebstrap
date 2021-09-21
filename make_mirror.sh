@@ -97,7 +97,7 @@ get_oldaptnames() {
 	if [ ! -e "$1/$2" ]; then
 		return
 	fi
-	gzip -dc "$1/$2" \
+	xz -dc "$1/$2" \
 		| grep-dctrl --no-field-names --show-field=Package,Version,Architecture,Filename '' \
 		| paste -sd "    \n" \
 		| while read name ver arch fname; do
@@ -122,10 +122,10 @@ get_newaptnames() {
 		return
 	fi
 	# skip empty files by trying to uncompress the first byte of the payload
-	if [ "$(gzip -dc "$1/$2" | head -c1 | wc -c)" -eq 0 ]; then
+	if [ "$(xz -dc "$1/$2" | head -c1 | wc -c)" -eq 0 ]; then
 		return
 	fi
-	gzip -dc "$1/$2" \
+	xz -dc "$1/$2" \
 		| grep-dctrl --no-field-names --show-field=Package,Version,Architecture,Filename,SHA256 '' \
 		| paste -sd "     \n" \
 		| while read name ver arch fname hash; do
@@ -235,17 +235,17 @@ END
 	# /var/cache/apt/archives so that apt will not re-download *.deb
 	# packages that we already have
 	{
-		get_oldaptnames "$oldmirrordir" "dists/$dist/main/binary-$nativearch/Packages.gz"
+		get_oldaptnames "$oldmirrordir" "dists/$dist/main/binary-$nativearch/Packages.xz"
 		case "$dist" in oldstable|stable)
-			get_oldaptnames "$oldmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.gz"
+			get_oldaptnames "$oldmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.xz"
 			;;
 		esac
 		case "$dist" in
 			oldstable)
-				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.gz"
+				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.xz"
 				;;
 			stable)
-				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.gz"
+				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.xz"
 				;;
 		esac
 	} | sort -u > "$rootdir/oldaptnames"
@@ -266,12 +266,12 @@ END
 	mkdir -p "$newmirrordir/dists/$dist/main/binary-$nativearch/"
 	curl --location "$mirror/dists/$dist/Release" > "$newmirrordir/dists/$dist/Release"
 	curl --location "$mirror/dists/$dist/Release.gpg" > "$newmirrordir/dists/$dist/Release.gpg"
-	curl --location "$mirror/dists/$dist/main/binary-$nativearch/Packages.gz" > "$newmirrordir/dists/$dist/main/binary-$nativearch/Packages.gz"
+	curl --location "$mirror/dists/$dist/main/binary-$nativearch/Packages.xz" > "$newmirrordir/dists/$dist/main/binary-$nativearch/Packages.xz"
 	case "$dist" in oldstable|stable)
 		mkdir -p "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/"
 		curl --location "$mirror/dists/$dist-updates/Release" > "$newmirrordir/dists/$dist-updates/Release"
 		curl --location "$mirror/dists/$dist-updates/Release.gpg" > "$newmirrordir/dists/$dist-updates/Release.gpg"
-		curl --location "$mirror/dists/$dist-updates/main/binary-$nativearch/Packages.gz" > "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/Packages.gz"
+		curl --location "$mirror/dists/$dist-updates/main/binary-$nativearch/Packages.xz" > "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/Packages.xz"
 		;;
 	esac
 	case "$dist" in
@@ -279,13 +279,13 @@ END
 			mkdir -p "$newcachedir/debian-security/dists/$dist/updates/main/binary-$nativearch/"
 			curl --location "$security_mirror/dists/$dist/updates/Release" > "$newcachedir/debian-security/dists/$dist/updates/Release"
 			curl --location "$security_mirror/dists/$dist/updates/Release.gpg" > "$newcachedir/debian-security/dists/$dist/updates/Release.gpg"
-			curl --location "$security_mirror/dists/$dist/updates/main/binary-$nativearch/Packages.gz" > "$newcachedir/debian-security/dists/$dist/updates/main/binary-$nativearch/Packages.gz"
+			curl --location "$security_mirror/dists/$dist/updates/main/binary-$nativearch/Packages.xz" > "$newcachedir/debian-security/dists/$dist/updates/main/binary-$nativearch/Packages.xz"
 			;;
 		stable)
 			mkdir -p "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/"
 			curl --location "$security_mirror/dists/$dist-security/Release" > "$newcachedir/debian-security/dists/$dist-security/Release"
 			curl --location "$security_mirror/dists/$dist-security/Release.gpg" > "$newcachedir/debian-security/dists/$dist-security/Release.gpg"
-			curl --location "$security_mirror/dists/$dist-security/main/binary-$nativearch/Packages.gz" > "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/Packages.gz"
+			curl --location "$security_mirror/dists/$dist-security/main/binary-$nativearch/Packages.xz" > "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/Packages.xz"
 			;;
 	esac
 
@@ -298,17 +298,17 @@ END
 	# stripping the epoch from the filename and will break once mirrors change.
 	# This way, it doesn't matter where the mirror ends up storing the package.
 	{
-		get_newaptnames "$newmirrordir" "dists/$dist/main/binary-$nativearch/Packages.gz";
+		get_newaptnames "$newmirrordir" "dists/$dist/main/binary-$nativearch/Packages.xz";
 		case "$dist" in oldstable|stable)
-			get_newaptnames "$newmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.gz"
+			get_newaptnames "$newmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.xz"
 			;;
 		esac
 		case "$dist" in
 			oldstable)
-				get_newaptnames "$newcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.gz"
+				get_newaptnames "$newcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.xz"
 				;;
 			stable)
-				get_newaptnames "$newcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.gz"
+				get_newaptnames "$newcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.xz"
 				;;
 		esac
 	} | sort -u > "$rootdir/newaptnames"
