@@ -3361,6 +3361,10 @@ END
 if [ "$DEFAULT_DIST" = "oldstable" ]; then
 	echo "chrootless doesn't work in oldstable -- Skipping test..." >&2
 	skipped=$((skipped+1))
+elif true; then
+	# https://salsa.debian.org/pkg-debconf/debconf/-/merge_requests/8
+	echo "blocked by #983425 -- Skipping test..." >&2
+	skipped=$((skipped+1))
 elif [ "$HAVE_QEMU" = "yes" ]; then
 	./run_qemu.sh
 	runtests=$((runtests+1))
