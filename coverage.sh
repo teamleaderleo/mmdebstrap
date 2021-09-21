@@ -103,12 +103,12 @@ if [ ! -e shared/ldconfig.fakechroot ] || [ ldconfig.fakechroot -nt shared/ldcon
 		cp -a /usr/libexec/mmdebstrap/ldconfig.fakechroot shared/ldconfig.fakechroot
 	fi
 fi
-mkdir -p shared/hooks
-if [ ! -e shared/hooks/setup00-merged-usr.sh ] || [ hooks/setup00-merged-usr.sh -nt shared/hooks/setup00-merged-usr.sh ]; then
-	if [ -e hooks/setup00-merged-usr.sh ]; then
-		cp -a hooks/setup00-merged-usr.sh shared/hooks/
+mkdir -p shared/hooks/merged-usr
+if [ ! -e shared/hooks/merged-usr/setup00.sh ] || [ hooks/merged-usr/setup00.sh -nt shared/hooks/merged-usr/setup00.sh ]; then
+	if [ -e hooks/merged-usr/setup00.sh ]; then
+		cp -a hooks/merged-usr/setup00.sh shared/hooks/merged-usr/
 	else
-		cp -a /usr/share/mmdebstrap/hooks/setup00-merged-usr.sh shared/hooks/
+		cp -a /usr/share/mmdebstrap/hooks/merged-usr/setup00.sh shared/hooks/merged-usr/
 	fi
 fi
 mkdir -p shared/hooks/eatmydata
@@ -2076,7 +2076,7 @@ cat << END > shared/test.sh
 set -eu
 export LC_ALL=C.UTF-8
 $CMD --mode=root --variant=apt \
-	--setup-hook=./hooks/setup00-merged-usr.sh \
+	--setup-hook=./hooks/merged-usr/setup00.sh \
 	--customize-hook='[ -L "\$1"/bin -a -L "\$1"/sbin -a -L "\$1"/lib ]' \
 	$DEFAULT_DIST /tmp/debian-chroot $mirror
 tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort > tar2.txt
