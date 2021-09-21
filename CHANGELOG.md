@@ -1,3 +1,34 @@
+0.8.0 (2021-09-21)
+------------------
+
+ - allow running inside chroot in root mode
+ - allow running without /dev, /sys or /proc
+ - new --format=null which gets automatically selected if the output is
+   /dev/null and doesn't produce a tarball or other permanent output
+ - allow ASCII-armored keyrings (requires gnupg >= 2.2.8)
+ - run zstd with --threads=0
+ - tarfilter: add --pax-exclude and --pax-include to strip extended attributes
+ - add --skip=setup, --skip=update and --skip=cleanup
+ - add --skip=cleanup/apt/lists and --skip=cleanup/apt/cache
+ - pass extended attributes (excluding system) to tar2sqfs
+ - use apt-get update -error-on=any (requires apt >= 2.1.16)
+ - support Debian 11 Buster
+ - use apt from outside using DPkg::Chroot-Directory (requires apt >= 2.3.7)
+    * build chroots without apt (for example from buildinfo files)
+    * no need to install additional packages like apt-transport-* or
+      ca-certificates inside the chroot
+    * no need for additional key material inside the chroot
+    * possible use of file:// and copy://
+ - use apt pattern to select essential set
+ - write 'uninitialized' to /etc/machine-id
+ - allow running in root mode without mount working, either because of missing
+   CAP_SYS_ADMIN or missing /usr/bin/mount
+ - make /etc/ld.so.cache under fakechroot mode bit-by-bit identical to root
+   and unshare mode
+ - move hooks/setup00-merged-usr.sh to hooks/merged-usr/setup00.sh
+ - add gpgvnoexpkeysig script for very old snapshot.d.o timestamps with expired
+   signature
+
 0.7.5 (2021-02-06)
 ------------------
 
