@@ -240,7 +240,7 @@ rm /tmp/debian-$dist-debootstrap/var/lib/dpkg/status-old \
 	/tmp/debian-$dist-mm/var/lib/dpkg/status-old
 # remove dpkg files
 rm /tmp/debian-$dist-debootstrap/var/lib/dpkg/available
-touch /tmp/debian-$dist-debootstrap/var/lib/dpkg/available
+rm /tmp/debian-$dist-debootstrap/var/lib/dpkg/cmethopt
 # since we installed packages directly from the .deb files, Priorities differ
 # thus we first check for equality and then remove the files
 chroot /tmp/debian-$dist-debootstrap dpkg --list > dpkg1
@@ -2763,8 +2763,6 @@ rm /tmp/debian-chroot/etc/fstab
 rm /tmp/debian-chroot/etc/hostname
 rm /tmp/debian-chroot/etc/resolv.conf
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
 rm /tmp/debian-chroot/var/lib/dpkg/status
 # the rest should be empty directories that we can rmdir recursively
 find /tmp/debian-chroot -depth -print0 | xargs -0 rmdir
@@ -2793,8 +2791,6 @@ rm /tmp/debian-chroot/etc/fstab
 rm /tmp/debian-chroot/etc/hostname
 rm /tmp/debian-chroot/etc/resolv.conf
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
 rm /tmp/debian-chroot/var/lib/dpkg/status
 # the rest should be empty directories that we can rmdir recursively
 find /tmp/debian-chroot -depth -print0 | xargs -0 rmdir
@@ -2824,8 +2820,6 @@ rm /tmp/debian-chroot/etc/fstab
 rm /tmp/debian-chroot/etc/hostname
 rm /tmp/debian-chroot/etc/resolv.conf
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
 rm /tmp/debian-chroot/var/lib/dpkg/status
 # the rest should be empty directories that we can rmdir recursively
 find /tmp/debian-chroot -depth -print0 | xargs -0 rmdir
@@ -2971,8 +2965,6 @@ rm /tmp/debian-chroot/etc/fstab
 rm /tmp/debian-chroot/etc/hostname
 rm /tmp/debian-chroot/etc/resolv.conf
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
 rm /tmp/debian-chroot/var/lib/dpkg/status
 # the rest should be empty directories that we can rmdir recursively
 find /tmp/debian-chroot -depth -print0 | xargs -0 rmdir
@@ -3216,10 +3208,6 @@ rm /tmp/debian-chroot/var/lib/dpkg/status
 rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
-if [ "$mode" != "chrootless" ] || dpkg --compare-versions "\$(dpkg --robot --version)" lt 1.20.0; then
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
-fi
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
 ## delete merged usr symlinks
 #rm /tmp/debian-chroot/libx32
@@ -3285,10 +3273,6 @@ rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-if [ "$mode" != "chrootless" ] || dpkg --compare-versions "\$(dpkg --robot --version)" lt 1.20.0; then
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
-fi
 ## delete merged usr symlinks
 #rm /tmp/debian-chroot/libx32
 #rm /tmp/debian-chroot/lib64
@@ -3435,10 +3419,6 @@ rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-if dpkg --compare-versions "\$(dpkg --robot --version)" lt 1.20.0; then
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
-fi
 ## delete merged usr symlinks
 #rm /tmp/debian-chroot/libx32
 #rm /tmp/debian-chroot/lib64
@@ -3497,10 +3477,6 @@ rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
-if dpkg --compare-versions "\$(dpkg --robot --version)" lt 1.20.0; then
-rm /tmp/debian-chroot/var/lib/dpkg/available
-rm /tmp/debian-chroot/var/lib/dpkg/cmethopt
-fi
 ## delete merged usr symlinks
 #rm /tmp/debian-chroot/libx32
 #rm /tmp/debian-chroot/lib64

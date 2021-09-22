@@ -1732,8 +1732,9 @@ sub run_setup() {
     # removals will fail
     # since we do not know the dpkg version inside the chroot at this point, we
     # can only omit it in chrootless mode
-    if (   $options->{mode} ne 'chrootless'
-        or $dpkgversion < "1.20.0") {
+    # since we want to produce equivalent output independent on the mode, we
+    # only check for the dpkg version
+    if ($dpkgversion < "1.20.0") {
         open my $fh, '>', "$options->{root}/var/lib/dpkg/available"
           or error "failed to open(): $!";
         close $fh;
@@ -1743,8 +1744,9 @@ sub run_setup() {
     # see #930788
     # since we do not know the dpkg version inside the chroot at this point, we
     # can only omit it in chrootless mode
-    if (   $options->{mode} ne 'chrootless'
-        or $dpkgversion < "1.20.0") {
+    # since we want to produce equivalent output independent on the mode, we
+    # only check for the dpkg version
+    if ($dpkgversion < "1.20.0") {
         open my $fh, '>', "$options->{root}/var/lib/dpkg/cmethopt"
           or error "failed to open(): $!";
         print $fh "apt apt\n";
