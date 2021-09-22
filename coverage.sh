@@ -2844,8 +2844,8 @@ cat << END > shared/test.sh
 set -eu
 export LC_ALL=C.UTF-8
 $CMD --mode=$defaultmode --variant=essential --include=apt \
-	--essential-hook='apt-get -o Dir="\$1" -oDir::Etc::TrustedParts=/etc/apt/trusted.gpg.d -oAcquire::Languages=none update' \
-	--essential-hook='apt-get --yes install --no-install-recommends -o Dir="\$1" -oDPkg::Chroot-Directory="\$1" apt' \
+	--essential-hook='APT_CONFIG=\$MMDEBSTRAP_APT_CONFIG apt-get update' \
+	--essential-hook='APT_CONFIG=\$MMDEBSTRAP_APT_CONFIG apt-get --yes install -oDPkg::Chroot-Directory="\$1" apt' \
 	$DEFAULT_DIST /tmp/debian-chroot.tar $mirror
 tar -tf /tmp/debian-chroot.tar | sort | grep -v ./var/lib/apt/extended_states | diff -u tar1.txt -
 rm /tmp/debian-chroot.tar
