@@ -90,6 +90,12 @@ def main():
 
     chroot = Path(os.environ["FAKECHROOT_BASE_ORIG"])
 
+    # if chrootless mode is used from within a fakechroot chroot, then
+    # FAKECHROOT_BASE_ORIG will point at the outer chroot. We want to use
+    # the path from DPKG_ROOT inside of that instead
+    if os.environ.get("DPKG_ROOT", "") not in ["", "/"]:
+        chroot /= os.environ["DPKG_ROOT"].lstrip("/")
+
     if not (chroot / "sbin" / "ldconfig").exists():
         sys.exit(0)
 
