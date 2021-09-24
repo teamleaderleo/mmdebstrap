@@ -244,9 +244,9 @@ sub get_tar_compressor {
     } elsif ($filename =~ /\.lz4$/) {
         return ['lz4'];
     } elsif ($filename =~ /\.(xz|txz)$/) {
-        return ['xz', '--threads=0'];
+        return ['xz'];
     } elsif ($filename =~ /\.zst$/) {
-        return ['zstd', '--threads=0'];
+        return ['zstd'];
     }
     return;
 }
@@ -7135,9 +7135,9 @@ extension to compressor applies:
  .tlz      lzma
  .lzo      lzop
  .lz4      lz4
- .xz       xz --threads=0
- .txz      xz --threads=0
- .zst      zstd --threads=0
+ .xz       xz
+ .txz      xz
+ .zst      zstd
 
 To change compression specific options, either use the respecitve environment
 variables like B<XZ_OPT> or send B<mmdebstrap> output to your compressor of
