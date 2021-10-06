@@ -127,7 +127,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=212
+total=213
 skipped=0
 runtests=0
 i=1
@@ -1053,6 +1053,39 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 else
 	./run_null.sh SUDO
 	runtests=$((runtests+1))
+fi
+
+print_header "mode=unshare,variant=apt: CWD directory not accessible by unshared user"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+adduser --gecos user --disabled-password user
+sysctl -w kernel.unprivileged_userns_clone=1
+mkdir /tmp/debian-chroot
+chmod 700 /tmp/debian-chroot
+chown user:user /tmp/debian-chroot
+if [ "$CMD" = "./mmdebstrap" ]; then
+	CMD=\$(realpath --canonicalize-existing ./mmdebstrap)
+elif [ "$CMD" = "perl -MDevel::Cover=-silent,-nogcov ./mmdebstrap" ]; then
+	CMD="perl -MDevel::Cover=-silent,-nogcov \$(realpath --canonicalize-existing ./mmdebstrap)"
+else
+	CMD="$CMD"
+fi
+env --chdir=/tmp/debian-chroot runuser -u user -- \$CMD --mode=unshare --variant=apt $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+rm /tmp/debian-chroot.tar
+END
+if [ "$HAVE_QEMU" = "yes" ]; then
+	./run_qemu.sh
+	runtests=$((runtests+1))
+else
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
 fi
 
 print_header "mode=unshare,variant=apt: create gzip compressed tarball"

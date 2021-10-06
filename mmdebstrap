@@ -29,7 +29,7 @@ use English;
 use Getopt::Long;
 use Pod::Usage;
 use File::Copy;
-use File::Path qw(make_path remove_tree);
+use File::Path qw(make_path);
 use File::Temp qw(tempfile tempdir);
 use File::Basename;
 use File::Find;
@@ -3057,15 +3057,14 @@ sub run_cleanup() {
         # apt since 1.6 creates the auxfiles directory. If apt inside the
         # chroot is older than that, then it will not know how to clean it.
         if (-e "$options->{root}/var/lib/apt/lists/auxfiles") {
-            remove_tree("$options->{root}/var/lib/apt/lists/auxfiles",
-                { error => \my $err });
-            if (@$err) {
-                for my $diag (@$err) {
-                    my ($file, $message) = %$diag;
-                    if ($file eq '') { warning "general error: $message"; }
-                    else { warning "problem unlinking $file: $message"; }
-                }
-            }
+            0 == system(
+                'rm',
+                '--interactive=never',
+                '--recursive',
+                '--preserve-root',
+                '--one-file-system',
+                "$options->{root}/var/lib/apt/lists/auxfiles"
+            ) or error "rm failed: $?";
         }
     }
 
@@ -3135,15 +3134,11 @@ sub run_cleanup() {
                 next if $entry eq ".";
                 next if $entry eq "..";
                 warning "deleting files in /tmp: $entry";
-                remove_tree("$options->{root}/tmp/$entry",
-                    { error => \my $err });
-                if (@$err) {
-                    for my $diag (@$err) {
-                        my ($file, $message) = %$diag;
-                        if ($file eq '') { warning "general error: $message"; }
-                        else { warning "problem unlinking $file: $message"; }
-                    }
-                }
+                0 == system(
+                    'rm',                '--interactive=never',
+                    '--recursive',       '--preserve-root',
+                    '--one-file-system', "$options->{root}/tmp/$entry"
+                ) or error "rm failed: $?";
             }
             closedir($dh);
         }
@@ -4519,8 +4514,11 @@ sub main() {
         $ENV{PATH} = "/usr/sbin:/usr/bin:/sbin:/bin";
     }
 
-    foreach my $tool ('dpkg', 'dpkg-deb', 'apt-get', 'apt-cache', 'apt-config',
-        'tar') {
+    foreach my $tool (
+        'dpkg',       'dpkg-deb', 'apt-get', 'apt-cache',
+        'apt-config', 'tar',      'rm',      'find',
+        'env'
+    ) {
         my $found = 0;
         foreach my $path (split /:/, $ENV{PATH}) {
             if (-f "$path/$tool" && -x _ ) {
@@ -5922,31 +5920,18 @@ sub main() {
             # no risk of removing anything important.
             $pid = get_unshare_cmd(
                 sub {
-                    # File::Path will produce the error "cannot stat initial
-                    # working directory" if the working directory cannot be
-                    # accessed by the unprivileged unshared user. Thus, we
-                    # first navigate to the parent of the root directory.
-                    chdir "$options->{root}/.."
-                      or error "unable to chdir() to parent directory of"
-                      . " $options->{root}: $!";
-                    remove_tree($options->{root}, { error => \my $err });
-                    if (@$err) {
-                        for my $diag (@$err) {
-                            my ($file, $message) = %$diag;
-                            if ($file eq '') {
-                                warning "general error: $message";
-                            } else {
-                                # the unshared process might not have
-                                # sufficient permissions to remove the root
-                                # directory. We attempt its removal later, so
-                                # don't warn if its removal fails now.
-                                if ($file ne $options->{root}) {
-                                    warning
-                                      "problem unlinking $file: $message";
-                                }
-                            }
-                        }
-                    }
+                    # change CWD to chroot directory because find tries to
+                    # chdir to the current directory which might not be
+                    # accessible by the unshared user:
+                    # find: Failed to restore initial working directory
+                    0 == system('env', "--chdir=$options->{root}", 'find',
+                        $options->{root}, '-mount',
+                        '-mindepth', '1', '-delete')
+                      or error "rm failed: $?";
+                    # ignore failure in case the unshared user doesn't have the
+                    # required permissions -- we attempt again later if
+                    # necessary
+                    rmdir "$options->{root}";
                 },
                 \@idmap
             );
@@ -5954,8 +5939,7 @@ sub main() {
             $? == 0 or error "remove_tree failed";
             # in unshare mode, the toplevel directory might've been created in
             # a directory that the unshared user cannot change and thus cannot
-            # delete. If the root directory still exists after remove_tree
-            # above, we attempt its removal again outside as the normal user.
+            # delete. We attempt its removal again outside as the normal user.
             if (-e $options->{root}) {
                 rmdir "$options->{root}"
                   or error "cannot rmdir $options->{root}: $!";
@@ -5973,7 +5957,7 @@ sub main() {
             # be removed.
             0 == system('rm', '--interactive=never', '--recursive',
                 '--preserve-root', '--one-file-system', $options->{root})
-              or error "rm failed: $!";
+              or error "rm failed: $?";
         } else {
             error "unknown mode: $options->{mode}";
         }
