@@ -1,3 +1,12 @@
+0.8.1 (2021-10-07)
+------------------
+
+ - enforce dpkg >= 1.20.0 and apt >= 2.3.7
+ - allow working directory be not world readable
+ - do not run xz and zstd with --threads=0 since this is a bad default for
+   machines with more than 100 cores
+ - bit-by-bit identical chrootless mode
+
 0.8.0 (2021-09-21)
 ------------------
 
