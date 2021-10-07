@@ -1550,29 +1550,6 @@ sub setup {
 sub run_setup() {
     my $options = shift;
 
-    my $dpkgversion = version->new(0);
-    {
-        my $pid = open my $fh, '-|' // error "failed to fork(): $!";
-        if ($pid == 0) {
-            # redirect stderr to /dev/null to hide error messages from dpkg
-            # versions before 1.20.0
-            open(STDERR, '>', '/dev/null')
-              or error "cannot open /dev/null for writing: $!";
-            exec 'dpkg', '--robot', '--version';
-        }
-        chomp(
-            my $content = do { local $/; <$fh> }
-        );
-        close $fh;
-        # the --robot option was introduced in 1.20.0 but until 1.20.2 the
-        # output contained a string after the version, separated by a
-        # whitespace -- since then, it's only the version
-        if ($? == 0 and $content =~ /^([0-9.]+)( .*)?$/) {
-            # dpkg is new enough for the --robot option
-            $dpkgversion = version->new($1);
-        }
-    }
-
     {
         my @directories = (
             '/etc/apt/apt.conf.d',        '/etc/apt/sources.list.d',
@@ -1583,8 +1560,7 @@ sub run_setup() {
         push @directories, '/var/lib/dpkg';
         # since we do not know the dpkg version inside the chroot at this
         # point, we can only omit it in chrootless mode
-        if (   $options->{mode} ne 'chrootless'
-            or $dpkgversion < "1.20.0"
+        if ($options->{mode} ne 'chrootless'
             or scalar @{ $options->{dpkgopts} } > 0) {
             push @directories, '/etc/dpkg/dpkg.cfg.d/';
         }
@@ -1597,8 +1573,7 @@ sub run_setup() {
             push @directories, '/var/log/apt';
             # since we do not know the dpkg version inside the chroot at this
             # point, we can only omit it in chrootless mode
-            if (   $options->{mode} ne 'chrootless'
-                or $dpkgversion < "1.20.0") {
+            if ($options->{mode} ne 'chrootless') {
                 push @directories, '/var/lib/dpkg/triggers',
                   '/var/lib/dpkg/info', '/var/lib/dpkg/alternatives',
                   '/var/lib/dpkg/updates';
@@ -1695,31 +1670,6 @@ sub run_setup() {
     {
         open my $fh, '>', "$options->{root}/var/lib/dpkg/status"
           or error "failed to open(): $!";
-        close $fh;
-    }
-
-    # /var/lib/dpkg/available is required to exist or otherwise package
-    # removals will fail
-    # since we do not know the dpkg version inside the chroot at this point, we
-    # can only omit it in chrootless mode
-    # since we want to produce equivalent output independent on the mode, we
-    # only check for the dpkg version
-    if ($dpkgversion < "1.20.0") {
-        open my $fh, '>', "$options->{root}/var/lib/dpkg/available"
-          or error "failed to open(): $!";
-        close $fh;
-    }
-
-    # /var/lib/dpkg/cmethopt is used by dselect
-    # see #930788
-    # since we do not know the dpkg version inside the chroot at this point, we
-    # can only omit it in chrootless mode
-    # since we want to produce equivalent output independent on the mode, we
-    # only check for the dpkg version
-    if ($dpkgversion < "1.20.0") {
-        open my $fh, '>', "$options->{root}/var/lib/dpkg/cmethopt"
-          or error "failed to open(): $!";
-        print $fh "apt apt\n";
         close $fh;
     }
 
@@ -4528,6 +4478,32 @@ sub main() {
         }
         if (!$found) {
             error "cannot find $tool";
+        }
+    }
+
+    {
+        my $dpkgversion = version->new(0);
+        my $pid         = open my $fh, '-|' // error "failed to fork(): $!";
+        if ($pid == 0) {
+            # redirect stderr to /dev/null to hide error messages from dpkg
+            # versions before 1.20.0
+            open(STDERR, '>', '/dev/null')
+              or error "cannot open /dev/null for writing: $!";
+            exec 'dpkg', '--robot', '--version';
+        }
+        chomp(
+            my $content = do { local $/; <$fh> }
+        );
+        close $fh;
+        # the --robot option was introduced in 1.20.0 but until 1.20.2 the
+        # output contained a string after the version, separated by a
+        # whitespace -- since then, it's only the version
+        if ($? == 0 and $content =~ /^([0-9.]+)( .*)?$/) {
+            # dpkg is new enough for the --robot option
+            $dpkgversion = version->new($1);
+        }
+        if ($dpkgversion < "1.20.0") {
+            error "need dpkg >= 1.20.0 but have $dpkgversion";
         }
     }
 
