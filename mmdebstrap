@@ -6979,6 +6979,17 @@ Create a system that can be used with podman:
     root
     $ podman rmi debian
 
+As a docker/podman replacement:
+
+    $ mmdebstrap unstable | mmtarfilter --path-exclude='/dev/*' > chroot.tar
+    [...]
+    $ mmdebstrap --variant=custom --skip=update \
+        --setup-hook='tar-in chroot.tar /' \
+        --customize-hook='chroot "$1" whoami' unstable /dev/null
+    [...]
+    root
+    $ rm chroot.tar
+
 =head1 ENVIRONMENT VARIABLES
 
 =over 8
