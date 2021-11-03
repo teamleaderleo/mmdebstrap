@@ -1290,7 +1290,7 @@ sub run_chroot {
         }
 
         # the file might not exist if it was removed in a hook
-        if (-e "$options->{root}/sbin/start-stop-daemon") {
+        if (-f "$options->{root}/sbin/start-stop-daemon") {
             if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
                 error "$options->{root}/sbin/start-stop-daemon.REAL already"
                   . " exists";
@@ -1318,7 +1318,7 @@ sub run_chroot {
                 "$options->{root}/sbin/start-stop-daemon"
             ) or error "cannot move start-stop-daemon: $!";
         }
-        if (-e "$options->{root}/usr/sbin/policy-rc.d") {
+        if (-f "$options->{root}/usr/sbin/policy-rc.d") {
             unlink "$options->{root}/usr/sbin/policy-rc.d"
               or error "cannot unlink policy-rc.d: $!";
         }
