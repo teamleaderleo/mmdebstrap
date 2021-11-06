@@ -4498,7 +4498,7 @@ sub main() {
         # the --robot option was introduced in 1.20.0 but until 1.20.2 the
         # output contained a string after the version, separated by a
         # whitespace -- since then, it's only the version
-        if ($? == 0 and $content =~ /^([0-9.]+)( .*)?$/) {
+        if ($? == 0 and $content =~ /^([0-9.]+).*$/) {
             # dpkg is new enough for the --robot option
             $dpkgversion = version->new($1);
         }
