@@ -224,6 +224,9 @@ Apt::Get::Download-Only true;
 Acquire::Languages "none";
 Dir::Etc::Trusted "/etc/apt/trusted.gpg";
 Dir::Etc::TrustedParts "/etc/apt/trusted.gpg.d";
+Acquire::http::Dl-Limit "1000";
+Acquire::https::Dl-Limit "1000";
+Acquire::Retries "5";
 END
 
 	> "$rootdir/var/lib/dpkg/status"
@@ -507,6 +510,9 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 		arches=$HOSTARCH
 	fi
 	$CMD --variant=apt --architectures=$arches --include="$pkgs" \
+		--aptopt='Acquire::http::Dl-Limit "1000"' \
+		--aptopt='Acquire::https::Dl-Limit "1000"' \
+		--aptopt='Acquire::Retries "5"' \
 		$DEFAULT_DIST - "$mirror" > "$tmpdir/debian-chroot.tar"
 
 	cat << END > "$tmpdir/extlinux.conf"
