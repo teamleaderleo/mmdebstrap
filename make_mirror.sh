@@ -469,6 +469,17 @@ cleanuptmpdir() {
 export SOURCE_DATE_EPOCH=$(date --date="$(grep-dctrl -s Date -n '' "$newmirrordir/dists/$DEFAULT_DIST/Release")" +%s)
 
 if [ "$HAVE_QEMU" = "yes" ]; then
+	case "$HOSTARCH" in
+		amd64|i386)
+			# okay
+			;;
+		*)
+			echo "qemu support is only available on amd64 and i386" >&2
+			echo "because syslinux is only available on those arches" >&2
+			exit 1
+			;;
+	esac
+
 	# We must not use any --dpkgopt here because any dpkg options still
 	# leak into the chroot with chrootless mode.
 	# We do not use our own package cache here because
