@@ -127,7 +127,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=213
+total=177
 skipped=0
 runtests=0
 i=1
@@ -3074,123 +3074,6 @@ END
 			runtests=$((runtests+1))
 		fi
 	done
-done
-
-# test all variants
-
-for variant in essential apt required minbase buildd important debootstrap - standard; do
-	print_header "mode=root,variant=$variant: create tarball"
-	cat << END > shared/test.sh
-#!/bin/sh
-set -eu
-export LC_ALL=C.UTF-8
-$CMD --mode=root --variant=$variant $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
-tar -tf /tmp/debian-chroot.tar | sort > "$variant.txt"
-rm /tmp/debian-chroot.tar
-END
-	if [ "$HAVE_QEMU" = "yes" ]; then
-		./run_qemu.sh
-		runtests=$((runtests+1))
-	else
-		./run_null.sh SUDO
-		runtests=$((runtests+1))
-	fi
-	# check if the other modes produce the same result in each variant
-	for mode in unshare fakechroot proot; do
-		print_header "mode=$mode,variant=$variant: create tarball"
-		# fontconfig doesn't install reproducibly because differences
-		# in /var/cache/fontconfig/. See
-		# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=864082
-		if [ "$variant" = standard ]; then
-			echo "skipping test because of #864082" >&2
-			skipped=$((skipped+1))
-			continue
-		fi
-		if [ "$mode" = "unshare" ] && [ "$HAVE_UNSHARE" != "yes" ]; then
-			echo "HAVE_UNSHARE != yes -- Skipping test..." >&2
-			skipped=$((skipped+1))
-			continue
-		fi
-		if [ "$mode" = "proot" ] && [ "$HAVE_PROOT" != "yes" ]; then
-			echo "HAVE_PROOT != yes -- Skipping test..." >&2
-			skipped=$((skipped+1))
-			continue
-		fi
-		cat << END > shared/test.sh
-#!/bin/sh
-set -eu
-export LC_ALL=C.UTF-8
-if [ "\$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	if [ ! -e /mmdebstrap-testenv ]; then
-		echo "this test modifies the system and should only be run inside a container" >&2
-		exit 1
-	fi
-	adduser --gecos user --disabled-password user
-fi
-if [ "$mode" = unshare ]; then
-	if [ ! -e /mmdebstrap-testenv ]; then
-		echo "this test modifies the system and should only be run inside a container" >&2
-		exit 1
-	fi
-	sysctl -w kernel.unprivileged_userns_clone=1
-fi
-prefix=
-[ "\$(id -u)" -eq 0 ] && prefix="runuser -u user --"
-\$prefix $CMD --mode=$mode --variant=$variant $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
-tar -tf /tmp/debian-chroot.tar | sort | diff -u "./$variant.txt" -
-rm /tmp/debian-chroot.tar
-END
-		if [ "$HAVE_QEMU" = "yes" ]; then
-			./run_qemu.sh
-			runtests=$((runtests+1))
-		else
-			./run_null.sh
-			runtests=$((runtests+1))
-		fi
-	done
-	# some variants are equal and some are strict superset of the last
-	# special case of the buildd variant: nothing is a superset of it
-	case "$variant" in
-		essential) ;; # nothing to compare it to
-		apt)
-			[ $(comm -23 shared/essential.txt shared/apt.txt | wc -l) -eq 0 ]
-			[ $(comm -13 shared/essential.txt shared/apt.txt | wc -l) -gt 0 ]
-			rm shared/essential.txt
-			;;
-		required)
-			[ $(comm -23 shared/apt.txt shared/required.txt | wc -l) -eq 0 ]
-			[ $(comm -13 shared/apt.txt shared/required.txt | wc -l) -gt 0 ]
-			rm shared/apt.txt
-			;;
-		minbase) # equal to required
-			cmp shared/required.txt shared/minbase.txt
-			rm shared/required.txt
-			;;
-		buildd)
-			[ $(comm -23 shared/minbase.txt shared/buildd.txt | wc -l) -eq 0 ]
-			[ $(comm -13 shared/minbase.txt shared/buildd.txt | wc -l) -gt 0 ]
-			rm shared/buildd.txt # we need minbase.txt but not buildd.txt
-			;;
-		important)
-			[ $(comm -23 shared/minbase.txt shared/important.txt | wc -l) -eq 0 ]
-			[ $(comm -13 shared/minbase.txt shared/important.txt | wc -l) -gt 0 ]
-			rm shared/minbase.txt
-			;;
-		debootstrap) # equal to important
-			cmp shared/important.txt shared/debootstrap.txt
-			rm shared/important.txt
-			;;
-		-) # equal to debootstrap
-			cmp shared/debootstrap.txt shared/-.txt
-			rm shared/debootstrap.txt
-			;;
-		standard)
-			[ $(comm -23 shared/-.txt shared/standard.txt | wc -l) -eq 0 ]
-			[ $(comm -13 shared/-.txt shared/standard.txt | wc -l) -gt 0 ]
-			rm shared/-.txt shared/standard.txt
-			;;
-		*) exit 1;;
-	esac
 done
 
 # test extract variant also with chrootless mode
