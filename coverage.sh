@@ -2141,6 +2141,10 @@ tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort > tar2.txt
 	ppc64el)
 		echo ./lib64;
 		;;
+	s390x)
+		echo ./lib32;
+		echo ./usr/lib32/;
+		;;
 	esac
 } | sort -u | diff -u - tar2.txt
 rm -r /tmp/debian-chroot
