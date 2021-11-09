@@ -557,7 +557,7 @@ END
 	cat << 'END' > "$tmpdir/worker.sh"
 #!/bin/sh
 echo 'root:root' | chpasswd
-mount -t 9p -o trans=virtio,access=any mmdebstrap /mnt
+mount -t 9p -o trans=virtio,access=any,msize=128k mmdebstrap /mnt
 # need to restart mini-httpd because we mounted different content into www-root
 systemctl restart mini-httpd
 
