@@ -1510,8 +1510,7 @@ sub setup {
         run_update($options);
     }
 
-    (my $pkgs_to_install, my $essential_pkgs, my $cached_debs)
-      = run_download($options);
+    (my $essential_pkgs, my $cached_debs) = run_download($options);
 
     # in theory, we don't have to extract the packages in chrootless mode
     # but we do it anyways because otherwise directory creation timestamps
@@ -1533,7 +1532,7 @@ sub setup {
 
         run_hooks('essential', $options);
 
-        run_install($options, $pkgs_to_install, $chrootcmd);
+        run_install($options, $chrootcmd);
 
         run_hooks('customize', $options);
     }
@@ -1992,22 +1991,6 @@ sub run_update() {
 sub run_download() {
     my $options = shift;
 
-    my %pkgs_to_install;
-    for my $incl (@{ $options->{include} }) {
-        for my $pkg (split /[,\s]+/, $incl) {
-            # strip leading and trailing whitespace
-            $pkg =~ s/^\s+|\s+$//g;
-            # skip if the remainder is an empty string
-            if ($pkg eq '') {
-                next;
-            }
-            $pkgs_to_install{$pkg} = ();
-        }
-    }
-    if ($options->{variant} eq 'buildd') {
-        $pkgs_to_install{'build-essential'} = ();
-    }
-
     # We use /var/cache/apt/archives/ to figure out which packages apt chooses
     # to install. That's why the directory must be empty if:
     #  - /var/cache/apt/archives exists, and
@@ -2031,7 +2014,7 @@ sub run_download() {
     if (
         !$options->{dryrun}
         && ((none { $_ eq $options->{variant} } ('extract', 'custom'))
-            || scalar keys %pkgs_to_install != 0)
+            || scalar @{ $options->{include} } != 0)
         && -d "$options->{root}/var/cache/apt/archives/"
     ) {
         my $apt_archives = "/var/cache/apt/archives/";
@@ -2064,9 +2047,21 @@ sub run_download() {
     # (essential variant) then we have to compute the package set ourselves.
     # Same if we want to install priority based variants.
     if (any { $_ eq $options->{variant} } ('extract', 'custom')) {
-        if (scalar keys %pkgs_to_install == 0) {
+        if (scalar @{ $options->{include} } == 0) {
             info "nothing to download -- skipping...";
             return ([], []);
+        }
+        my %pkgs_to_install;
+        for my $incl (@{ $options->{include} }) {
+            for my $pkg (split /[,\s]+/, $incl) {
+                # strip leading and trailing whitespace
+                $pkg =~ s/^\s+|\s+$//g;
+                # skip if the remainder is an empty string
+                if ($pkg eq '') {
+                    next;
+                }
+                $pkgs_to_install{$pkg} = ();
+            }
         }
 
         my %result = ();
@@ -2126,7 +2121,10 @@ sub run_download() {
                 ],
                 %result
             });
-    } elsif ($options->{variant} eq 'essential') {
+    } elsif (
+        any { $_ eq $options->{variant} }
+        ('essential', 'standard', 'important', 'required', 'buildd')
+    ) {
         # 2021-06-07, #debian-apt on OFTC, times in UTC+2
         # 17:27 < DonKult> (?essential includes 'apt' through)
         # 17:30 < josch> DonKult: no, because pkgCacheGen::ForceEssential ",";
@@ -2151,7 +2149,7 @@ sub run_download() {
                     'install',
                     '?narrow('
                       . (
-                        defined($options->{suite})
+                        length($options->{suite})
                         ? '?archive(' . $options->{suite} . '),'
                         : ''
                       )
@@ -2159,209 +2157,6 @@ sub run_download() {
                       . $options->{nativearch}
                       . '),?essential)'
                 ],
-                %result
-            });
-    } elsif (
-        any { $_ eq $options->{variant} }
-        ('standard', 'important', 'required', 'minbase', 'buildd')
-    ) {
-        # In the future, after bug https://bugs.debian.org/989558 is fixed, we
-        # want to use apt patterns to select the packages to install:
-        #
-        # ?narrow(?archive(unstable),?architecture(amd64),?priority(important))
-        #
-        # Once this is possible, we can append above statement to the apt-get
-        # install call in run_download() instead of assembling the package list
-        # here and passing it through all the way. Then this function only
-        # takes care of retrieving the essential packages.
-        #
-        # https://salsa.debian.org/apt-team/apt/-/merge_requests/185
-        my %ess_pkgs;
-        my %ess_pkgs_target;
-        my %pkgs_to_install_target = %pkgs_to_install;
-        my $num_suite_matches      = 0;
-        my $num_suite_mismatch     = 0;
-        open(
-            my $pipe_apt,
-            '-|',
-            'apt-get',
-            'indextargets',
-            '--format',
-            ('$(CODENAME)' . "\t" . '$(SUITE)' . "\t" . '$(FILENAME)'),
-            'Created-By: Packages'
-        ) or error "cannot start apt-get indextargets: $!";
-        while (my $line = <$pipe_apt>) {
-            chomp $line;
-            my ($codename, $suite, $fname) = split /\t/, $line, 3;
-            debug "processing indextarget output for $codename $suite $fname";
-            my $suite_matches = 0;
-            if (
-                defined $options->{suite}
-                and
-                ($options->{suite} eq $codename or $options->{suite} eq $suite)
-            ) {
-                $suite_matches = 1;
-                $num_suite_matches++;
-            } else {
-                $num_suite_mismatch++;
-            }
-            open(my $pipe_cat, '-|', '/usr/lib/apt/apt-helper', 'cat-file',
-                $fname)
-              or error "cannot start apt-helper cat-file: $!";
-
-            my $pkgname;
-            my $ess  = '';
-            my $prio = 'optional';
-            my $arch = '';
-            while (my $line = <$pipe_cat>) {
-                chomp $line;
-                # Dpkg::Index takes 10 seconds to parse a typical Packages
-                # file. Thus we instead use a simple parser that just retrieve
-                # the information we need.
-                if ($line ne "") {
-                    if ($line =~ /^Package: (.*)/) {
-                        $pkgname = $1;
-                    } elsif ($line =~ /^Essential: yes$/) {
-                        $ess = 'yes';
-                    } elsif ($line =~ /^Priority: (.*)/) {
-                        $prio = $1;
-                    } elsif ($line =~ /^Architecture: (.*)/) {
-                        $arch = $1;
-                    }
-                    next;
-                }
-                # we are only interested of packages of native architecture or
-                # Architecture:all
-                if ($arch eq $options->{nativearch} or $arch eq 'all') {
-                    # the line is empty, thus a package stanza just finished
-                    # processing and we can handle it now
-                    if ($ess eq 'yes') {
-                        $ess_pkgs{$pkgname} = ();
-                        if ($suite_matches) {
-                            $ess_pkgs_target{$pkgname} = ();
-                        }
-                    } elsif ($options->{variant} eq 'essential') {
-                        # for this variant we are only interested in the
-                        # essential packages
-                    } elsif (
-                        any { $_ eq $options->{variant} } (
-                            'standard', 'important', 'required', 'buildd',
-                            'minbase'
-                        )
-                    ) {
-                        if ($prio eq 'optional' or $prio eq 'extra') {
-                            # always ignore packages of priority optional and
-                            # extra
-                        } elsif ($prio eq 'standard') {
-                            if (
-                                none { $_ eq $options->{variant} }
-                                ('important', 'required', 'buildd', 'minbase')
-                            ) {
-                                $pkgs_to_install{$pkgname} = ();
-                                if ($suite_matches) {
-                                    $pkgs_to_install_target{$pkgname} = ();
-                                }
-                            }
-                        } elsif ($prio eq 'important') {
-                            if (
-                                none { $_ eq $options->{variant} }
-                                ('required', 'buildd', 'minbase')
-                            ) {
-                                $pkgs_to_install{$pkgname} = ();
-                                if ($suite_matches) {
-                                    $pkgs_to_install_target{$pkgname} = ();
-                                }
-                            }
-                        } elsif ($prio eq 'required') {
-                            # required packages are part of all sets except
-                            # essential and apt
-                            $pkgs_to_install{$pkgname} = ();
-                            if ($suite_matches) {
-                                $pkgs_to_install_target{$pkgname} = ();
-                            }
-                        } else {
-                            error "unknown priority: $prio";
-                        }
-                    } else {
-                        error "unknown variant: $options->{variant}";
-                    }
-                }
-                # reset values
-                undef $pkgname;
-                $ess  = '';
-                $prio = 'optional';
-                $arch = '';
-            }
-
-            close $pipe_cat;
-            $? == 0 or error "apt-helper cat-file failed: $?";
-        }
-        close $pipe_apt;
-        $? == 0 or error "apt-get indextargets failed: $?";
-
-        # We now have two package sets, %pkgs_to_install and
-        # %pkgs_to_install_target, where the latter was only filled if the
-        # suite matched the codename or the suite name of one of the given
-        # apt indices.
-        # We only need to bother with this distinction if one or more of the
-        # indices matched and one or more of the indices mismatched. If either
-        # nothing matched or all matched, then we can just use %pkgs_to_install
-        if (    defined $options->{suite}
-            and $num_suite_matches > 0
-            and $num_suite_mismatch > 0) {
-            # Now we know that some matched and some didn't. But we only
-            # replace the results from all indices with the results from those
-            # indices that matched if the results are actually different and
-            # if there is more than zero packages from the indices that matched
-            if (scalar keys %ess_pkgs_target > 0
-                and keys %ess_pkgs != %ess_pkgs_target) {
-                info(   "multiple sources defined, using those matching "
-                      . "'$options->{suite}' to find essential packages");
-                %ess_pkgs = %ess_pkgs_target;
-            }
-            if (scalar keys %pkgs_to_install_target > 0
-                and keys %pkgs_to_install != keys %pkgs_to_install_target) {
-                if ($options->{variant} eq 'essential') {
-                    error "logic error";
-                } elsif (
-                    any { $_ eq $options->{variant} }
-                    ('standard', 'important', 'required', 'buildd', 'minbase')
-                ) {
-                    info(   "multiple sources defined -- using those matching "
-                          . "'$options->{suite}' to find packages for variant "
-                          . "'$options->{variant}'");
-                    %pkgs_to_install = %pkgs_to_install_target;
-                } else {
-                    error "unknown variant: $options->{variant}";
-                }
-            }
-        }
-
-        debug "Identified the following Essential:yes packages:";
-        foreach my $pkg (sort keys %ess_pkgs) {
-            debug "   $pkg";
-        }
-
-        my %result = ();
-        if ($options->{dryrun}) {
-            info "simulate downloading packages with apt...";
-        } else {
-            # if there are already packages in /var/cache/apt/archives/, we
-            # need to use our proxysolver to obtain the solution chosen by apt
-            if (scalar @cached_debs > 0) {
-                $result{EDSP_RES} = \@dl_debs;
-            }
-            info "downloading packages with apt...";
-        }
-        run_apt_progress({
-                ARGV => [
-                    'apt-get',
-                    '--yes',
-                    '-oApt::Get::Download-Only=true',
-                    $options->{dryrun} ? '-oAPT::Get::Simulate=true' : (),
-                    'install'
-                ],
-                PKGS => [keys %ess_pkgs],
                 %result
             });
     } else {
@@ -2433,7 +2228,7 @@ sub run_download() {
     # list before returning it.
     @essential_pkgs = sort @essential_pkgs;
 
-    return ([keys %pkgs_to_install], \@essential_pkgs, \@cached_debs);
+    return (\@essential_pkgs, \@cached_debs);
 }
 
 sub run_extract() {
@@ -2875,12 +2670,51 @@ sub run_essential() {
 }
 
 sub run_install() {
-    my $options         = shift;
-    my $pkgs_to_install = shift;
-    my $chrootcmd       = shift;
+    my $options   = shift;
+    my $chrootcmd = shift;
+
+    my %pkgs_to_install;
+    for my $incl (@{ $options->{include} }) {
+        for my $pkg (split /[,\s]+/, $incl) {
+            # strip leading and trailing whitespace
+            $pkg =~ s/^\s+|\s+$//g;
+            # skip if the remainder is an empty string
+            if ($pkg eq '') {
+                next;
+            }
+            $pkgs_to_install{$pkg} = ();
+        }
+    }
+    if ($options->{variant} eq 'buildd') {
+        $pkgs_to_install{'build-essential'} = ();
+    }
+    if (
+        any { $_ eq $options->{variant} }
+        ('required', 'important', 'standard', 'buildd')
+    ) {
+        my $priority;
+        if (any { $_ eq $options->{variant} } ('required', 'buildd')) {
+            $priority = '?priority(required)';
+        } elsif ($options->{variant} eq 'important') {
+            $priority = '?or(?priority(required),?priority(important))';
+        } elsif ($options->{variant} eq 'standard') {
+            $priority = '?or(~prequired,~pimportant,~pstandard)';
+        }
+        $pkgs_to_install{
+            "?narrow("
+              . (
+                length($options->{suite})
+                ? '?archive(' . $options->{suite} . '),'
+                : ''
+              )
+              . "?architecture($options->{nativearch}),"
+              . "$priority)"
+        } = ();
+    }
+    my @pkgs_to_install = keys %pkgs_to_install;
 
     if ($options->{mode} eq 'chrootless') {
-        if (scalar @{$pkgs_to_install} > 0) {
+        if (scalar @pkgs_to_install > 0) {
             my @chrootless_opts = (
                 '-oDPkg::Options::=--force-not-root',
                 '-oDPkg::Options::=--force-script-chrootless',
@@ -2891,7 +2725,7 @@ sub run_install() {
             );
             run_apt_progress({
                 ARGV => ['apt-get', '--yes', @chrootless_opts, 'install'],
-                PKGS => $pkgs_to_install,
+                PKGS => [@pkgs_to_install],
             });
         }
     } elsif (
@@ -2899,7 +2733,7 @@ sub run_install() {
         ('root', 'unshare', 'fakechroot', 'proot')
     ) {
         if ($options->{variant} ne 'custom'
-            and scalar @{$pkgs_to_install} > 0) {
+            and scalar @pkgs_to_install > 0) {
             # Advantage of running apt on the outside instead of inside the
             # chroot:
             #
@@ -2945,7 +2779,7 @@ sub run_install() {
                                     '--yes',
                                     'install'
                                 ],
-                                PKGS => $pkgs_to_install,
+                                PKGS => [@pkgs_to_install],
                             });
                     },
                     $options
@@ -2958,7 +2792,7 @@ sub run_install() {
                             'apt-get',                   '--yes',
                             '-oAPT::Get::Simulate=true', 'install'
                         ],
-                        PKGS => $pkgs_to_install,
+                        PKGS => [@pkgs_to_install],
                     });
             }
         }
@@ -4305,9 +4139,20 @@ sub main() {
         'h|help' => sub { pod2usage(-exitval => 0, -verbose => 1) },
         'man'    => sub { pod2usage(-exitval => 0, -verbose => 2) },
         'version' => sub { print STDOUT "mmdebstrap $VERSION\n"; exit 0; },
-        'components=s@'    => \$options->{components},
-        'variant=s'        => \$options->{variant},
-        'include=s@'       => \$options->{include},
+        'components=s@' => \$options->{components},
+        'variant=s'     => \$options->{variant},
+        'include=s'     => sub {
+            my ($opt_name, $opt_value) = @_;
+            for my $pkg (split /[,\s]+/, $opt_value) {
+                # strip leading and trailing whitespace
+                $pkg =~ s/^\s+|\s+$//g;
+                # skip if the remainder is an empty string
+                if ($pkg eq '') {
+                    next;
+                }
+                push @{ $options->{include} }, $pkg;
+            }
+        },
         'architectures=s@' => \$options->{architectures},
         'mode=s'           => \$options->{mode},
         'dpkgopt=s@'       => \$options->{dpkgopts},
@@ -4430,6 +4275,10 @@ sub main() {
     if (any { $_ eq $options->{variant} } ('-', 'debootstrap')) {
         $options->{variant} = 'important';
     }
+    # minbase is an alias for required
+    if ($options->{variant} eq 'minbase') {
+        $options->{variant} = 'required';
+    }
 
     # fakeroot is an alias for fakechroot
     if ($options->{mode} eq 'fakeroot') {
@@ -4519,8 +4368,8 @@ sub main() {
             and $content =~ /^apt ([0-9]+\.[0-9]+\.[0-9]+) \([a-z0-9-]+\)$/m) {
             $aptversion = version->new($1);
         }
-        if ($aptversion < "2.3.7") {
-            error "need apt >= 2.3.7 but have $aptversion";
+        if ($aptversion < "2.3.10") {
+            error "need apt >= 2.3.10 but have $aptversion";
         }
     }
 
@@ -6152,9 +6001,9 @@ option depends on the selected variant. The B<extract> and B<custom> variants
 install no packages by default, so for these variants, the packages specified
 by this option will be the only ones that get either extracted or installed by
 dpkg, respectively.  For all other variants, apt is used to install the
-additional packages. Package names are directly passed to
-apt and thus, you can use apt features like C<pkg/suite>, C<pkg=version>,
-C<pkg-> or use a glob or regex for C<pkg>. See apt(8) for the supported
+additional packages. Package names are directly passed to apt and thus, you
+can use apt features like C<pkg/suite>, C<pkg=version>, C<pkg->, use a glob or
+regex for C<pkg> or use apt patterns. See apt(8) for the supported
 syntax. The option can be specified multiple times and the packages are
 concatenated in the order in which they are given on the command line. If
 later list items are repeated, then they get dropped so that the resulting
@@ -6461,8 +6310,10 @@ All package sets also include the direct and indirect hard dependencies (but
 not recommends) of the selected package sets. The variants B<minbase>,
 B<buildd> and B<->, resemble the package sets that debootstrap would install
 with the same I<--variant> argument. The release with a name matching the
-I<SUITE> argument will be used to determine the C<Essential:yes> and priority
-values.
+I<SUITE> argument as well as the native architecture will be used to determine
+the C<Essential:yes> and priority values. To select packages with matching
+priority from any suite, specify the empty string for I<SUITE>. The default
+variant is B<debootstrap>.
 
 =over 8
 
@@ -6489,19 +6340,30 @@ The B<essential> set plus apt.
 =item B<required>, B<minbase>
 
 The B<essential> set plus all packages with Priority:required and apt.
+It is roughly equivalent to running mmdebstrap with
+
+    --variant=essential --include="?priority(required)"
 
 =item B<buildd>
 
 The B<minbase> set plus build-essential.
+It is roughly equivalent to running mmdebstrap with
+
+    --variant=essential --include="?priority(required),build-essential"
 
 =item B<important>, B<debootstrap>, B<->
 
 The B<required> set plus all packages with Priority:important. This is the
-default of debootstrap.
+default of debootstrap. It is roughly equivalent to running mmdebstrap with
+
+    --variant=essential --include="~prequired|~pimportant"
 
 =item B<standard>
 
 The B<important> set plus all packages with Priority:standard.
+It is roughly equivalent to running mmdebstrap with
+
+    --variant=essential --include="~prequired|~pimportant|~pstandard"
 
 =back
 
