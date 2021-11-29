@@ -3794,6 +3794,9 @@ sub get_keyring_by_suite {
 
     my $debianvendor;
     my $ubuntuvendor;
+    # make $@ local, so we don't print "Can't locate Dpkg/Vendor/Debian.pm"
+    # in other parts where we evaluate $@
+    local $@ = '';
     eval {
         require Dpkg::Vendor::Debian;
         require Dpkg::Vendor::Ubuntu;
@@ -3913,6 +3916,9 @@ sub get_sourceslist_by_suite {
         # https://lists.debian.org/87r26wqr2a.fsf@43-1.org
         my $bullseye_or_later = 0;
         my $distro_info       = '/usr/share/distro-info/debian.csv';
+        # make $@ local, so we don't print "Can't locate Debian/DistroInfo.pm"
+        # in other parts where we evaluate $@
+        local $@ = '';
         eval { require Debian::DistroInfo; };
         if (!$@) {
             # libdistro-info-perl is installed
