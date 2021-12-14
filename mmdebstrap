@@ -23,7 +23,7 @@
 use strict;
 use warnings;
 
-our $VERSION = '0.8.1';
+our $VERSION = '0.8.2';
 
 use English;
 use Getopt::Long;

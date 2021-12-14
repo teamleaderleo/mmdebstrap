@@ -1,3 +1,8 @@
+0.8.2 (2021-12-14)
+------------------
+
+ - use apt patterns to select priority variants (requires apt >= 2.3.10)
+
 0.8.1 (2021-10-07)
 ------------------
 
