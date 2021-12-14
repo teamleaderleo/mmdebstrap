@@ -599,8 +599,8 @@ sub get_unshare_cmd {
         # not exist). It would also also call setgroups() in a way that makes
         # the root user be part of the group unknown.
         if ($EFFECTIVE_USER_ID != 0) {
-            0 == syscall &SYS_setgid, 0 or error "setgid failed: $!";
-            0 == syscall &SYS_setuid, 0 or error "setuid failed: $!";
+            0 == syscall &SYS_setgid,    0 or error "setgid failed: $!";
+            0 == syscall &SYS_setuid,    0 or error "setuid failed: $!";
             0 == syscall &SYS_setgroups, 0, 0 or error "setgroups failed: $!";
         }
 
@@ -1858,7 +1858,7 @@ sub run_setup() {
                 }
                 symlink $linkname, "$options->{root}/dev/$fname"
                   or error "cannot create symlink ./dev/$fname";
-                next;                 # chmod cannot work on symlinks
+                next;    # chmod cannot work on symlinks
             } elsif ($type == 3) {    # character special
                 0 == system('mknod', "$options->{root}/dev/$fname", 'c',
                     $devmajor, $devminor)
@@ -3105,7 +3105,7 @@ sub hookhelper {
                     # supply it with on stdin to the output directory inside
                     # the chroot
                     my @cmd = (
-                        @cmdprefix, @tarcmd, '--xattrs-include=*',
+                        @cmdprefix,    @tarcmd,    '--xattrs-include=*',
                         '--directory', $directory, '--extract', '--file', '-'
                     );
                     debug("helper: running " . (join " ", @cmd));
@@ -3246,7 +3246,7 @@ sub hookhelper {
                     # inside the requested directory inside the chroot and
                     # writes it to stdout.
                     my @cmd = (
-                        @cmdprefix, @tarcmd, '--directory',
+                        @cmdprefix, @tarcmd,    '--directory',
                         $directory, '--create', '--file', '-', '.'
                     );
                     debug("helper: running " . (join " ", @cmd));
@@ -4142,8 +4142,8 @@ sub main() {
     Getopt::Long::Configure('default', 'bundling', 'auto_abbrev',
         'ignore_case_always');
     GetOptions(
-        'h|help' => sub { pod2usage(-exitval => 0, -verbose => 1) },
-        'man'    => sub { pod2usage(-exitval => 0, -verbose => 2) },
+        'h|help'  => sub { pod2usage(-exitval => 0, -verbose => 1) },
+        'man'     => sub { pod2usage(-exitval => 0, -verbose => 2) },
         'version' => sub { print STDOUT "mmdebstrap $VERSION\n"; exit 0; },
         'components=s@' => \$options->{components},
         'variant=s'     => \$options->{variant},
@@ -4192,8 +4192,8 @@ sub main() {
         'logfile=s' => \$logfile,
         # no-op options so that mmdebstrap can be used with
         # sbuild-createchroot --debootstrap=mmdebstrap
-        'resolve-deps' => sub { push @{ $options->{noop} }, 'resolve-deps'; },
-        'merged-usr'   => sub { push @{ $options->{noop} }, 'merged-usr'; },
+        'resolve-deps'  => sub { push @{ $options->{noop} }, 'resolve-deps'; },
+        'merged-usr'    => sub { push @{ $options->{noop} }, 'merged-usr'; },
         'no-merged-usr' =>
           sub { push @{ $options->{noop} }, 'no-merged-usr'; },
         'force-check-gpg' =>
@@ -5201,9 +5201,10 @@ sub main() {
         # in unshare and root mode, other users than the current user need to
         # access the rootfs, most prominently, the _apt user. Thus, make the
         # temporary directory world readable.
-        if (any { $_ eq $options->{mode} } ('unshare', 'root')
-              or
-            ($EFFECTIVE_USER_ID == 0 and $options->{mode} eq 'chrootless')) {
+        if (
+            any { $_ eq $options->{mode} } ('unshare', 'root')
+              or ($EFFECTIVE_USER_ID == 0 and $options->{mode} eq 'chrootless')
+        ) {
             chmod 0755, $options->{root} or error "cannot chmod root: $!";
         }
     } elsif ($format eq 'directory') {
