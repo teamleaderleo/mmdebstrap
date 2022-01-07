@@ -1663,7 +1663,7 @@ sub run_setup() {
     # from inside the chroot.
     # The config filename is chosen such that any settings in it will be
     # overridden by what the user specified with --aptopt.
-    {
+    if (!-e "$options->{root}/etc/apt/apt.conf.d/00mmdebstrap") {
         open my $fh, '>', "$options->{root}/etc/apt/apt.conf.d/00mmdebstrap"
           or error "cannot open /etc/apt/apt.conf.d/00mmdebstrap: $!";
         print $fh "Apt::Install-Recommends false;\n";
@@ -1672,7 +1672,7 @@ sub run_setup() {
     }
 
     # apt-get update requires this
-    {
+    if (!-e "$options->{root}/var/lib/dpkg/status") {
         open my $fh, '>', "$options->{root}/var/lib/dpkg/status"
           or error "failed to open(): $!";
         close $fh;
@@ -1684,9 +1684,11 @@ sub run_setup() {
     # architecture outside the chroot.
     chomp(my $hostarch = `dpkg --print-architecture`);
     if (
-        scalar @{ $options->{foreignarchs} } > 0
-        or (    $options->{mode} eq 'chrootless'
-            and $hostarch ne $options->{nativearch})
+        (!-e "$options->{root}/var/lib/dpkg/arch")
+        and (
+            scalar @{ $options->{foreignarchs} } > 0
+            or (    $options->{mode} eq 'chrootless'
+                and $hostarch ne $options->{nativearch}))
     ) {
         open my $fh, '>', "$options->{root}/var/lib/dpkg/arch"
           or error "cannot open /var/lib/dpkg/arch: $!";
@@ -1697,7 +1699,8 @@ sub run_setup() {
         close $fh;
     }
 
-    if (scalar @{ $options->{aptopts} } > 0) {
+    if (scalar @{ $options->{aptopts} } > 0
+        and (!-e "$options->{root}/etc/apt/apt.conf.d/99mmdebstrap")) {
         open my $fh, '>', "$options->{root}/etc/apt/apt.conf.d/99mmdebstrap"
           or error "cannot open /etc/apt/apt.conf.d/99mmdebstrap: $!";
         foreach my $opt (@{ $options->{aptopts} }) {
@@ -1723,7 +1726,8 @@ sub run_setup() {
         }
     }
 
-    if (scalar @{ $options->{dpkgopts} } > 0) {
+    if (scalar @{ $options->{dpkgopts} } > 0
+        and (!-e "$options->{root}/etc/dpkg/dpkg.cfg.d/99mmdebstrap")) {
         # FIXME: in chrootless mode, dpkg will only read the configuration
         # from the host -- see #808203
         if ($options->{mode} eq 'chrootless') {
@@ -1753,7 +1757,7 @@ sub run_setup() {
         }
     }
 
-    {
+    if (!-e "$options->{root}/etc/fstab") {
         open my $fh, '>', "$options->{root}/etc/fstab"
           or error "cannot open fstab: $!";
         print $fh "# UNCONFIGURED FSTAB FOR BASE SYSTEM\n";
@@ -1793,9 +1797,11 @@ sub run_setup() {
                 $fname .= 'main.sources';
             }
         }
-        open my $fh, '>', "$fname" or error "cannot open $fname: $!";
-        print $fh $firstentry->{content};
-        close $fh;
+        if (!-e $fname) {
+            open my $fh, '>', "$fname" or error "cannot open $fname: $!";
+            print $fh $firstentry->{content};
+            close $fh;
+        }
         # everything else goes into /etc/apt/sources.list.d/
         for (my $i = 1 ; $i < scalar @{ $options->{sourceslists} } ; $i++) {
             my $entry = $options->{sourceslists}->[$i];
@@ -1822,15 +1828,17 @@ sub run_setup() {
                     error "invalid type: $entry->{type}";
                 }
             }
-            open my $fh, '>', "$fname" or error "cannot open $fname: $!";
-            print $fh $entry->{content};
-            close $fh;
+            if (!-e $fname) {
+                open my $fh, '>', "$fname" or error "cannot open $fname: $!";
+                print $fh $entry->{content};
+                close $fh;
+            }
         }
     }
 
     # allow network access from within
     foreach my $file ("/etc/resolv.conf", "/etc/hostname") {
-        if (-e $file) {
+        if (-e $file && !-e "$options->{root}/$file") {
             # this will create a new file with 644 permissions and copy
             # contents only even if $file was a symlink
             copy($file, "$options->{root}/$file")
