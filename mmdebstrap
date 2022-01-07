@@ -102,7 +102,13 @@ my @devfiles = (
 #   3 -> debug output
 my $verbosity_level = 1;
 
-my $is_covering = !!(eval { Devel::Cover::get_coverage() });
+my $is_covering = 0;
+{
+    # make $@ local, so we don't print "Undefined subroutine called"
+    # in other parts where we evaluate $@
+    local $@ = '';
+    $is_covering = !!(eval { Devel::Cover::get_coverage() });
+}
 
 # the reason why Perl::Critic warns about this is, that it suspects that the
 # programmer wants to implement a test whether the terminal is interactive or
