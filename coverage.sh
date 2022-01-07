@@ -127,7 +127,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=177
+total=181
 skipped=0
 runtests=0
 i=1
@@ -532,6 +532,34 @@ else
 	./run_null.sh SUDO
 	runtests=$((runtests+1))
 fi
+
+# make sure that using codenames works https://bugs.debian.org/cgi-bin/1003191
+for dist in oldstable stable testing unstable; do
+	print_header "mode=$defaultmode,variant=apt: test $dist using codename"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+/usr/lib/apt/apt-helper download-file "$mirror/dists/$dist/Release" Release
+codename=\$(awk '/^Codename: / { print \$2; }' Release)
+rm Release
+$CMD --mode=$defaultmode --variant=apt \$codename /tmp/debian-chroot.tar $mirror
+if [ "$dist" = "$DEFAULT_DIST" ]; then
+	tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+fi
+rm /tmp/debian-chroot.tar
+END
+	if [ "$HAVE_QEMU" = "yes" ]; then
+		./run_qemu.sh
+		runtests=$((runtests+1))
+	elif [ "$defaultmode" = "root" ]; then
+		./run_null.sh SUDO
+		runtests=$((runtests+1))
+	else
+		./run_null.sh
+		runtests=$((runtests+1))
+	fi
+done
 
 print_header "mode=unshare,variant=apt: fail without /etc/subuid"
 cat << END > shared/test.sh

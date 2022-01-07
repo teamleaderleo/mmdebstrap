@@ -80,6 +80,9 @@ deletecache() {
 		rm "$dir/debian$i"
 	done
 	rm "$dir/mmdebstrapcache"
+	# remove all symlinks
+	find "$dir" -type l -delete
+
 	# now the rest should only be empty directories
 	if [ -e "$dir" ]; then
 		find "$dir" -depth -print0 | xargs -0 --no-run-if-empty rmdir
@@ -270,11 +273,14 @@ END
 	curl --location "$mirror/dists/$dist/Release" > "$newmirrordir/dists/$dist/Release"
 	curl --location "$mirror/dists/$dist/Release.gpg" > "$newmirrordir/dists/$dist/Release.gpg"
 	curl --location "$mirror/dists/$dist/main/binary-$nativearch/Packages.xz" > "$newmirrordir/dists/$dist/main/binary-$nativearch/Packages.xz"
+	codename=$(awk '/^Codename: / { print $2; }' < "$newmirrordir/dists/$dist/Release")
+	[ -L "$newmirrordir/dists/$codename" ] || ln -s "$dist" "$newmirrordir/dists/$codename"
 	case "$dist" in oldstable|stable)
 		mkdir -p "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/"
 		curl --location "$mirror/dists/$dist-updates/Release" > "$newmirrordir/dists/$dist-updates/Release"
 		curl --location "$mirror/dists/$dist-updates/Release.gpg" > "$newmirrordir/dists/$dist-updates/Release.gpg"
 		curl --location "$mirror/dists/$dist-updates/main/binary-$nativearch/Packages.xz" > "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/Packages.xz"
+		[ -L "$newmirrordir/dists/$codename-updates" ] || ln -s "$dist-updates" "$newmirrordir/dists/$codename-updates"
 		;;
 	esac
 	case "$dist" in
@@ -289,6 +295,7 @@ END
 			curl --location "$security_mirror/dists/$dist-security/Release" > "$newcachedir/debian-security/dists/$dist-security/Release"
 			curl --location "$security_mirror/dists/$dist-security/Release.gpg" > "$newcachedir/debian-security/dists/$dist-security/Release.gpg"
 			curl --location "$security_mirror/dists/$dist-security/main/binary-$nativearch/Packages.xz" > "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/Packages.xz"
+			[ -L "$newcachedir/debian-security/dists/$codename-security" ] || ln -s "$dist-security" "$newcachedir/debian-security/dists/$codename-security"
 			;;
 	esac
 

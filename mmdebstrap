@@ -2150,7 +2150,10 @@ sub run_download() {
                     '?narrow('
                       . (
                         length($options->{suite})
-                        ? '?archive(' . $options->{suite} . '),'
+                        ? '?or(?archive(^'
+                          . $options->{suite}
+                          . '$),?codename(^'
+                          . $options->{suite} . '$)),'
                         : ''
                       )
                       . '?architecture('
@@ -2704,7 +2707,10 @@ sub run_install() {
             "?narrow("
               . (
                 length($options->{suite})
-                ? '?archive(' . $options->{suite} . '),'
+                ? '?or(?archive(^'
+                  . $options->{suite}
+                  . '$),?codename(^'
+                  . $options->{suite} . '$)),'
                 : ''
               )
               . "?architecture($options->{nativearch}),"
@@ -4374,8 +4380,8 @@ sub main() {
             and $content =~ /^apt ([0-9]+\.[0-9]+\.[0-9]+) \([a-z0-9-]+\)$/m) {
             $aptversion = version->new($1);
         }
-        if ($aptversion < "2.3.10") {
-            error "need apt >= 2.3.10 but have $aptversion";
+        if ($aptversion < "2.3.14") {
+            error "need apt >= 2.3.14 but have $aptversion";
         }
     }
 
