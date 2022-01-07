@@ -127,7 +127,7 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 	fi
 fi
 starttime=
-total=181
+total=182
 skipped=0
 runtests=0
 i=1
@@ -2007,6 +2007,35 @@ $CMD --mode=root --variant=apt $DEFAULT_DIST /tmp/debian-chroot $mirror
 printf 'deb [signed-by="/usr/share/keyrings/debian-archive-keyring.gpg"] $mirror $DEFAULT_DIST main\n' | cmp /tmp/debian-chroot/etc/apt/sources.list -
 tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort | diff -u tar1.txt -
 rm -r /tmp/debian-chroot
+END
+if [ "$HAVE_QEMU" = "yes" ]; then
+	./run_qemu.sh
+	runtests=$((runtests+1))
+else
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
+fi
+
+print_header "mode=root,variant=apt: test ascii armored keys"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+for f in /usr/share/keyrings/*.gpg; do
+	name=\$(basename "\$f" .gpg)
+	gpg --enarmor < /usr/share/keyrings/\$name.gpg \
+		| sed 's/ PGP ARMORED FILE/ PGP PUBLIC KEY BLOCK/;/^Comment: /d' \
+		> /etc/apt/trusted.gpg.d/\$name.asc
+done
+rm /etc/apt/trusted.gpg.d/*.gpg
+rm /usr/share/keyrings/*.gpg
+$CMD --mode=root --variant=apt $DEFAULT_DIST /tmp/debian-chroot.tar $mirror
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+rm -r /tmp/debian-chroot.tar
 END
 if [ "$HAVE_QEMU" = "yes" ]; then
 	./run_qemu.sh
