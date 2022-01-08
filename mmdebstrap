@@ -5763,7 +5763,12 @@ sub main() {
         if ($@) {
             # we cannot die here because that would leave the other thread
             # running without a parent
+            # We send SIGHUP to all our processes (including eventually
+            # running tar and this process itself) to reliably tear down
+            # all running child processes. The main process is not affected
+            # because we are ignoring SIGHUP.
             warning "creating tarball failed: $@";
+            kill HUP => -getpgrp();
             $exitstatus = 1;
         }
     } else {
