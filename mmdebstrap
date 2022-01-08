@@ -2514,19 +2514,41 @@ sub run_prepare {
                 $ENV{QEMU_LD_PREFIX} = $options->{root};
             }
         } elsif (any { $_ eq $options->{mode} } ('root', 'unshare')) {
-            # other modes require a static qemu-user binary
-            my $qemubin = "/usr/bin/qemu-$options->{qemu}-static";
-            if (!-e $qemubin) {
-                error "cannot find $qemubin";
+            my $require_qemu_static = 1;
+            # make $@ local, so we don't print an eventual error
+            # in other parts where we evaluate $@
+            local $@ = '';
+            eval {
+                # Check for the F flag which makes the kernel open the binfmt
+                # binary at configuration time instead of lazily at startup
+                # time. If the flag is set, then the qemu-static binary is not
+                # required inside the chroot.
+                open my $fh, '<',
+                  "/proc/sys/fs/binfmt_misc/qemu-$options->{qemu}";
+                while (my $line = <$fh>) {
+                    chomp($line);
+                    if ($line =~ /^flags: [A-Z]*F[A-Z]*$/) {
+                        $require_qemu_static = 0;
+                        last;
+                    }
+                }
+                close $fh;
+            };
+            if ($require_qemu_static) {
+                # other modes require a static qemu-user binary
+                my $qemubin = "/usr/bin/qemu-$options->{qemu}-static";
+                if (!-e $qemubin) {
+                    error "cannot find $qemubin";
+                }
+                copy $qemubin, "$options->{root}/$qemubin"
+                  or error "cannot copy $qemubin: $!";
+                # File::Copy does not retain permissions but on some
+                # platforms (like Travis CI) the binfmt interpreter must
+                # have the executable bit set or otherwise execve will
+                # fail with EACCES
+                chmod 0755, "$options->{root}/$qemubin"
+                  or error "cannot chmod $qemubin: $!";
             }
-            copy $qemubin, "$options->{root}/$qemubin"
-              or error "cannot copy $qemubin: $!";
-            # File::Copy does not retain permissions but on some
-            # platforms (like Travis CI) the binfmt interpreter must
-            # have the executable bit set or otherwise execve will
-            # fail with EACCES
-            chmod 0755, "$options->{root}/$qemubin"
-              or error "cannot chmod $qemubin: $!";
         } else {
             error "unknown mode: $options->{mode}";
         }
@@ -2875,8 +2897,11 @@ sub run_cleanup() {
               or error "failed to unlink $ENV{APT_CONFIG}: $!";
         }
 
-        if (defined $options->{qemu}
-            and any { $_ eq $options->{mode} } ('root', 'unshare')) {
+        if (any { $_ eq 'cleanup/mmdebstrap/qemu' } @{ $options->{skip} }) {
+            info "skipping cleanup/mmdebstrap/qume as requested";
+        } elsif (defined $options->{qemu}
+            and any { $_ eq $options->{mode} } ('root', 'unshare')
+              and -e "$options->{root}/usr/bin/qemu-$options->{qemu}-static") {
             unlink "$options->{root}/usr/bin/qemu-$options->{qemu}-static"
               or error
               "cannot unlink /usr/bin/qemu-$options->{qemu}-static: $!";
