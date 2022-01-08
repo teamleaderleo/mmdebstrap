@@ -1,3 +1,10 @@
+0.8.3 (2022-01-08)
+------------------
+
+ - allow codenames with apt patterns (requires apt >= 2.3.14)
+ - don't overwrite existing files in setup code
+ - don't copy in qemu-user-static binary if it's not needed
+
 0.8.2 (2021-12-14)
 ------------------
 
