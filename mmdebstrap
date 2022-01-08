@@ -1959,15 +1959,6 @@ sub run_setup() {
         }
     }
 
-    # setting PATH for chroot, ldconfig, start-stop-daemon...
-    if (length $ENV{PATH}) {
-        ## no critic (Variables::RequireLocalizedPunctuationVars)
-        $ENV{PATH} = "$ENV{PATH}:/usr/sbin:/usr/bin:/sbin:/bin";
-    } else {
-        ## no critic (Variables::RequireLocalizedPunctuationVars)
-        $ENV{PATH} = "/usr/sbin:/usr/bin:/sbin:/bin";
-    }
-
     return;
 }
 
@@ -4334,7 +4325,11 @@ sub main() {
         error "invalid format. Choose from " . (join ', ', @valid_formats);
     }
 
-    if (!defined $ENV{PATH} || $ENV{PATH} eq "") {
+    # setting PATH for chroot, ldconfig, start-stop-daemon...
+    if (length $ENV{PATH}) {
+        ## no critic (Variables::RequireLocalizedPunctuationVars)
+        $ENV{PATH} = "$ENV{PATH}:/usr/sbin:/usr/bin:/sbin:/bin";
+    } else {
         ## no critic (Variables::RequireLocalizedPunctuationVars)
         $ENV{PATH} = "/usr/sbin:/usr/bin:/sbin:/bin";
     }
