@@ -5849,9 +5849,11 @@ sub main() {
     if ($exitstatus == 0) {
         my $duration = Time::HiRes::time - $before;
         info "success in " . (sprintf "%.04f", $duration) . " seconds";
+        exit 0;
     }
 
-    exit $exitstatus;
+    error "mmdebstrap failed to run";
+    return 1;
 }
 
 main();
