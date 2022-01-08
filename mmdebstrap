@@ -6593,7 +6593,9 @@ chroot as I<fileinside>. In contrast to B<copy-in>, this command only
 handles files and not directories. To copy a directory recursively into the
 chroot, use B<copy-in> or B<tar-in>. Its advantage is, that by being able to
 specify the full path on the inside, including the filename, the file on the
-inside can have a different name from the file on the outside.
+inside can have a different name from the file on the outside. In contrast to
+B<copy-in> and B<tar-in>, permission and ownership information will not be
+retained.
 
 =back
 
