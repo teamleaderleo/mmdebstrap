@@ -755,9 +755,8 @@ fi
 for variant in essential apt minbase buildd important standard; do
 	for format in tar squashfs ext2; do
 		print_header "mode=root/unshare/fakechroot,variant=$variant: check for bit-by-bit identical $format output"
-		# fontconfig doesn't install reproducibly because differences
-		# in /var/cache/fontconfig/. See
-		# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=864082
+		# pyc files and man index.db are not reproducible
+		# See #1004557 and #1004558
 		if [ "$variant" = "standard" ]; then
 			echo "skipping test because of #864082" >&2
 			skipped=$((skipped+1))
@@ -2987,9 +2986,8 @@ fi
 # into /var/cache/apt/archives/partial
 for variant in extract custom essential apt minbase buildd important standard; do
 	print_header "mode=$defaultmode,variant=$variant: compare output with pre-seeded /var/cache/apt/archives"
-	# fontconfig doesn't install reproducibly because differences
-	# in /var/cache/fontconfig/. See
-	# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=864082
+	# pyc files and man index.db are not reproducible
+	# See #1004557 and #1004558
 	if [ "$variant" = "standard" ]; then
 		echo "skipping test because of #864082" >&2
 		skipped=$((skipped+1))
