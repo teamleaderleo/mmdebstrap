@@ -64,6 +64,10 @@ Both types of options use Unix shell-style wildcards:
        ? matches any single character
    [seq] matches any character in seq
   [!seq] matches any character not in seq
+
+Thirdly, strip leading directory components off of tar members. Just as with
+GNU tar --strip-components, tar members that have less or equal components in
+their path are not passed through.
 """
     )
     parser.add_argument(
@@ -90,8 +94,18 @@ Both types of options use Unix shell-style wildcards:
         action=PaxFilterAction,
         help="Re-include a pax header after a previous exclusion.",
     )
+    parser.add_argument(
+        "--strip-components",
+        metavar="number",
+        type=int,
+        help="Strip NUMBER leading components from file names",
+    )
     args = parser.parse_args()
-    if not hasattr(args, "pathfilter") and not hasattr(args, "paxfilter"):
+    if (
+        not hasattr(args, "pathfilter")
+        and not hasattr(args, "paxfilter")
+        and not hasattr(args, "strip_components")
+    ):
         from shutil import copyfileobj
 
         copyfileobj(sys.stdin.buffer, sys.stdout.buffer)
@@ -141,6 +155,11 @@ Both types of options use Unix shell-style wildcards:
         for member in in_tar:
             if path_filter_should_skip(member):
                 continue
+            if args.strip_components:
+                comps = member.name.split("/")
+                if len(comps) <= args.strip_components:
+                    continue
+                member.name = "/".join(comps[args.strip_components :])
             member.pax_headers = {
                 k: v
                 for k, v in member.pax_headers.items()
