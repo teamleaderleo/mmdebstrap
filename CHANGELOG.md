@@ -1,3 +1,10 @@
+0.8.4 (2022-02-11)
+------------------
+
+ - tarfilter: add --strip-components option
+ - don't install essential packages in run_install()
+ - remove /var/lib/dbus/machine-id
+
 0.8.3 (2022-01-08)
 ------------------
 
