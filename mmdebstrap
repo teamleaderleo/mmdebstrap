@@ -6297,11 +6297,7 @@ needs to be able to mount and thus requires C<SYS_CAP_ADMIN>.
 This mode uses Linux user namespaces to allow unprivileged use of chroot and
 creation of files that appear to be owned by the superuser inside the unshared
 namespace. A tarball created in this mode should be bit-by-bit identical to a
-tarball created with the B<root> mode. In Debian, this mode requires the sysctl
-C<kernel.unprivileged_userns_clone> being set to C<1>. The default used to be
-C<0> but was changed to C<1> with linux 5.10.1 or Debian 11 (Bullseye).
-B<SETTING THIS OPTION TO 1 HAS SECURITY IMPLICATIONS>. Refer to
-L<https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=898446>
+tarball created with the B<root> mode.
 
 A directory chroot created with this mode will end up with wrong ownership
 information. For correct ownership information, the directory must be accessed
