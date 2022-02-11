@@ -2785,6 +2785,9 @@ sub run_install() {
             #
             #  - we can make use of file:// and copy://
             #
+            #  - we can use EDSP solvers without installing apt-utils or other
+            #    solvers inside the chroot
+            #
             # The DPkg::Install::Recursive::force=true workaround can be
             # dropped after this issue is fixed:
             # https://salsa.debian.org/apt-team/apt/-/merge_requests/189
