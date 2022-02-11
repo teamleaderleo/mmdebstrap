@@ -2923,7 +2923,8 @@ sub run_cleanup() {
         foreach my $fname (
             '/var/log/dpkg.log',             '/var/log/apt/history.log',
             '/var/log/apt/term.log',         '/var/log/alternatives.log',
-            '/var/cache/ldconfig/aux-cache', '/var/log/apt/eipp.log.xz'
+            '/var/cache/ldconfig/aux-cache', '/var/log/apt/eipp.log.xz',
+            '/var/lib/dbus/machine-id'
         ) {
             my $path = "$options->{root}$fname";
             if (!-e $path) {
@@ -6724,7 +6725,7 @@ Performs cleanup tasks, unless B<--skip=cleanup> is used:
 
 =item * Remove all files that were put into the chroot for setup purposes, like F</etc/apt/apt.conf.d/00mmdebstrap>, the temporary apt config and the qemu-user-static binary. This can be disabled using B<--skip=cleanup/mmdebstrap>.
 
-=item * Remove all files that make the result unreproducible, like apt and dpkg logs and caches or F</etc/machine-id>. This can be disabled using B<--skip=cleanup/reproducible>
+=item * Remove all files that make the result unreproducible, like apt and dpkg logs and caches or F</etc/machine-id> and F</var/lib/dbus/machine-id>. This can be disabled using B<--skip=cleanup/reproducible>
 
 =item * Remove everything in F</tmp> inside the chroot. This can be disabled using B<--skip=cleanup/tmp>.
 
