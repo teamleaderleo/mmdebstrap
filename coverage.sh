@@ -180,6 +180,7 @@ export SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
 # compared to the one chosen in debootstrap because of different installation
 # order in comparison to the systemd users
 # https://bugs.debian.org/969631
+# we cannot use useradd because passwd is not Essential:yes
 $CMD --variant=$variant --mode=$defaultmode \
 	--essential-hook='if [ $variant = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "\$1"/etc/passwd; fi' \
 	$dist /tmp/debian-$dist-mm.tar $mirror
@@ -319,6 +320,18 @@ if ! cmp /tmp/debian-$dist-debootstrap/etc/shadow- /tmp/debian-$dist-mm/etc/shad
 	rm /tmp/debian-$dist-mm/etc/shadow-.bak
 else
 	echo no difference for /etc/shadow- on $dist $variant >&2
+fi
+
+# Because of unreproducible uids (#969631) we created the _apt user ourselves
+# and because passwd is not Essential:yes we didn't use useradd. But passwd
+# since 1:4.11.1+dfsg1-1 will create empty mail files, so we create it too.
+# https://bugs.debian.org/1004710
+if [ $variant = - ]; then
+	if [ -e /tmp/debian-$dist-debootstrap/var/mail/_apt ]; then
+		touch /tmp/debian-$dist-mm/var/mail/_apt
+		chmod 660 /tmp/debian-$dist-mm/var/mail/_apt
+		chown 100:8 /tmp/debian-$dist-mm/var/mail/_apt
+	fi
 fi
 
 # check if the file content differs
@@ -846,6 +859,7 @@ cmp /tmp/debian-chroot.tar /tmp/debian-chroot-shiftedback.tar
 # manually adjust uid/gid and compare "tar -t" output
 tar --numeric-owner -tvf /tmp/debian-chroot.tar \
 	| sed 's# 100/0 # 100100/100000 #' \
+	| sed 's# 100/8 # 100100/100008 #' \
 	| sed 's# 0/0 # 100000/100000 #' \
 	| sed 's# 0/5 # 100000/100005 #' \
 	| sed 's# 0/8 # 100000/100008 #' \
