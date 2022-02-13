@@ -6817,9 +6817,11 @@ Create a bootable USB Stick that boots into a full Debian desktop:
     END
     # You can use $(sudo blockdev --getsize64 /dev/sdXXX) to get the right
     # image size for the target medium in bytes
-    $ guestfish -N debian-unstable.img=disk:8G -- part-disk /dev/sda mbr : \
-        part-set-bootable /dev/sda 1 true : mkfs ext2 /dev/sda1 : \
-        set-label /dev/sda1 rootfs : mount /dev/sda1 / : \
+    $ guestfish -N debian-unstable.img=disk:8G -- \
+        part-disk /dev/sda mbr : \
+        part-set-bootable /dev/sda 1 true : \
+        set-label /dev/sda1 rootfs : \
+        mkfs ext2 /dev/sda1 : mount /dev/sda1 / : \
         tar-in debian-unstable.tar / xattrs:true : \
         upload /usr/lib/SYSLINUX/mbr.bin /mbr.bin : \
         copy-file-to-device /mbr.bin /dev/sda size:440 : rm /mbr.bin : \
@@ -6859,8 +6861,7 @@ Use as replacement for autopkgtest-build-qemu and vmdb2:
         part-set-bootable /dev/sda 1 true : \
         mkfs ext2 /dev/sda1 : mount /dev/sda1 / : \
         tar-in debian-unstable.tar / xattrs:true : \
-        extlinux / : copy-in extlinux.conf / : \
-        sync : umount / : shutdown
+        extlinux / : copy-in extlinux.conf / : sync : umount / : shutdown
     $ qemu-img convert -O qcow2 debian-unstable.img debian-unstable.qcow2
 
 As a debootstrap wrapper to run it without superuser privileges but using Linux
