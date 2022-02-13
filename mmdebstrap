@@ -6823,7 +6823,7 @@ Create a bootable USB Stick that boots into a full Debian desktop:
         set-label /dev/sda1 rootfs : \
         mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
         tar-in debian-unstable.tar / xattrs:true : \
-        upload /usr/lib/SYSLINUX/mbr.bin /mbr.bin : \
+        upload /usr/lib/EXTLINUX/mbr.bin /mbr.bin : \
         copy-file-to-device /mbr.bin /dev/sda size:440 : rm /mbr.bin : \
         extlinux / : copy-in extlinux.conf / : sync : umount / : shutdown
     $ qemu-system-x86_64 -m 1G -enable-kvm debian-unstable.img
