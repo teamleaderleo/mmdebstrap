@@ -6861,6 +6861,8 @@ Use as replacement for autopkgtest-build-qemu and vmdb2:
         part-set-bootable /dev/sda 1 true : \
         mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
         tar-in debian-unstable.tar / xattrs:true : \
+        upload /usr/lib/EXTLINUX/mbr.bin /boot/mbr.bin : \
+        copy-file-to-device /boot/mbr.bin /dev/sda size:440 : \
         extlinux / : copy-in extlinux.conf / : sync : umount / : shutdown
     $ qemu-img convert -O qcow2 debian-unstable.img debian-unstable.qcow2
 
