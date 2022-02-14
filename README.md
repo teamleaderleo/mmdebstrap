@@ -154,3 +154,4 @@ Contributors
  - Konstantin Demin
  - Trent W. Buck
  - Vagrant Cascadian
+ - Gioele Barabucci
