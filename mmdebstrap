@@ -4094,7 +4094,10 @@ sub approx_disk_usage {
             $installed_size += 1;
         }
     };
-    find($scan_installed_size, $directory);
+    # We use no_chdir because otherwise the unshared user has to have read
+    # permissions for the current working directory when producing an ext2
+    # image. See https://bugs.debian.org/1005857
+    find({ wanted => $scan_installed_size, no_chdir => 1 }, $directory);
 
     # because the above is only a heuristic we add 10% extra for good measure
     return int($installed_size * 1.1);
