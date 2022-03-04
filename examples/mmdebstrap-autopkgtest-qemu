@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# © 2022 Johannes Schauer Marin Rodrigues <josch@mister-muffin.de>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# The software is provided "as is", without warranty of any kind, express or
+# implied, including but not limited to the warranties of merchantability,
+# fitness for a particular purpose and noninfringement. In no event shall the
+# authors or copyright holders be liable for any claim, damages or other
+# liability, whether in an action of contract, tort or otherwise, arising
+# from, out of or in connection with the software or the use or other dealings
+# in the software.
+
+set -eu
+
+# This script creates debian-unstable.qcow2 in the current directory which can
+# then be used by the autopkgtest qemu backend.
+#
+# Thanks to Francesco Poli for providing ideas and testing this.
+#
+# Reasons why this is only working on amd64 and i386
+#
+#   - /usr/share/autopkgtest/setup-commands/setup-testbed only seems to be
+#     written for those architectures
+#   - extlinux is limited to amd64 and i386
+#   - autopkgtest is unable to reach the testbed when we boot with grub
+#
+# To make this work with more architectures we need to:
+#
+#   - adjust GRUB_CMDLINE_LINUX_DEFAULT for architectures other than amd64 and
+#     i386 in /usr/share/autopkgtest/setup-commands/setup-testbed
+#   - make this work with grub2 instead of extlinux
+
+case "$(dpkg --print-architecture)" in
+	amd64) linux=linux-image-amd64 ;;
+	i386) linux=linux-image-686 ;;
+	*)
+		echo "only supports amd64 and i386 for now" >&2
+		exit 1
+		;;
+esac
+
+mmdebstrap --variant=important --include=$linux \
+  --customize-hook='chroot "$1" passwd --delete root' \
+  --customize-hook='chroot "$1" useradd --home-dir /home/user --create-home user' \
+  --customize-hook='chroot "$1" passwd --delete user' \
+  --customize-hook='echo host > "$1/etc/hostname"' \
+  --customize-hook='echo "127.0.0.1 localhost host" > "$1/etc/hosts"' \
+  --customize-hook=/usr/share/autopkgtest/setup-commands/setup-testbed \
+  unstable - | \
+guestfish -- \
+  disk-create debian-unstable.qcow2 qcow2 8G : \
+  add-drive debian-unstable.qcow2 format:qcow2 : \
+  launch : \
+  part-disk /dev/sda mbr : \
+  part-set-bootable /dev/sda 1 true : \
+  mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
+  tar-in - / xattrs:true : \
+  upload /usr/lib/EXTLINUX/mbr.bin /boot/mbr.bin : \
+  copy-file-to-device /boot/mbr.bin /dev/sda size:440 : \
+  extlinux / : write "/extlinux.conf" "default linux
+timeout 0
+
+label linux
+kernel /vmlinuz
+append initrd=/initrd.img root=/dev/vda1 rw console=ttyS0" : \
+  sync : umount / : shutdown
