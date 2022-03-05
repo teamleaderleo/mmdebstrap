@@ -26,30 +26,25 @@ set -eu
 # then be used by the autopkgtest qemu backend.
 #
 # Thanks to Francesco Poli for providing ideas and testing this.
-#
-# Reasons why this is only working on amd64 and i386
-#
-#   - /usr/share/autopkgtest/setup-commands/setup-testbed only seems to be
-#     written for those architectures
-#   - extlinux is limited to amd64 and i386
-#   - autopkgtest is unable to reach the testbed when we boot with grub
-#
-# To make this work with more architectures we need to:
-#
-#   - adjust GRUB_CMDLINE_LINUX_DEFAULT for architectures other than amd64 and
-#     i386 in /usr/share/autopkgtest/setup-commands/setup-testbed
-#   - make this work with grub2 instead of extlinux
 
-case "$(dpkg --print-architecture)" in
-	amd64) linux=linux-image-amd64 ;;
-	i386) linux=linux-image-686 ;;
+nativearch="$(dpkg --print-architecture)"
+case "$nativearch" in
+	amd64)   include="linux-image-amd64       grub-pc" ;;
+	arm64)   include="linux-image-arm64       grub-efi" ;;
+	armhf)   include="linux-image-armmp-lpae  grub-efi" ;;
+	i386)    include="linux-image-686-pae     grub-pc" ;;
+	ppc64el) include="linux-image-powerpc64le grub-ieee1275" ;;
 	*)
-		echo "only supports amd64 and i386 for now" >&2
+		echo "architecture $nativearch not yet supported" >&2
 		exit 1
 		;;
 esac
+case "$nativearch" in
+	amd64|i386) ;;
+	*) echo "warning: architectures other than amd64 and i386 are untested" >&2 ;;
+esac
 
-mmdebstrap --variant=important --include=$linux \
+mmdebstrap --variant=important --include="$include" \
   --customize-hook='chroot "$1" passwd --delete root' \
   --customize-hook='chroot "$1" useradd --home-dir /home/user --create-home user' \
   --customize-hook='chroot "$1" passwd --delete user' \
@@ -65,12 +60,8 @@ guestfish -- \
   part-set-bootable /dev/sda 1 true : \
   mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
   tar-in - / xattrs:true : \
-  upload /usr/lib/EXTLINUX/mbr.bin /boot/mbr.bin : \
-  copy-file-to-device /boot/mbr.bin /dev/sda size:440 : \
-  extlinux / : write "/extlinux.conf" "default linux
-timeout 0
-
-label linux
-kernel /vmlinuz
-append initrd=/initrd.img root=/dev/vda1 rw console=ttyS0" : \
+  command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda1) / ext4 errors=remount-ro 0 1 > /etc/fstab'" : \
+  command "update-initramfs -u" : \
+  command "grub-install /dev/sda" : \
+  command update-grub : \
   sync : umount / : shutdown
