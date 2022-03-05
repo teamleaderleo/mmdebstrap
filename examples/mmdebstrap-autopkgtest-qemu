@@ -26,42 +26,146 @@ set -eu
 # then be used by the autopkgtest qemu backend.
 #
 # Thanks to Francesco Poli for providing ideas and testing this.
+#
+# Thanks to Lars Wirzenius of vmdb2 where the grub and efi magic comes from.
+#
+# Only the native architecture is supported because guestfish doesn't support
+# foreign architectures.
 
+SIZE="25G" # default from autopkgtest-build-qemu
 nativearch="$(dpkg --print-architecture)"
+
+# By default with --boot=auto (the default), bios boot is chosen for
+# amd64 and i386. Compare /usr/share/autopkgtest/lib/autopkgtest_qemu.py
+# But in practice, amd64 and i386 also support efi boot. But then
+# autopkgtest-virt-qemu has to be run with --boot=efi
 case "$nativearch" in
-	amd64)   include="linux-image-amd64       grub-pc" ;;
-	arm64)   include="linux-image-arm64       grub-efi" ;;
-	armhf)   include="linux-image-armmp-lpae  grub-efi" ;;
-	i386)    include="linux-image-686-pae     grub-pc" ;;
-	ppc64el) include="linux-image-powerpc64le grub-ieee1275" ;;
+	amd64|i386) BOOT=bios;;
+	armhf|arm64) BOOT=efi;;
+	ppc64el) BOOT=ieee1275;;
+esac
+
+case "$nativearch" in
+	amd64)
+		[ $BOOT = bios ] || [ $BOOT = efi ]
+		if [ $BOOT = bios ]; then
+			include="linux-image-amd64 grub-pc"
+			grub_target="i386-pc"
+		elif [ $BOOT = efi ]; then
+			include="linux-image-amd64 grub-efi"
+			grub_target="x86_64-efi"
+		fi
+		;;
+	arm64)
+		[ $BOOT = efi ]
+		include="linux-image-arm64 grub-efi"
+		grub_target="arm64-efi"
+		;;
+	armhf)
+		[ $BOOT = efi ]
+		include="linux-image-armmp-lpae grub-efi"
+		grub_target="arm-efi"
+		;;
+	i386)
+		[ $BOOT = bios ] || [ $BOOT = efi ]
+		if [ $BOOT = bios ]; then
+			include="linux-image-686-pae grub-pc"
+			grub_target="i386-efi"
+		elif [ $BOOT = efi ]; then
+			include="linux-image-686-pae grub-efi"
+			grub_target="i386-efi"
+		fi
+		;;
+	ppc64el)
+		[ $BOOT = ieee1275 ]
+		include="linux-image-powerpc64le grub-ieee1275"
+		grub_target="powerpc-ieee1275"
+		;;
 	*)
 		echo "architecture $nativearch not yet supported" >&2
 		exit 1
 		;;
 esac
+
+
 case "$nativearch" in
-	amd64|i386) ;;
-	*) echo "warning: architectures other than amd64 and i386 are untested" >&2 ;;
+	arm64|armhf) serial="loglevel=3 console=tty0 console=ttyAMA0,115200n8" ;;
+	ppc64el) serial="loglevel=3 console=tty0 console=hvc0,115200n8" ;;
+	*) serial="loglevel=3 console=tty0 console=ttyS0,115200n8" ;;
 esac
 
+run_mmdebstrap() {
 mmdebstrap --variant=important --include="$include" \
   --customize-hook='chroot "$1" passwd --delete root' \
   --customize-hook='chroot "$1" useradd --home-dir /home/user --create-home user' \
   --customize-hook='chroot "$1" passwd --delete user' \
   --customize-hook='echo host > "$1/etc/hostname"' \
   --customize-hook='echo "127.0.0.1 localhost host" > "$1/etc/hosts"' \
-  --customize-hook=/usr/share/autopkgtest/setup-commands/setup-testbed \
-  unstable - | \
-guestfish -- \
-  disk-create debian-unstable.qcow2 qcow2 8G : \
-  add-drive debian-unstable.qcow2 format:qcow2 : \
-  launch : \
-  part-disk /dev/sda mbr : \
-  part-set-bootable /dev/sda 1 true : \
-  mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
-  tar-in - / xattrs:true : \
-  command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda1) / ext4 errors=remount-ro 0 1 > /etc/fstab'" : \
-  command "update-initramfs -u" : \
-  command "grub-install /dev/sda" : \
-  command update-grub : \
-  sync : umount / : shutdown
+  --customize-hook='env AUTOPKGTEST_BUILD_QEMU=1 /usr/share/autopkgtest/setup-commands/setup-testbed "$1"' \
+  unstable -
+}
+
+guestfish_bios() {
+	guestfish -- \
+	disk-create debian-unstable.qcow2 qcow2 $SIZE : \
+	add-drive debian-unstable.qcow2 format:qcow2 : \
+	launch : \
+	part-disk /dev/sda mbr : \
+	part-set-bootable /dev/sda 1 true : \
+	mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
+	tar-in - / xattrs:true : \
+	command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda1) / ext4 errors=remount-ro 0 1 > /etc/fstab'" : \
+	command "update-initramfs -u" : \
+	command "grub-mkconfig -o /boot/grub/grub.cfg" : \
+	command "grub-install /dev/sda --target=$grub_target --no-nvram --force-extra-removable --no-floppy --modules=part_gpt --grub-mkdevicemap=/boot/grub/device.map" : \
+	sync : umount / : shutdown
+}
+
+guestfish_efi() {
+	guestfish -- \
+	disk-create debian-unstable.qcow2 qcow2 $SIZE : \
+	add-drive debian-unstable.qcow2 format:qcow2 : \
+	launch : \
+	part-init /dev/sda gpt : \
+	part-add /dev/sda primary 8192 262144 : \
+	part-add /dev/sda primary 262145 -34 : \
+	part-set-gpt-type /dev/sda 1 C12A7328-F81F-11D2-BA4B-00A0C93EC93B  : \
+	mkfs ext4 /dev/sda2 : mount /dev/sda2 / : \
+	tar-in - / xattrs:true : \
+	mkdir-p /boot/efi : \
+	mkfs vfat /dev/sda1 : mount /dev/sda1 /boot/efi : \
+	command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda2) / ext4 errors=remount-ro 0 1 > /etc/fstab'" : \
+	command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda1) /boot/efi vfat errors=remount-ro 0 2 >> /etc/fstab'" : \
+	command "sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=/GRUB_CMDLINE_LINUX_DEFAULT=\"biosdevname=0 net.ifnames=0 consoleblank=0 rw $serial\"/' /etc/default/grub" : \
+	command "update-initramfs -u" : \
+	command "grub-mkconfig -o /boot/grub/grub.cfg" : \
+	command "grub-install /dev/sda --target=$grub_target --no-nvram --force-extra-removable --no-floppy --modules=part_gpt --grub-mkdevicemap=/boot/grub/device.map" : \
+	sync : umount /boot/efi : umount / : shutdown
+}
+
+guestfish_ieee1275() {
+	guestfish -- \
+	disk-create debian-unstable.qcow2 qcow2 $SIZE : \
+	add-drive debian-unstable.qcow2 format:qcow2 : \
+	launch : \
+	part-init /dev/sda gpt : \
+	part-add /dev/sda primary 8192 20480 : \
+	part-add /dev/sda primary 20481 -34 : \
+	part-set-gpt-type /dev/sda 1 9E1A2D38-C612-4316-AA26-8B49521E5A8B : \
+	mkfs ext4 /dev/sda2 : mount /dev/sda2 / : \
+	tar-in - / xattrs:true : \
+	command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda2) / ext4 errors=remount-ro 0 1 > /etc/fstab'" : \
+	command "sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=/GRUB_CMDLINE_LINUX_DEFAULT=\"biosdevname=0 net.ifnames=0 consoleblank=0 rw $serial\"/' /etc/default/grub" : \
+	command "update-initramfs -u" : \
+	command "grub-mkconfig -o /boot/grub/grub.cfg" : \
+	command "grub-install /dev/sda --target=$grub_target --no-nvram --force-extra-removable --no-floppy --modules=part_gpt --grub-mkdevicemap=/boot/grub/device.map" : \
+	sync : umount / : shutdown
+}
+
+case "$BOOT" in
+	bios) run_mmdebstrap | guestfish_bios;;
+	efi) run_mmdebstrap | guestfish_efi;;
+	ieee1275) run_mmdebstrap | guestfish_ieee1275;;
+esac
+
+echo "Success! The image is stored as debian-unstable.qcow2" >&2
