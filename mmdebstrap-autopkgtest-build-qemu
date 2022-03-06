@@ -22,7 +22,7 @@
 
 set -eu
 
-# This script creates debian-unstable.qcow2 in the current directory which can
+# This script creates debian-$RELEASE.qcow2 in the current directory which can
 # then be used by the autopkgtest qemu backend.
 #
 # Thanks to Francesco Poli for providing ideas and testing this.
@@ -32,17 +32,92 @@ set -eu
 # Only the native architecture is supported because guestfish doesn't support
 # foreign architectures.
 
-SIZE="25G" # default from autopkgtest-build-qemu
+usage() {
+	echo "Usage: $0 [--size=SIZE] [--boot=BOOT] RELEASE IMAGE" >&2
+	echo >&2
+	echo "RELEASE is a Debian release like unstable" >&2
+	echo "IMAGE will be stored in qcow2 format" >&2
+	echo "SIZE is 25G by default" >&2
+	echo "BOOT is either auto (the default), bios, efi or ieee1275" >&2
+}
+
 nativearch="$(dpkg --print-architecture)"
+
+SIZE="25G" # default from autopkgtest-build-qemu
+BOOT="auto"
+if [ "$#" -lt 2 ]; then
+	echo "Error: Insufficient number of arguments" >&2
+	usage
+	exit 1
+elif [ "$#" -eq 2 ]; then
+	RELEASE=$1
+	IMAGE=$2
+else
+	# parse options
+	OPTS=$(getopt -n "$0" -o h --long size:,boot:,architecture:,help -- "$@")
+	if [ "$?" -ne 0 ]; then
+		echo "Error: Cannot parse arguments" >&2
+		usage
+		exit 1
+	fi
+	eval set -- "$OPTS"
+	while true; do
+		case "$1" in
+			--size) SIZE="$2"; shift 2; continue;;
+			--boot) BOOT="$2"; shift 2; continue;;
+			--help) usage; exit 1;;
+			--architecture)
+				echo "Error: cannot (yet) create foreign architecture images" >&2
+				exit 1
+				;;
+			--) shift; break;;
+			*)
+				echo "Error: unknown option $1" >&2
+				usage
+				exit 1
+				;;
+		esac
+	done
+	RELEASE=$1
+	IMAGE=$2
+fi
 
 # By default with --boot=auto (the default), bios boot is chosen for
 # amd64 and i386. Compare /usr/share/autopkgtest/lib/autopkgtest_qemu.py
 # But in practice, amd64 and i386 also support efi boot. But then
 # autopkgtest-virt-qemu has to be run with --boot=efi
-case "$nativearch" in
-	amd64|i386) BOOT=bios;;
-	armhf|arm64) BOOT=efi;;
-	ppc64el) BOOT=ieee1275;;
+case "$BOOT" in
+	auto)
+		case "$nativearch" in
+			amd64|i386) BOOT=bios;;
+			armhf|arm64) BOOT=efi;;
+			ppc64el) BOOT=ieee1275;;
+		esac
+		;;
+	bios)
+		case "$nativearch" in amd64|i386);;
+			*)
+				echo "bios booting only possible on amd64 and i386" >&2
+				exit 1
+				;;
+		esac
+		;;
+	efi)
+		case "$nativearch" in amd64|i386|armhf|arm64);;
+			*)
+				echo "efi booting only possible on amd64, i386, armhf and arm64" >&2
+				exit 1
+				;;
+		esac
+		;;
+	ieee1275)
+		if [ "$nativearch" != "ppc64el" ]; then
+			echo "ieee1275 booting only possible on ppc64el" >&2
+			exit 1
+		fi
+		;;
+	*)
+		echo "invalid value for --boot" >&2;;
 esac
 
 case "$nativearch" in
@@ -87,28 +162,37 @@ case "$nativearch" in
 		;;
 esac
 
-
 case "$nativearch" in
 	arm64|armhf) serial="loglevel=3 console=tty0 console=ttyAMA0,115200n8" ;;
 	ppc64el) serial="loglevel=3 console=tty0 console=hvc0,115200n8" ;;
 	*) serial="loglevel=3 console=tty0 console=ttyS0,115200n8" ;;
 esac
 
+if ! command -v guestfish >/dev/null; then
+	echo "Error: requires guestfish being installed" >&2
+	exit 1
+fi
+
+if [ ! -e /usr/share/autopkgtest/setup-commands/setup-testbed ]; then
+	echo "Error: requires autopkgtest being installed" >&2
+	exit 1
+fi
+
 run_mmdebstrap() {
-mmdebstrap --variant=important --include="$include" \
-  --customize-hook='chroot "$1" passwd --delete root' \
-  --customize-hook='chroot "$1" useradd --home-dir /home/user --create-home user' \
-  --customize-hook='chroot "$1" passwd --delete user' \
-  --customize-hook='echo host > "$1/etc/hostname"' \
-  --customize-hook='echo "127.0.0.1 localhost host" > "$1/etc/hosts"' \
-  --customize-hook='env AUTOPKGTEST_BUILD_QEMU=1 /usr/share/autopkgtest/setup-commands/setup-testbed "$1"' \
-  unstable -
+	mmdebstrap --variant=important --include="$include" \
+	--customize-hook='chroot "$1" passwd --delete root' \
+	--customize-hook='chroot "$1" useradd --home-dir /home/user --create-home user' \
+	--customize-hook='chroot "$1" passwd --delete user' \
+	--customize-hook='echo host > "$1/etc/hostname"' \
+	--customize-hook='echo "127.0.0.1 localhost host" > "$1/etc/hosts"' \
+	--customize-hook='env AUTOPKGTEST_BUILD_QEMU=1 /usr/share/autopkgtest/setup-commands/setup-testbed "$1"' \
+	"$RELEASE" -
 }
 
 guestfish_bios() {
 	guestfish -- \
-	disk-create debian-unstable.qcow2 qcow2 $SIZE : \
-	add-drive debian-unstable.qcow2 format:qcow2 : \
+	disk-create "$IMAGE" qcow2 "$SIZE" : \
+	add-drive "$IMAGE" format:qcow2 : \
 	launch : \
 	part-disk /dev/sda mbr : \
 	part-set-bootable /dev/sda 1 true : \
@@ -123,8 +207,8 @@ guestfish_bios() {
 
 guestfish_efi() {
 	guestfish -- \
-	disk-create debian-unstable.qcow2 qcow2 $SIZE : \
-	add-drive debian-unstable.qcow2 format:qcow2 : \
+	disk-create "$IMAGE" qcow2 "$SIZE" : \
+	add-drive "$IMAGE" format:qcow2 : \
 	launch : \
 	part-init /dev/sda gpt : \
 	part-add /dev/sda primary 8192 262144 : \
@@ -145,8 +229,8 @@ guestfish_efi() {
 
 guestfish_ieee1275() {
 	guestfish -- \
-	disk-create debian-unstable.qcow2 qcow2 $SIZE : \
-	add-drive debian-unstable.qcow2 format:qcow2 : \
+	disk-create "$IMAGE" qcow2 "$SIZE" : \
+	add-drive "$IMAGE" format:qcow2 : \
 	launch : \
 	part-init /dev/sda gpt : \
 	part-add /dev/sda primary 8192 20480 : \
@@ -168,4 +252,4 @@ case "$BOOT" in
 	ieee1275) run_mmdebstrap | guestfish_ieee1275;;
 esac
 
-echo "Success! The image is stored as debian-unstable.qcow2" >&2
+echo "Success! The image is stored as $IMAGE" >&2
