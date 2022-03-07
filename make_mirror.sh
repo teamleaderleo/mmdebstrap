@@ -638,7 +638,7 @@ END
 		copy-in "$tmpdir/mini-httpd" /etc/default : \
 		copy-in "$tmpdir/hosts" /etc/ : \
 		touch /mmdebstrap-testenv : \
-		upload /usr/lib/SYSLINUX/mbr.bin /mbr.bin : \
+		upload /usr/lib/EXTLINUX/mbr.bin /mbr.bin : \
 		copy-file-to-device /mbr.bin /dev/sda size:440 : \
 		rm /mbr.bin : \
 		extlinux / : \
