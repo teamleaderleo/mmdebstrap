@@ -304,6 +304,15 @@ for f in "/tmp/debian-$dist-debootstrap/etc/shells" "/tmp/debian-$dist-mm/etc/sh
 	sort -o "\$f" "\$f"
 done
 
+# Because of unreproducible uids (#969631) we created the _apt user ourselves
+# and because passwd is not Essential:yes we didn't use useradd. But newer
+# versions of adduser and shadow will create a different /etc/shadow
+for f in shadow shadow-; do
+	if grep -q '^_apt:!:' /tmp/debian-$dist-debootstrap/etc/\$f; then
+		sed -i 's/^_apt:\*:\([^:]\+\):0:99999:7:::$/_apt:!:\1::::::/' /tmp/debian-$dist-mm/etc/\$f
+	fi
+done
+
 # workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
 if ! cmp /tmp/debian-$dist-debootstrap/etc/shadow /tmp/debian-$dist-mm/etc/shadow; then
 	echo patching /etc/shadow on $dist $variant >&2
