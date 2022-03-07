@@ -6592,7 +6592,8 @@ chroot as I<fileoutside>. In contrast to B<copy-out>, this command only
 handles files and not directories. To copy a directory recursively out of the
 chroot, use B<copy-out> or B<tar-out>. Its advantage is, that by being able to
 specify the full path on the outside, including the filename, the file on the
-outside can have a different name from the file on the inside.
+outside can have a different name from the file on the inside. In contrast to
+B<copy-out> and B<tar-out>, this command follows symlinks.
 
 =item B<upload> I<fileoutside> I<fileinside>
 
@@ -6832,6 +6833,20 @@ Create a bootable USB Stick that boots into a full Debian desktop:
     $ qemu-system-x86_64 -m 1G -enable-kvm debian-unstable.img
     $ sudo dd if=debian-unstable.img of=/dev/sdXXX status=progress
 
+On architectures without extlinux you can also boot using grub2:
+
+    $ mmdebstrap --include=linux-image-amd64,grub2,systemd-sysv unstable fs.tar
+    $ guestfish -N debian-unstable.img=disk:2G -- \
+        part-disk /dev/sda mbr : \
+        part-set-bootable /dev/sda 1 true : \
+        set-label /dev/sda1 rootfs : \
+        mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
+        tar-in fs.tar / xattrs:true : \
+        command "grub-install /dev/sda" : \
+        command update-grub : \
+        sync : umount / : shutdown
+    $ qemu-system-x86_64 -m 1G -enable-kvm debian-unstable.img
+
 Build libdvdcss2.deb without installing installing anything or changing apt
 sources on the current system:
 
@@ -6857,7 +6872,7 @@ Use as replacement for autopkgtest-build-qemu and vmdb2:
     >
     > label linux
     > kernel /vmlinuz
-    > append initrd=/initrd.img root=/dev/vda1 console=ttyS0
+    > append initrd=/initrd.img root=/dev/vda1 rw console=ttyS0
     END
     $ guestfish -N debian-unstable.img=disk:8G -- \
         part-disk /dev/sda mbr : \
