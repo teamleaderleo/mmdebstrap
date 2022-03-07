@@ -6162,7 +6162,7 @@ information.
 
 Example: Install busybox symlinks
 
-    --extract-hook='chroot "$1" busybox --install -s'
+    --extract-hook='chroot "$1" /bin/busybox --install -s'
 
 =item B<--essential-hook>=I<command>
 
