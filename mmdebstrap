@@ -1181,15 +1181,35 @@ sub run_chroot {
             warning("skipping bind-mounting /sys because"
                   . " /sys on the outside is not a directory");
         } elsif ($options->{mode} eq 'root') {
-            push @cleanup_tasks, sub {
-                0 == system('umount', "$options->{root}/sys")
-                  or warn "umount /sys failed: $?";
-            };
-            0 == system(
-                'mount', '-t',                     'sysfs',
-                '-o',    'ro,nosuid,nodev,noexec', 'sys',
-                "$options->{root}/sys"
-            ) or error "mount /sys failed: $?";
+            # we don't know whether we run in root mode inside an unshared
+            # user namespace or as real root so we first try the real mount and
+            # then fall back to mounting in a way that works in unshared mode
+            if (
+                0 == system(
+                    'mount',                  '-t',
+                    'sysfs',                  '-o',
+                    'ro,nosuid,nodev,noexec', 'sys',
+                    "$options->{root}/sys"
+                )
+            ) {
+                push @cleanup_tasks, sub {
+                    0 == system('umount', "$options->{root}/sys")
+                      or warn "umount /sys failed: $?";
+                };
+            } elsif (
+                0 == system('mount', '-o', 'rbind', '/sys',
+                    "$options->{root}/sys")) {
+                push @cleanup_tasks, sub {
+                    # since we cannot write to /etc/mtab we need --no-mtab
+                    # unmounting /sys only seems to be successful with --lazy
+                    0 == system(
+                        'umount', '--no-mtab',
+                        '--lazy', "$options->{root}/sys"
+                    ) or warn "umount /sys failed: $?";
+                };
+            } else {
+                error "mount /sys failed: $?";
+            }
         } elsif ($options->{mode} eq 'unshare') {
             # naturally we have to clean up after ourselves in sudo mode where
             # we do a real mount. But we also need to unmount in unshare mode
@@ -1236,24 +1256,42 @@ sub run_chroot {
             warning("skipping bind-mounting /proc because"
                   . " /proc on the outside is not a directory");
         } elsif ($options->{mode} eq 'root') {
-            push @cleanup_tasks, sub {
-                # some maintainer scripts mount additional stuff into /proc
-                # which we need to unmount beforehand
-                if (
-                    is_mountpoint(
-                        $options->{root} . "/proc/sys/fs/binfmt_misc"
-                    )
-                ) {
-                    0 == system('umount',
-                        "$options->{root}/proc/sys/fs/binfmt_misc")
-                      or error "umount /proc/sys/fs/binfmt_misc failed: $?";
-                }
-                0 == system('umount', "$options->{root}/proc")
-                  or error "umount /proc failed: $?";
-            };
-            0 == system('mount', '-t', 'proc', '-o', 'ro', 'proc',
-                "$options->{root}/proc")
-              or error "mount /proc failed: $?";
+            # we don't know whether we run in root mode inside an unshared
+            # user namespace or as real root so we first try the real mount and
+            # then fall back to mounting in a way that works in unshared
+            if (
+                0 == system(
+                    'mount', '-t', 'proc', '-o', 'ro', 'proc',
+                    "$options->{root}/proc"
+                )
+            ) {
+                push @cleanup_tasks, sub {
+                    # some maintainer scripts mount additional stuff into /proc
+                    # which we need to unmount beforehand
+                    if (
+                        is_mountpoint(
+                            $options->{root} . "/proc/sys/fs/binfmt_misc"
+                        )
+                    ) {
+                        0 == system('umount',
+                            "$options->{root}/proc/sys/fs/binfmt_misc")
+                          or error
+                          "umount /proc/sys/fs/binfmt_misc failed: $?";
+                    }
+                    0 == system('umount', "$options->{root}/proc")
+                      or error "umount /proc failed: $?";
+                };
+            } elsif (
+                0 == system('mount', '-t', 'proc', 'proc',
+                    "$options->{root}/proc")) {
+                push @cleanup_tasks, sub {
+                    # since we cannot write to /etc/mtab we need --no-mtab
+                    0 == system('umount', '--no-mtab', "$options->{root}/proc")
+                      or error "umount /proc failed: $?";
+                };
+            } else {
+                error "mount /proc failed: $?";
+            }
         } elsif ($options->{mode} eq 'unshare') {
             # naturally we have to clean up after ourselves in sudo mode where
             # we do a real mount. But we also need to unmount in unshare mode
