@@ -7037,7 +7037,7 @@ This section lists some differences to debootstrap.
 
 =item * Multiple ways to operate as non-root: fakechroot, proot, unshare
 
-=item * 3-6 times faster
+=item * twice as fast
 
 =item * Can create a chroot with only C<Essential:yes> packages and their deps
 
@@ -7057,7 +7057,7 @@ Limitations in comparison to debootstrap:
 
 =item * Only runs on systems with apt installed (Debian and derivatives)
 
-=item * No I<SCRIPT> argument
+=item * No I<SCRIPT> argument (use hooks instead)
 
 =item * Some debootstrap options don't exist, namely:
 
