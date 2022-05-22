@@ -838,6 +838,7 @@ fi
 adduser --gecos user --disabled-password user
 sysctl -w kernel.unprivileged_userns_clone=1
 export SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
+mount -o size=4G -t tmpfs tmpfs /tmp # workaround for #1010957
 $CMD --mode=root --variant=$variant $DEFAULT_DIST /tmp/debian-chroot-root.$format $mirror
 if [ "$format" = tar ]; then
 	printf 'ustar ' | cmp --bytes=6 --ignore-initial=257:0 /tmp/debian-chroot-root.tar -
@@ -3061,6 +3062,7 @@ include="--include=doc-debian"
 if [ "$variant" = "custom" ]; then
 	include="\$include,base-files,base-passwd,coreutils,dash,diffutils,dpkg,libc-bin,sed"
 fi
+mount -o size=4G -t tmpfs tmpfs /tmp # workaround for #1010957
 $CMD \$include --mode=$defaultmode --variant=$variant \
 	--setup-hook='mkdir -p "\$1"/var/cache/apt/archives/partial' \
 	--setup-hook='touch "\$1"/var/cache/apt/archives/lock' \
