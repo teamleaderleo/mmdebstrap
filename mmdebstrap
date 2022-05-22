@@ -6994,6 +6994,17 @@ As a docker/podman replacement:
     root
     $ rm chroot.tar
 
+You can re-use a chroot tarball created with mmdebstrap for further refinement.
+Say you want to create a minimal chroot and a chroot with more packages
+installed, then instead of downloading and installing the essential packages
+twice you can instead build on top of the already present minimal chroot:
+
+    $ mmdebstrap --variant=apt unstable chroot.tar
+    $ mmdebstrap --variant=custom --setup-hook \
+        'mmtarfilter "--path-exclude=/dev/*" < chroot.tar | tar -C "$1" -x' \
+        --customize-hook='chroot "$1" apt-get install --yes pkg1 pkg2' \
+        '' chroot-full.tar
+
 =head1 ENVIRONMENT VARIABLES
 
 =over 8
