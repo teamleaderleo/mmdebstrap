@@ -805,12 +805,13 @@ fi
 for variant in essential apt minbase buildd important standard; do
 	for format in tar squashfs ext2; do
 		print_header "mode=root/unshare/fakechroot,variant=$variant: check for bit-by-bit identical $format output"
-		# pyc files and man index.db are not reproducible
-		# See #1004557 and #1004558
 		if [ "$variant" = "standard" ]; then
-			echo "skipping test because of #864082" >&2
-			skipped=$((skipped+1))
-			continue
+			case "$DEFAULT_DIST" in oldstable|stable)
+				echo "skipping test because of #864082, #1004557 and #1004558" >&2
+				skipped=$((skipped+1))
+				continue
+				;;
+			esac
 		fi
 		if [ "$variant" = "important" ] && [ "$DEFAULT_DIST" = "oldstable" ]; then
 			echo "skipping test on oldstable because /var/lib/systemd/catalog/database differs" >&2
@@ -3037,12 +3038,13 @@ fi
 # into /var/cache/apt/archives/partial
 for variant in extract custom essential apt minbase buildd important standard; do
 	print_header "mode=$defaultmode,variant=$variant: compare output with pre-seeded /var/cache/apt/archives"
-	# pyc files and man index.db are not reproducible
-	# See #1004557 and #1004558
 	if [ "$variant" = "standard" ]; then
-		echo "skipping test because of #864082" >&2
-		skipped=$((skipped+1))
-		continue
+		case "$DEFAULT_DIST" in oldstable|stable)
+			echo "skipping test because of #864082, #1004557 and #1004558" >&2
+			skipped=$((skipped+1))
+			continue
+			;;
+		esac
 	fi
 	if [ "$variant" = "important" ] && [ "$DEFAULT_DIST" = "oldstable" ]; then
 		echo "skipping test on oldstable because /var/lib/systemd/catalog/database differs" >&2
