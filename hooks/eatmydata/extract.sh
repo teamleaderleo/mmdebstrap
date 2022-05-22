@@ -25,7 +25,7 @@ END
 # nothing will be printed for them
 tmpdir=$(mktemp --directory --tmpdir="$rootdir/tmp")
 env --chdir="$tmpdir" APT_CONFIG="$tmpfile" apt-get download --print-uris eatmydata libeatmydata1 \
-	| sed -ne "s/^'\([^']\+\)'\s\+\([^\s]\+\)\s\+\([0-9]\+\)\s\+\(SHA256:[a-f0-9]\+\)$/\1 \2 \3 \4/p" \
+	| sed -ne "s/^'\([^']\+\)'\s\+\(\S\+\)\s\+\([0-9]\+\)\s\+\(SHA256:[a-f0-9]\+\)$/\1 \2 \3 \4/p" \
 	| while read uri fname size hash; do
 		echo "processing $fname" >&2
 		if [ -e "$tmpdir/$fname" ]; then
