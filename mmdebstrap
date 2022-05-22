@@ -6815,6 +6815,10 @@ create device nodes:
 
     $ mmdebstrap unstable | tar --delete ./dev > unstable-chroot.tar
 
+Create a tarball for use with C<sbuild --chroot-mode=unshare>:
+
+    $ mmdebstrap --variant=buildd unstable ~/.cache/sbuild/unstable-amd64.tar
+
 Instead of a tarball, a squashfs image can be created:
 
     $ mmdebstrap unstable unstable-chroot.squashfs
