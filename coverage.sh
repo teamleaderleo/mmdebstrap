@@ -3608,7 +3608,7 @@ for mode in root unshare fakechroot proot; do
 		skipped=$((skipped+1))
 		continue
 	fi
-	if [ "$RUN_MA_SAME_TESTS" != yes ]; then
+	if [ "$mode" = "fakechroot" ] && [ "$RUN_MA_SAME_TESTS" != yes ]; then
 		echo "RUN_MA_SAME_TESTS != yes -- Skipping test..." >&2
 		skipped=$((skipped+1))
 		continue
