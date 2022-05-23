@@ -2092,7 +2092,7 @@ sub run_download() {
     if (any { $_ eq $options->{variant} } ('extract', 'custom')) {
         if (scalar @{ $options->{include} } == 0) {
             info "nothing to download -- skipping...";
-            return ([], []);
+            return ([], \@cached_debs);
         }
         my %pkgs_to_install;
         for my $incl (@{ $options->{include} }) {
