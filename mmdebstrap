@@ -4284,11 +4284,19 @@ sub main() {
           sub { push @{ $options->{noop} }, 'no-merged-usr'; },
         'force-check-gpg' =>
           sub { push @{ $options->{noop} }, 'force-check-gpg'; },
-        'setup-hook=s@'     => \$options->{setup_hook},
-        'extract-hook=s@'   => \$options->{extract_hook},
-        'essential-hook=s@' => \$options->{essential_hook},
-        'customize-hook=s@' => \$options->{customize_hook},
-        'hook-directory=s'  => sub {
+        'setup-hook=s' => sub {
+            push @{ $options->{setup_hook} }, $_[1];
+        },
+        'extract-hook=s' => sub {
+            push @{ $options->{extract_hook} }, $_[1];
+        },
+        'essential-hook=s' => sub {
+            push @{ $options->{essential_hook} }, $_[1];
+        },
+        'customize-hook=s' => sub {
+            push @{ $options->{customize_hook} }, $_[1];
+        },
+        'hook-directory=s' => sub {
             my ($opt_name, $opt_value) = @_;
             if (!-e $opt_value) {
                 error "hook directory \"$opt_value\" does not exist";
