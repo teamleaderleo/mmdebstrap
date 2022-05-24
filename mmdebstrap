@@ -6745,7 +6745,7 @@ In B<fakechroot> mode, environment variables C<LD_LIBRARY_PATH> will be set up
 correctly. If the chroot requires the qemu-user-static binary it will be copied
 in. For foreign B<fakechroot> environments, C<LD_LIBRARY_PATH> and
 C<QEMU_LD_PREFIX> are set up accordingly. This step is not carried out in
->B<extract> mode and neither for the B<chrootless> variant.
+B<extract> mode and neither for the B<chrootless> variant.
 
 =item B<essential>
 
