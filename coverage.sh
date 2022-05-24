@@ -3088,6 +3088,7 @@ $CMD \$include --mode=$defaultmode --variant=$variant --skip=download/empty \
 	--setup-hook='mkdir -p "\$1"/var/cache/apt/archives/' \
 	--setup-hook='sync-in "'"\$tmpdir"'" /var/cache/apt/archives/' \
 	--setup-hook='chmod 0755 "\$1"/var/cache/apt/archives/' \
+	--customize-hook='find "'"\$tmpdir"'" -type f -exec md5sum "{}" \; | sed "s|"'"\$tmpdir"'"|\$1/var/cache/apt/archives|" | md5sum --check' \
 	$DEFAULT_DIST - $mirror > test2.tar
 cmp orig.tar test2.tar
 rm "\$tmpdir"/*.deb orig.tar test1.tar test2.tar
