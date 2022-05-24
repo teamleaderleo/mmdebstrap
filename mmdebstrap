@@ -2479,16 +2479,18 @@ sub run_prepare {
                 # binary at configuration time instead of lazily at startup
                 # time. If the flag is set, then the qemu-static binary is not
                 # required inside the chroot.
-                open my $fh, '<',
-                  "/proc/sys/fs/binfmt_misc/qemu-$options->{qemu}";
-                while (my $line = <$fh>) {
-                    chomp($line);
-                    if ($line =~ /^flags: [A-Z]*F[A-Z]*$/) {
-                        $require_qemu_static = 0;
-                        last;
+                if (-e "/proc/sys/fs/binfmt_misc/qemu-$options->{qemu}") {
+                    open my $fh, '<',
+                      "/proc/sys/fs/binfmt_misc/qemu-$options->{qemu}";
+                    while (my $line = <$fh>) {
+                        chomp($line);
+                        if ($line =~ /^flags: [A-Z]*F[A-Z]*$/) {
+                            $require_qemu_static = 0;
+                            last;
+                        }
                     }
+                    close $fh;
                 }
-                close $fh;
             };
             if ($require_qemu_static) {
                 # other modes require a static qemu-user binary
@@ -4753,19 +4755,13 @@ sub main() {
             } elsif ($withemu == 0 and $noemu == 1) {
                 error "arch-test succeeded without emu but not with emu";
             } elsif ($withemu == 1 and $noemu == 0) {
-                info "$options->{nativearch} cannot be executed, falling back"
-                  . " to qemu-user";
+                info "$options->{nativearch} cannot be executed natively, but"
+                  . " transparently using qemu-user binfmt emulation";
                 if (!exists $deb2qemu->{ $options->{nativearch} }) {
                     error "no mapping from $options->{nativearch} to qemu-user"
                       . " binary";
                 }
                 $options->{qemu} = $deb2qemu->{ $options->{nativearch} };
-                if (any { $_ eq $options->{mode} } ('root', 'unshare')) {
-                    my $qemubin = "/usr/bin/qemu-$options->{qemu}-static";
-                    if (!-e $qemubin) {
-                        error "cannot find $qemubin";
-                    }
-                }
             } elsif ($withemu == 1 and $noemu == 1) {
                 info "$options->{nativearch} is different from $hostarch but"
                   . " can be executed natively";
