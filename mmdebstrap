@@ -206,6 +206,26 @@ sub minor {
     return $right->bior($left);
 }
 
+sub can_execute {
+    my $tool = shift;
+    my $pid  = open my $fh, '-|' // return 0;
+    if ($pid == 0) {
+        open(STDERR, '>&', STDOUT) or die;
+        exec {$tool} $tool, '--version' or die;
+    }
+    chomp(
+        my $content = do { local $/; <$fh> }
+    );
+    close $fh;
+    if ($? != 0) {
+        return 0;
+    }
+    if (length $content == 0) {
+        return 0;
+    }
+    return 1;
+}
+
 # check whether a directory is mounted by comparing the device number of the
 # directory itself with its parent
 sub is_mountpoint {
@@ -4346,14 +4366,7 @@ sub main() {
         'apt-config', 'tar',      'rm',      'find',
         'env'
     ) {
-        my $found = 0;
-        foreach my $path (split /:/, $ENV{PATH}) {
-            if (-f "$path/$tool" && -x _ ) {
-                $found = 1;
-                last;
-            }
-        }
-        if (!$found) {
+        if (!can_execute $tool) {
             error "cannot find $tool";
         }
     }
@@ -4435,7 +4448,7 @@ sub main() {
             # if we are not root, unshare mode is our best option if
             # test_unshare_userns() succeeds
             $options->{mode} = 'unshare';
-        } elsif (system('fakechroot --version>/dev/null') == 0) {
+        } elsif (can_execute 'fakechroot') {
             # the next fallback is fakechroot
             # exec ourselves again but within fakechroot
             my @prefix = ();
@@ -4443,7 +4456,7 @@ sub main() {
                 @prefix = ($EXECUTABLE_NAME, '-MDevel::Cover=-silent,-nogcov');
             }
             exec 'fakechroot', 'fakeroot', @prefix, $PROGRAM_NAME, @ARGVORIG;
-        } elsif (system('proot --version>/dev/null') == 0) {
+        } elsif (can_execute 'proot') {
             # and lastly, proot
             $options->{mode} = 'proot';
         } else {
@@ -4455,13 +4468,13 @@ sub main() {
             error "need to be root";
         }
     } elsif ($options->{mode} eq 'proot') {
-        if (system('proot --version>/dev/null') != 0) {
+        if (!can_execute 'proot') {
             error "need working proot binary";
         }
     } elsif ($options->{mode} eq 'fakechroot') {
         if (&{$check_fakechroot_running}()) {
             # fakechroot is already running
-        } elsif (system('fakechroot --version>/dev/null') != 0) {
+        } elsif (!can_execute 'fakechroot') {
             error "need working fakechroot binary";
         } else {
             # exec ourselves again but within fakechroot
@@ -4561,7 +4574,7 @@ sub main() {
     }
 
     if (any { $_ eq $options->{mode} } ('root', 'unshare')) {
-        if (system('mount --version>/dev/null') != 0) {
+        if (!can_execute 'mount') {
             warning "cannot execute mount";
             $options->{canmount} = 0;
         }
@@ -4639,7 +4652,7 @@ sub main() {
         } elsif ($options->{variant} eq "extract") {
             info "skipping emulation check for extract variant";
         } elsif ($hostarch ne $options->{nativearch}) {
-            if (system('arch-test --version>/dev/null') != 0) {
+            if (!can_execute 'arch-test') {
                 error "install arch-test for foreign architecture support";
             }
             my $withemu = 0;
@@ -4730,9 +4743,7 @@ sub main() {
                     if (!exists $deb2qemu->{ $options->{nativearch} }) {
                         warning "no mapping from $options->{nativearch} to"
                           . " qemu-user binary";
-                    } elsif (
-                        system('/usr/sbin/update-binfmts --version>/dev/null')
-                        != 0) {
+                    } elsif (!can_execute '/usr/sbin/update-binfmts') {
                         warning "cannot find /usr/sbin/update-binfmts";
                     } else {
                         my $binfmt_identifier
