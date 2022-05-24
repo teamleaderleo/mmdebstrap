@@ -126,8 +126,23 @@ if [ ! -e shared/hooks/eatmydata/customize.sh ] || [ hooks/eatmydata/customize.s
 		cp -a /usr/share/mmdebstrap/hooks/eatmydata/customize.sh shared/hooks/eatmydata/
 	fi
 fi
+mkdir -p shared/hooks/file-mirror-automount
+if [ ! -e shared/hooks/file-mirror-automount/setup00.sh ] || [ hooks/file-mirror-automount/setup00.sh -nt shared/hooks/file-mirror-automount/setup00.sh ]; then
+	if [ -e hooks/file-mirror-automount/setup00.sh ]; then
+		cp -a hooks/file-mirror-automount/setup00.sh shared/hooks/file-mirror-automount/
+	else
+		cp -a /usr/share/mmdebstrap/hooks/file-mirror-automount/setup00.sh shared/hooks/file-mirror-automount/
+	fi
+fi
+if [ ! -e shared/hooks/file-mirror-automount/customize00.sh ] || [ hooks/file-mirror-automount/customize00.sh -nt shared/hooks/file-mirror-automount/customize00.sh ]; then
+	if [ -e hooks/file-mirror-automount/customize00.sh ]; then
+		cp -a hooks/file-mirror-automount/customize00.sh shared/hooks/file-mirror-automount/
+	else
+		cp -a /usr/share/mmdebstrap/hooks/file-mirror-automount/customize00.sh shared/hooks/file-mirror-automount/
+	fi
+fi
 starttime=
-total=183
+total=184
 skipped=0
 runtests=0
 i=1
@@ -1545,6 +1560,27 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 $CMD --mode=$defaultmode --variant=apt --setup-hook='mkdir -p "\$1"/mnt/cache/debian; mount -o ro,bind /mnt/cache/debian "\$1"/mnt/cache/debian' --customize-hook='umount "\$1"/mnt/cache/debian; rmdir "\$1"/mnt/cache/debian "\$1"/mnt/cache' $DEFAULT_DIST /tmp/debian-chroot.tar "deb file:///mnt/cache/debian $DEFAULT_DIST main"
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+rm /tmp/debian-chroot.tar
+END
+if [ "$HAVE_QEMU" = "yes" ]; then
+	./run_qemu.sh
+	runtests=$((runtests+1))
+else
+	echo "HAVE_QEMU != yes -- Skipping test..." >&2
+	skipped=$((skipped+1))
+fi
+
+print_header "mode=$defaultmode,variant=apt: test file-mirror-automount hook"
+cat << END > shared/test.sh
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test requires the cache directory to be mounted on /mnt and should only be run inside a container" >&2
+	exit 1
+fi
+$CMD --mode=$defaultmode --variant=apt --hook-dir=./hooks/file-mirror-automount --customize-hook='rmdir "\$1"/mnt/cache/debian/ "\$1"/mnt/cache' $DEFAULT_DIST /tmp/debian-chroot.tar "deb file:///mnt/cache/debian $DEFAULT_DIST main"
 tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
 rm /tmp/debian-chroot.tar
 END

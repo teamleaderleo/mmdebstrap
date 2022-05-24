@@ -2176,7 +2176,10 @@ sub run_download() {
         if (rindex $deb, $options->{root}, 0) {
             if (!-e "$options->{root}/$deb") {
                 error "package file $deb not accessible from chroot directory"
-                  . " -- use copy:// instead of file:// or a bind-mount";
+                  . " -- use copy:// instead of file:// or a bind-mount. You"
+                  . " can also try using --hook-dir=/usr/share/mmdebstrap/"
+                  . "hooks/file-mirror-automount to automatically create"
+                  . " the necessary bind-mounts.";
             }
             push @essential_pkgs, $deb;
             next;
@@ -6203,6 +6206,11 @@ architecture specific symlinks
 
     --hook-dir=/usr/share/mmdebstrap/hooks/merged-usr
 
+Example 4: Automatically mount all directories referenced by C<file://> mirrors
+into the chroot
+
+    --hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount
+
 =item B<--skip>=I<stage>[,I<stage>,...]
 
 B<mmdebstrap> tries hard to implement sensible defaults and will try to stop
@@ -6898,6 +6906,24 @@ inside the chroot.
         --setup-hook='sync-in ./cache /var/cache/apt/archives/' \
         --customize-hook='sync-out /var/cache/apt/archives ./cache' \
         unstable /dev/null
+
+Instead of copying potentially large amounts of data with B<sync-in> you can
+also use a bind-mount in combination with a C<file://> mirror to make packages
+from the outside available inside the chroot:
+
+    $ mmdebstrap --variant=apt --skip=essential/unlink \
+        --setup-hook='mkdir "$1/tmp/mirror"' \
+        --setup-hook='mount -o ro,bind /tmp/mirror "$1/tmp/mirror"' \
+        --customize-hook='sync-out /var/cache/apt/archives ./cache' \
+        --customize-hook='umount "$1/tmp/mirror"; rmdir "$1/tmp/mirror";' \
+        unstable /dev/null file:///tmp/mirror http://deb.debian.org/debian
+
+To automatically mount all directories referenced by C<file://> mirrors
+into the chroot you can use a hook:
+
+    $ mmdebstrap --variant=apt \
+        --hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount \
+        unstable /dev/null file:///tmp/mirror1 file:///tmp/mirror2
 
 Create a system that can be used with docker:
 
