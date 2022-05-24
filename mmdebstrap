@@ -1424,6 +1424,9 @@ sub run_hooks {
     # This is the file descriptor of the socket that the mmdebstrap
     # --hook-helper can write to and read from to communicate with the outside.
     push @env_opts, ("MMDEBSTRAP_HOOKSOCK=" . fileno($options->{hooksock}));
+    # Store the verbosity of mmdebstrap so that hooks can be just as verbose
+    # as the mmdebstrap invocation that called them.
+    push @env_opts, ("MMDEBSTRAP_VERBOSITY=" . $verbosity_level);
 
     my $runner = sub {
         foreach my $script (@{ $options->{"${name}_hook"} }) {
@@ -6574,15 +6577,22 @@ hook. Otherwise, if I<command> is an existing executable file from C<$PATH> or
 if I<command> does not contain any shell metacharacters, then I<command> is
 directly exec-ed with the path to the chroot directory passed as the first
 argument. Otherwise, I<command> is executed under I<sh> and the chroot
-directory can be accessed via I<$1>. All environment variables set by
-B<mmdebstrap> (like C<APT_CONFIG>, C<DEBIAN_FRONTEND>, C<LC_ALL> and C<PATH>)
-are preserved. All environment variables set by the user are preserved, except
-for C<TMPDIR> which is cleared. See section B<TMPDIR>.
+directory can be accessed via I<$1>. Most environment variables set by
+B<mmdebstrap> (like C<DEBIAN_FRONTEND>, C<LC_ALL> and C<PATH>) are preserved.
+Most notably, C<APT_CONFIG> is being unset. If you need the path to
+C<APT_CONFIG> as written by mmdebstrap it can be found in the
+C<MMDEBSTRAP_APT_CONFIG> environment variable. All environment variables set by
+the user are preserved, except for C<TMPDIR> which is cleared. See section
+B<TMPDIR>. Furthermore, C<MMDEBSTRAP_MODE> will store the mode set by
+B<--mode>, C<MMDEBSTRAP_HOOK> stores which hook is currently run (setup,
+extract, essential, customize) and C<MMDEBSTRAP_VERBOSITY> stores the numerical
+verbosity level (0 for no output, 1 for normal, 2 for verbose and 3 for debug
+output).
 
-The paths inside the chroot are relative to the root directory of the chroot.
-The path on the outside is relative to current directory of the original
-B<mmdebstrap> invocation. The path inside the chroot must already exist. Paths
-outside the chroot are created as necessary.
+In special hooks, the paths inside the chroot are relative to the root
+directory of the chroot.  The path on the outside is relative to current
+directory of the original B<mmdebstrap> invocation. The path inside the chroot
+must already exist. Paths outside the chroot are created as necessary.
 
 In B<fakechroot> and B<proot> mode, C<tar>, or C<sh> and C<cat> have to be run
 inside the chroot or otherwise, symlinks will be wrongly resolved and/or

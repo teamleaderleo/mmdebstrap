@@ -39,7 +39,11 @@
 # out merged-/usr is bad from the dpkg point-of-view and completely opposite of
 # the vision with which in mind I wrote mmdebstrap.
 
-set -exu
+set -eu
+
+if [ "$MMDEBSTRAP_VERBOSITY" -ge 3 ]; then
+	set -x
+fi
 
 TARGET="$1"
 

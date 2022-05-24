@@ -1,6 +1,10 @@
 #!/bin/sh
 
-set -exu
+set -eu
+
+if [ "$MMDEBSTRAP_VERBOSITY" -ge 3 ]; then
+	set -x
+fi
 
 rootdir="$1"
 
