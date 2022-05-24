@@ -872,30 +872,11 @@ sub run_dpkg_progress {
 }
 
 sub run_apt_progress {
-    my $options = shift;
-    my @debs    = @{ $options->{PKGS} // [] };
-    my $tmpedsp;
-    if (exists $options->{EDSP_RES}) {
-        (undef, $tmpedsp) = tempfile(
-            "mmdebstrap.edsp.XXXXXXXXXXXX",
-            OPEN   => 0,
-            TMPDIR => 1
-        );
-    }
+    my $options  = shift;
+    my @debs     = @{ $options->{PKGS} // [] };
     my $get_exec = sub {
         my @prefix = ();
         my @opts   = ();
-        if (exists $options->{EDSP_RES}) {
-            push @prefix, 'env', "APT_EDSP_DUMP_FILENAME=$tmpedsp";
-            if (-e "./proxysolver") {
-                # for development purposes, use the current directory if it
-                # contains a file called proxysolver
-                push @opts, ("-oDir::Bin::solvers=" . getcwd()),
-                  '--solver=proxysolver';
-            } else {
-                push @opts, '--solver=mmdebstrap-dump-solution';
-            }
-        }
         return (
             @prefix,
             @{ $options->{ARGV} },
@@ -950,36 +931,77 @@ sub run_apt_progress {
         }
     };
     run_progress $get_exec, $line_handler, $line_has_error, $options->{CHDIR};
-    if (exists $options->{EDSP_RES}) {
-        info "parsing EDSP results...";
-        open my $fh, '<', $tmpedsp
-          or error "failed to open $tmpedsp for reading: $!";
-        my $inst = 0;
-        my $pkg;
-        my $ver;
-        while (my $line = <$fh>) {
-            chomp $line;
-            if ($line ne "") {
-                if ($line =~ /^Install: \d+/) {
-                    $inst = 1;
-                } elsif ($line =~ /^Package: (.*)/) {
-                    $pkg = $1;
-                } elsif ($line =~ /^Version: (.*)/) {
-                    $ver = $1;
-                }
-                next;
-            }
-            if ($inst == 1 && defined $pkg && defined $ver) {
-                push @{ $options->{EDSP_RES} }, [$pkg, $ver];
-            }
-            $inst = 0;
-            undef $pkg;
-            undef $ver;
-        }
-        close $fh;
-        unlink $tmpedsp;
-    }
     return;
+}
+
+sub run_apt_download_progress {
+    my $options = shift;
+    if ($options->{dryrun}) {
+        info "simulate downloading packages with apt...";
+    } else {
+        info "downloading packages with apt...";
+    }
+    pipe my $rfh, my $wfh;
+    my $pid = open my $fh, '-|' // error "fork() failed: $!";
+    if ($pid == 0) {
+        close $wfh;
+        # read until parent process closes $wfh
+        my $content = do { local $/; <$rfh> };
+        close $rfh;
+        # the parent is done -- pass what we read back to it
+        print $content;
+        exit 0;
+    }
+    close $rfh;
+    # Unset the close-on-exec flag, so that the file descriptor does not
+    # get closed when we exec
+    my $flags = fcntl($wfh, F_GETFD, 0)        or error "fcntl F_GETFD: $!";
+    fcntl($wfh, F_SETFD, $flags & ~FD_CLOEXEC) or error "fcntl F_SETFD: $!";
+    my $fd = fileno $wfh;
+    # 2022-05-02, #debian-apt on OFTC, times in UTC+2
+    # 16:57 < josch> DonKult: how is -oDebug::pkgDpkgPm=1 -oDir::Log=/dev/null
+    #                a "fancy no-op"?
+    # 11:52 < DonKult> josch: "fancy no-op" in sofar as it does nothing to the
+    #                  system even through its not in a special mode ala
+    #                  simulation or download-only. It does all the things it
+    #                  normally does, except that it just prints the dpkg calls
+    #                  instead of execv() them which in practice amounts means
+    #                  it does nothing (the Dir::Log just prevents libapt from
+    #                  creating the /var/log/apt directories. As the code
+    #                  creates them even if no logs will be placed there…). As
+    #                  said, midterm an apt --print-install-packages or
+    #                  something would be nice to avoid running everything.
+    run_apt_progress({
+            ARGV => [
+                'apt-get',
+                '--yes',
+                '-oDebug::pkgDpkgPm=1',
+                '-oDir::Log=/dev/null',
+                $options->{dryrun}
+                ? '-oAPT::Get::Simulate=true'
+                : (
+                    "-oAPT::Keep-Fds::=$fd",
+                    "-oDPkg::Tools::options::'cat >&$fd'::InfoFD=$fd",
+                    "-oDpkg::Pre-Install-Pkgs::=cat >&$fd",
+                    # no need to lock the database if we are just downloading
+                    "-oDebug::NoLocking=1",
+                    # no need for pty magic if we write no log
+                    "-oDpkg::Use-Pty=0",
+                ),
+                @{ $options->{APT_ARGV} },
+            ],
+        });
+    # signal the child process that we are done
+    close $wfh;
+    # and then read from it what it got
+    my @listofdebs = <$fh>;
+    close $fh;
+    if ($? != 0) {
+        error "status child failed";
+    }
+    # remove trailing newlines
+    chomp @listofdebs;
+    return @listofdebs;
 }
 
 sub run_chroot {
@@ -2037,24 +2059,12 @@ sub run_update() {
 sub run_download() {
     my $options = shift;
 
-    # We use /var/cache/apt/archives/ to figure out which packages apt chooses
-    # to install. That's why the directory must be empty if:
-    #  - /var/cache/apt/archives exists, and
-    #  - no simulation run is done, and
-    #  - the variant is not extract or custom or the number to be
-    #    installed packages not zero
-    #
-    # We could also unconditionally use the proxysolver and then "apt-get
-    # download" any missing packages but using the proxysolver requires
-    # /usr/lib/apt/solvers/apt from the apt-utils package and we want to avoid
-    # that dependency.
-    #
     # In the future we want to replace downloading packages with "apt-get
-    # install --download-only" and installing them with dpkg by just installing
-    # the essential packages with apt from the outside with
-    # DPkg::Chroot-Directory. We are not doing that because then the preinst
-    # script of base-passwd will not be called early enough and packages will
-    # fail to install because they are missing /etc/passwd.
+    # install" and installing them with dpkg by just installing the essential
+    # packages with apt from the outside with DPkg::Chroot-Directory.
+    # We are not doing that because then the preinst script of base-passwd will
+    # not be called early enough and packages will fail to install because they
+    # are missing /etc/passwd.
     my @cached_debs = ();
     my @dl_debs     = ();
     if (
@@ -2076,14 +2086,6 @@ sub run_download() {
             push @cached_debs, $deb;
         }
         closedir $dh;
-        if (scalar @cached_debs > 0) {
-            if (any { $_ eq 'download/empty' } @{ $options->{skip} }) {
-                info "skipping download/empty as requested";
-            } else {
-                error("/var/cache/apt/archives/ inside the chroot contains: "
-                      . (join ', ', (sort @cached_debs)));
-            }
-        }
     }
 
     # To figure out the right package set for the apt variant we can use:
@@ -2097,7 +2099,7 @@ sub run_download() {
             info "nothing to download -- skipping...";
             return ([], \@cached_debs);
         }
-        my %pkgs_to_install;
+        my @apt_argv = ('install');
         for my $incl (@{ $options->{include} }) {
             for my $pkg (split /[,\s]+/, $incl) {
                 # strip leading and trailing whitespace
@@ -2106,32 +2108,15 @@ sub run_download() {
                 if ($pkg eq '') {
                     next;
                 }
-                $pkgs_to_install{$pkg} = ();
+                push @apt_argv, $pkg;
             }
         }
 
-        my %result = ();
-        if ($options->{dryrun}) {
-            info "simulate downloading packages with apt...";
-        } else {
-            # if there are already packages in /var/cache/apt/archives/, we
-            # need to use our proxysolver to obtain the solution chosen by apt
-            if (scalar @cached_debs > 0) {
-                $result{EDSP_RES} = \@dl_debs;
-            }
-            info "downloading packages with apt...";
-        }
-        run_apt_progress({
-                ARGV => [
-                    'apt-get',
-                    '--yes',
-                    '-oApt::Get::Download-Only=true',
-                    $options->{dryrun} ? '-oAPT::Get::Simulate=true' : (),
-                    'install'
-                ],
-                PKGS => [keys %pkgs_to_install],
-                %result
-            });
+        @dl_debs = run_apt_download_progress({
+                APT_ARGV => [@apt_argv],
+                dryrun   => $options->{dryrun},
+            },
+        );
     } elsif ($options->{variant} eq 'apt') {
         # if we just want to install Essential:yes packages, apt and their
         # dependencies then we can make use of libapt treating apt as
@@ -2146,27 +2131,11 @@ sub run_download() {
         #                  remind me in 5+ years that I said that after I wrote
         #                  in the bugreport: "Are you crazy?!? Nobody in his
         #                  right mind would even suggest depending on it!")
-        my %result = ();
-        if ($options->{dryrun}) {
-            info "simulate downloading packages with apt...";
-        } else {
-            # if there are already packages in /var/cache/apt/archives/, we
-            # need to use our proxysolver to obtain the solution chosen by apt
-            if (scalar @cached_debs > 0) {
-                $result{EDSP_RES} = \@dl_debs;
-            }
-            info "downloading packages with apt...";
-        }
-        run_apt_progress({
-                ARGV => [
-                    'apt-get',
-                    '--yes',
-                    '-oApt::Get::Download-Only=true',
-                    $options->{dryrun} ? '-oAPT::Get::Simulate=true' : (),
-                    'dist-upgrade'
-                ],
-                %result
-            });
+        @dl_debs = run_apt_download_progress({
+                APT_ARGV => ['dist-upgrade'],
+                dryrun   => $options->{dryrun},
+            },
+        );
     } elsif (
         any { $_ eq $options->{variant} }
         ('essential', 'standard', 'important', 'required', 'buildd')
@@ -2175,23 +2144,8 @@ sub run_download() {
         # 17:27 < DonKult> (?essential includes 'apt' through)
         # 17:30 < josch> DonKult: no, because pkgCacheGen::ForceEssential ",";
         # 17:32 < DonKult> touché
-        my %result = ();
-        if ($options->{dryrun}) {
-            info "simulate downloading packages with apt...";
-        } else {
-            # if there are already packages in /var/cache/apt/archives/, we
-            # need to use our proxysolver to obtain the solution chosen by apt
-            if (scalar @cached_debs > 0) {
-                $result{EDSP_RES} = \@dl_debs;
-            }
-            info "downloading packages with apt...";
-        }
-        run_apt_progress({
-                ARGV => [
-                    'apt-get',
-                    '--yes',
-                    '-oApt::Get::Download-Only=true',
-                    $options->{dryrun} ? '-oAPT::Get::Simulate=true' : (),
+        @dl_debs = run_apt_download_progress({
+                APT_ARGV => [
                     'install',
                     '?narrow('
                       . (
@@ -2206,76 +2160,34 @@ sub run_download() {
                       . $options->{nativearch}
                       . '),?essential)'
                 ],
-                %result
-            });
+                dryrun => $options->{dryrun},
+            },
+        );
     } else {
         error "unknown variant: $options->{variant}";
     }
 
     my @essential_pkgs;
-    if (scalar @cached_debs > 0 && scalar @dl_debs > 0) {
-        my $archives = "/var/cache/apt/archives/";
-        # for each package in @dl_debs, check if it's in
-        # /var/cache/apt/archives/ and add it to @essential_pkgs
-        foreach my $p (@dl_debs) {
-            my ($pkg, $ver_epoch) = @{$p};
-            # apt appends the architecture at the end of the package name
-            ($pkg, my $arch) = split ':', $pkg, 2;
-            # apt replaces the colon by its percent encoding %3a
-            my $ver = $ver_epoch;
-            $ver =~ s/:/%3a/;
-            # the architecture returned by apt is the native architecture.
-            # Since we don't know whether the package is architecture
-            # independent or not, we first try with the native arch and then
-            # with "all" and only error out if neither exists.
-            if (-e "$options->{root}/$archives/${pkg}_${ver}_$arch.deb") {
-                push @essential_pkgs, "$archives/${pkg}_${ver}_$arch.deb";
-            } elsif (-e "$options->{root}/$archives/${pkg}_${ver}_all.deb") {
-                push @essential_pkgs, "$archives/${pkg}_${ver}_all.deb";
-            } else {
-                error(  "cannot find package for $pkg:$arch (= $ver_epoch) "
-                      . "in /var/cache/apt/archives/");
+    # strip the chroot directory from the filenames
+    foreach my $deb (@dl_debs) {
+        # if filename does not start with chroot directory then the user
+        # might've used a file:// mirror and we check whether the path is
+        # accessible inside the chroot
+        if (rindex $deb, $options->{root}, 0) {
+            if (!-e "$options->{root}/$deb") {
+                error "package file $deb not accessible from chroot directory"
+                  . " -- use copy:// instead of file:// or a bind-mount";
             }
+            push @essential_pkgs, $deb;
+            next;
         }
-    } else {
-        # collect the .deb files that were downloaded by apt from the content
-        # of /var/cache/apt/archives/
-        if (!$options->{dryrun}) {
-            my $apt_archives = "/var/cache/apt/archives/";
-            opendir my $dh, "$options->{root}/$apt_archives"
-              or error "cannot read $apt_archives";
-            while (my $deb = readdir $dh) {
-                if ($deb !~ /\.deb$/) {
-                    next;
-                }
-                $deb = "$apt_archives/$deb";
-                if (!-f "$options->{root}/$deb") {
-                    next;
-                }
-                push @essential_pkgs, $deb;
-            }
-            closedir $dh;
-
-            if (scalar @essential_pkgs == 0) {
-                # check if a file:// URI was used
-                open(my $pipe_apt, '-|', 'apt-get', 'indextargets', '--format',
-                    '$(URI)', 'Created-By: Packages')
-                  or error "cannot start apt-get indextargets: $!";
-                while (my $uri = <$pipe_apt>) {
-                    if ($uri =~ /^file:\/\//) {
-                        error
-                          "nothing got downloaded -- use copy:// instead of"
-                          . " file://";
-                    }
-                }
-                error "nothing got downloaded";
-            }
+        # filename starts with chroot directory, strip it off
+        # this is the normal case
+        if (!-e $deb) {
+            error "cannot find package file $deb";
         }
+        push @essential_pkgs, substr($deb, length($options->{root}));
     }
-    # Unpack order matters. Since we create this list using two different
-    # methods but we want both methods to have the same result, we sort the
-    # list before returning it.
-    @essential_pkgs = sort @essential_pkgs;
 
     return (\@essential_pkgs, \@cached_debs);
 }
@@ -2732,6 +2644,10 @@ sub run_essential() {
             # before the download phase
             next
               if any { "/var/cache/apt/archives/$_" eq $deb } @{$cached_debs};
+            # do not unlink those packages that were not in
+            # /var/cache/apt/archive (for example because they were provided by
+            # a file:// mirror)
+            next if $deb !~ /\/var\/cache\/apt\/archives\//;
             unlink "$options->{root}/$deb"
               or error "cannot unlink $deb: $!";
         }
@@ -6721,15 +6637,13 @@ the B<setup> step. This can be disabled using B<--skip=update>.
 
 =item B<download>
 
-Checks whether F</var/cache/apt/archives/> is empty. This can be disabled with
-B<--skip=download/empty>. In the B<extract> and B<custom> variants, C<apt-get
---download-only install> is used to download all the packages requested via the
-B<--include> option. The B<apt> variant uses the fact that libapt treats the
-C<apt> packages as implicitly essential to download only all C<Essential:yes>
-packages plus apt using C<apt-get --download-only dist-upgrade>. In the
-remaining variants, all Packages files downloaded by the B<update> step are
-inspected to find the C<Essential:yes> package set as well as all packages of
-the required priority.
+In the B<extract> and B<custom> variants, C<apt-get install> is used to
+download all the packages requested via the B<--include> option. The B<apt>
+variant uses the fact that libapt treats the C<apt> packages as implicitly
+essential to download only all C<Essential:yes> packages plus apt using
+C<apt-get dist-upgrade>. In the remaining variants, all Packages files
+downloaded by the B<update> step are inspected to find the C<Essential:yes>
+package set as well as all packages of the required priority.
 
 =item B<extract>
 
@@ -6979,7 +6893,7 @@ apt-cacher-ng, you can use the B<sync-in> and B<sync-out> special hooks to
 synchronize a directory outside the chroot with F</var/cache/apt/archives>
 inside the chroot.
 
-    $ mmdebstrap --variant=apt --skip=download/empty --skip=essential/unlink \
+    $ mmdebstrap --variant=apt --skip=essential/unlink \
         --setup-hook='mkdir -p ./cache "$1"/var/cache/apt/archives/' \
         --setup-hook='sync-in ./cache /var/cache/apt/archives/' \
         --customize-hook='sync-out /var/cache/apt/archives ./cache' \
@@ -7148,12 +7062,6 @@ recommended on machines running B<mmdebstrap>. If you are using B<mmdebstrap>
 as the non-root user, then as a workaround you could run C<chmod 600
 /etc/dpkg/dpkg.cfg.d/*> so that the config files are only accessible by the
 root user. See Debian bug #808203.
-
-The C<file://> URI type cannot be used to install the essential packages. This
-is because B<mmdebstrap> uses dpkg to install the packages that apt places into
-F</var/cache/apt/archives> but with C<file://> apt will not copy the files even
-with C<--download-only>. Use C<copy://> instead, which is equivalent to
-C<file://> but copies the archives into F</var/cache/apt/archives>.
 
 With apt versions before 2.1.16, setting C<[trusted=yes]> or
 C<Acquire::AllowInsecureRepositories "1"> to allow signed archives without a

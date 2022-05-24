@@ -1535,7 +1535,7 @@ else
 	skipped=$((skipped+1))
 fi
 
-print_header "mode=$defaultmode,variant=apt: fail with file:// mirror"
+print_header "mode=$defaultmode,variant=apt: file:// mirror"
 cat << END > shared/test.sh
 #!/bin/sh
 set -eu
@@ -1544,13 +1544,9 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	echo "this test requires the cache directory to be mounted on /mnt and should only be run inside a container" >&2
 	exit 1
 fi
-ret=0
-$CMD --mode=$defaultmode --variant=apt $DEFAULT_DIST /tmp/debian-chroot.tar "deb file:///mnt/cache/debian unstable main" || ret=\$?
+$CMD --mode=$defaultmode --variant=apt --setup-hook='mkdir -p "\$1"/mnt/cache/debian; mount -o ro,bind /mnt/cache/debian "\$1"/mnt/cache/debian' --customize-hook='umount "\$1"/mnt/cache/debian; rmdir "\$1"/mnt/cache/debian "\$1"/mnt/cache' $DEFAULT_DIST /tmp/debian-chroot.tar "deb file:///mnt/cache/debian $DEFAULT_DIST main"
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
 rm /tmp/debian-chroot.tar
-if [ "\$ret" = 0 ]; then
-	echo expected failure but got exit \$ret >&2
-	exit 1
-fi
 END
 if [ "$HAVE_QEMU" = "yes" ]; then
 	./run_qemu.sh
@@ -3083,7 +3079,7 @@ $CMD \$include --mode=$defaultmode --variant=$variant \
 	--setup-hook='sync-in "'"\$tmpdir"'" /var/cache/apt/archives/partial' \
 	$DEFAULT_DIST - $mirror > test1.tar
 cmp orig.tar test1.tar
-$CMD \$include --mode=$defaultmode --variant=$variant --skip=download/empty \
+$CMD \$include --mode=$defaultmode --variant=$variant \
 	--customize-hook='touch "\$1"/var/cache/apt/archives/partial' \
 	--setup-hook='mkdir -p "\$1"/var/cache/apt/archives/' \
 	--setup-hook='sync-in "'"\$tmpdir"'" /var/cache/apt/archives/' \
@@ -3250,8 +3246,6 @@ rm /tmp/debian-chroot/etc/hostname
 rm /tmp/debian-chroot/etc/resolv.conf
 rm /tmp/debian-chroot/var/lib/dpkg/status
 rm /tmp/debian-chroot/var/cache/apt/archives/lock
-rm /tmp/debian-chroot/var/lib/dpkg/lock
-rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
 ## delete merged usr symlinks
 #rm /tmp/debian-chroot/libx32
