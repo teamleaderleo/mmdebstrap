@@ -2437,7 +2437,7 @@ sub run_prepare {
         any { $_ eq $options->{mode} }
         ('root', 'unshare', 'fakechroot')
     ) {
-        push @chrootcmd, ('/usr/sbin/chroot', $options->{root});
+        push @chrootcmd, ('chroot', $options->{root});
     } else {
         error "unknown mode: $options->{mode}";
     }
@@ -3051,7 +3051,7 @@ sub hookhelper {
                 # Fakechroot requires tar to run inside the chroot or
                 # otherwise absolute symlinks will include the path to the
                 # root directory
-                push @cmdprefix, '/usr/sbin/chroot', $root;
+                push @cmdprefix, 'chroot', $root;
             } elsif ($mode eq 'proot') {
                 # proot requires tar to run inside proot or otherwise
                 # permissions will be completely off
@@ -4744,13 +4744,12 @@ sub main() {
                     if (!exists $deb2qemu->{ $options->{nativearch} }) {
                         warning "no mapping from $options->{nativearch} to"
                           . " qemu-user binary";
-                    } elsif (!can_execute '/usr/sbin/update-binfmts') {
-                        warning "cannot find /usr/sbin/update-binfmts";
+                    } elsif (!can_execute 'update-binfmts') {
+                        warning "cannot find update-binfmts";
                     } else {
                         my $binfmt_identifier
                           = 'qemu-' . $deb2qemu->{ $options->{nativearch} };
-                        open my $fh, '-|', '/usr/sbin/update-binfmts',
-                          '--display',
+                        open my $fh, '-|', 'update-binfmts', '--display',
                           $binfmt_identifier // error "failed to fork(): $!";
                         chomp(
                             my $binfmts = do { local $/; <$fh> }
@@ -5561,7 +5560,7 @@ sub main() {
                     # Fakechroot requires tar to run inside the chroot or
                     # otherwise absolute symlinks will include the path to the
                     # root directory
-                    0 == system('/usr/sbin/chroot', $options->{root}, 'tar',
+                    0 == system('chroot', $options->{root}, 'tar',
                         @taropts, '-C', '/', '.')
                       or error "tar failed: $?";
                 } elsif ($options->{mode} eq 'proot') {
