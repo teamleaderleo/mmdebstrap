@@ -4353,12 +4353,13 @@ sub main() {
     }
 
     # setting PATH for chroot, ldconfig, start-stop-daemon...
+    my $defaultpath = `eval \$(apt-config shell v DPkg::Path); printf \$v`;
     if (length $ENV{PATH}) {
         ## no critic (Variables::RequireLocalizedPunctuationVars)
-        $ENV{PATH} = "$ENV{PATH}:/usr/sbin:/usr/bin:/sbin:/bin";
+        $ENV{PATH} = "$ENV{PATH}:$defaultpath";
     } else {
         ## no critic (Variables::RequireLocalizedPunctuationVars)
-        $ENV{PATH} = "/usr/sbin:/usr/bin:/sbin:/bin";
+        $ENV{PATH} = $defaultpath;
     }
 
     foreach my $tool (
