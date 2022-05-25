@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+adduser --gecos user --disabled-password user
+sysctl -w kernel.unprivileged_userns_clone=1
+runuser -u user -- {{ CMD }} --mode=unshare --variant=custom --include=dpkg,dash,diffutils,coreutils,libc-bin,sed {{ DIST }} /dev/null {{ MIRROR }}

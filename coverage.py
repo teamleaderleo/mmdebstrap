@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+
+from debian.deb822 import Deb822
+import os
+import sys
+import shutil
+import subprocess
+import argparse
+import time
+from datetime import timedelta
+from collections import defaultdict
+
+have_qemu = os.getenv("HAVE_QEMU", "yes") == "yes"
+have_unshare = os.getenv("HAVE_UNSHARE", "yes") == "yes"
+have_binfmt = os.getenv("HAVE_BINFMT", "yes") == "yes"
+run_ma_same_tests = os.getenv("RUN_MA_SAME_TESTS", "yes") == "yes"
+
+default_dist = os.getenv("DEFAULT_DIST", "unstable")
+all_dists = ["oldstable", "stable", "testing", "unstable"]
+default_mode = "auto" if have_unshare else "root"
+all_modes = ["auto", "root", "unshare", "fakechroot", "chrootless"]
+default_variant = "apt"
+all_variants = [
+    "extract",
+    "custom",
+    "essential",
+    "apt",
+    "minbase",
+    "buildd",
+    "-",
+    "standard",
+]
+default_format = "auto"
+all_formats = ["auto", "directory", "tar", "squashfs", "ext2", "null"]
+
+only_dists = []
+
+mirror = os.getenv("mirror", "http://127.0.0.1/debian")
+hostarch = subprocess.check_output(["dpkg", "--print-architecture"]).decode().strip()
+
+separator = (
+    "------------------------------------------------------------------------------"
+)
+
+
+def skip(condition, dist, mode, variant, fmt):
+    if not condition:
+        return ""
+    for line in condition.splitlines():
+        if not line:
+            continue
+        if eval(line):
+            return line.strip()
+    return ""
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("test", nargs="*", help="only run these tests")
+    parser.add_argument(
+        "-x",
+        "--exitfirst",
+        action="store_const",
+        dest="maxfail",
+        const=1,
+        help="exit instantly on first error or failed test.",
+    )
+    parser.add_argument(
+        "--maxfail",
+        metavar="num",
+        action="store",
+        type=int,
+        dest="maxfail",
+        default=0,
+        help="exit after first num failures or errors.",
+    )
+    args = parser.parse_args()
+
+    onlyrun = None
+    if len(sys.argv) > 1:
+        onlyrun = sys.argv[1]
+
+    tests = []
+    with open("coverage.txt") as f:
+        for test in Deb822.iter_paragraphs(f):
+            name = test["Test"]
+            if args.test and name not in args.test:
+                continue
+            dists = test.get("Dists", default_dist)
+            if dists == "any":
+                dists = all_dists
+            elif dists == "default":
+                dists = [default_dist]
+            else:
+                dists = dists.split()
+            modes = test.get("Modes", default_mode)
+            if modes == "any":
+                modes = all_modes
+            elif modes == "default":
+                modes = [default_mode]
+            else:
+                modes = modes.split()
+            variants = test.get("Variants", default_variant)
+            if variants == "any":
+                variants = all_variants
+            elif variants == "default":
+                variants = [default_variant]
+            else:
+                variants = variants.split()
+            formats = test.get("Formats", default_format)
+            if formats == "any":
+                formats = all_formats
+            elif formats == "default":
+                formats = [default_format]
+            else:
+                formats = formats.split()
+            for dist in dists:
+                if only_dists and dist not in only_dists:
+                    continue
+                for mode in modes:
+                    for variant in variants:
+                        for fmt in formats:
+                            skipreason = skip(
+                                test.get("Skip-If"), dist, mode, variant, fmt
+                            )
+                            if skipreason:
+                                tt = ("skip", skipreason)
+                            elif have_qemu:
+                                tt = "qemu"
+                            elif test.get("Needs-QEMU", "false") == "true":
+                                tt = ("skip", "test needs QEMU")
+                            elif test.get("Needs-Root", "false") == "true":
+                                tt = "sudo"
+                            elif mode == "auto" and not have_unshare:
+                                tt = "sudo"
+                            elif mode == "root":
+                                tt = "sudo"
+                            elif mode == "unshare" and not have_unshare:
+                                tt = ("skip", "test needs unshare")
+                            else:
+                                tt = "null"
+                            tests.append((tt, name, dist, mode, variant, fmt))
+
+    starttime = time.time()
+    skipped = defaultdict(list)
+    failed = []
+    for i, (test, name, dist, mode, variant, fmt) in enumerate(tests):
+        print(separator, file=sys.stderr)
+        print("(%d/%d) %s" % (i + 1, len(tests), name), file=sys.stderr)
+        print("dist: %s" % dist, file=sys.stderr)
+        print("mode: %s" % mode, file=sys.stderr)
+        print("variant: %s" % variant, file=sys.stderr)
+        print("format: %s" % fmt, file=sys.stderr)
+        if i > 0:
+            currenttime = time.time()
+            timeleft = timedelta(
+                seconds=(len(tests) - i) * (currenttime - starttime) / i
+            )
+            print("time left: %s" % timeleft, file=sys.stderr)
+        with open("tests/" + name) as fin, open("shared/test.sh", "w") as fout:
+            for line in fin:
+                for e in ["CMD", "SOURCE_DATE_EPOCH"]:
+                    line = line.replace("{{ " + e + " }}", os.getenv(e))
+                line = line.replace("{{ DIST }}", dist)
+                line = line.replace("{{ MIRROR }}", mirror)
+                line = line.replace("{{ MODE }}", mode)
+                line = line.replace("{{ VARIANT }}", variant)
+                line = line.replace("{{ FORMAT }}", fmt)
+                line = line.replace("{{ HOSTARCH }}", hostarch)
+                fout.write(line)
+        argv = None
+        match test:
+            case "qemu":
+                argv = ["./run_qemu.sh"]
+            case "sudo":
+                argv = ["./run_null.sh", "SUDO"]
+            case "null":
+                argv = ["./run_null.sh"]
+            case ("skip", reason):
+                skipped[reason].append(
+                    ("(%d/%d) %s" % (i + 1, len(tests), name), dist, mode, variant, fmt)
+                )
+                print(f"skipped because of {reason}", file=sys.stderr)
+                continue
+        print(separator, file=sys.stderr)
+        proc = subprocess.Popen(argv)
+        try:
+            proc.wait()
+        except KeyboardInterrupt:
+            proc.kill()
+            break
+        print(separator, file=sys.stderr)
+        if proc.returncode != 0:
+            failed.append(
+                ("(%d/%d) %s" % (i + 1, len(tests), name), dist, mode, variant, fmt)
+            )
+            print("result: FAILURE", file=sys.stderr)
+        else:
+            print("result: SUCCESS", file=sys.stderr)
+        if args.maxfail and len(failed) >= args.maxfail:
+            break
+    print(
+        "successully ran %d tests" % (len(tests) - len(skipped) - len(failed)),
+        file=sys.stderr,
+    )
+    if skipped:
+        print("skipped %d:" % len(skipped), file=sys.stderr)
+        for reason, l in skipped.items():
+            print(f"skipped because of {reason}:", file=sys.stderr)
+            for t in l:
+                print(f"    {t}", file=sys.stderr)
+    if failed:
+        print("failed %d:" % len(failed), file=sys.stderr)
+        for t in failed:
+            print(f"    {t}", file=sys.stderr)
+        exit(1)
+
+
+if __name__ == "__main__":
+    main()

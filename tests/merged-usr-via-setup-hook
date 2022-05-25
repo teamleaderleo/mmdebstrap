@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+trap "rm -rf /tmp/debian-chroot" EXIT INT TERM
+{{ CMD }} --mode=root --variant=apt \
+	--setup-hook=./hooks/merged-usr/setup00.sh \
+	--customize-hook='[ -L "$1"/bin -a -L "$1"/sbin -a -L "$1"/lib ]' \
+	{{ DIST }} /tmp/debian-chroot {{ MIRROR }}
+tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort > tar2.txt
+{
+	sed -e 's/^\.\/bin\//.\/usr\/bin\//;s/^\.\/lib\//.\/usr\/lib\//;s/^\.\/sbin\//.\/usr\/sbin\//;' tar1.txt | {
+		case {{ HOSTARCH }} in
+		amd64) sed -e 's/^\.\/lib32\//.\/usr\/lib32\//;s/^\.\/lib64\//.\/usr\/lib64\//;s/^\.\/libx32\//.\/usr\/libx32\//;';;
+		ppc64el) sed -e 's/^\.\/lib64\//.\/usr\/lib64\//;';;
+		*) cat;;
+		esac
+	};
+	echo ./bin;
+	echo ./lib;
+	echo ./sbin;
+	case {{ HOSTARCH }} in
+	amd64)
+		echo ./lib32;
+		echo ./lib64;
+		echo ./libx32;
+		echo ./usr/lib32/;
+		echo ./usr/libx32/;
+		;;
+	i386)
+		echo ./lib64;
+		echo ./libx32;
+		echo ./usr/lib64/;
+		echo ./usr/libx32/;
+		;;
+	ppc64el)
+		echo ./lib64;
+		;;
+	s390x)
+		echo ./lib32;
+		echo ./usr/lib32/;
+		;;
+	esac
+} | sort -u | diff -u - tar2.txt

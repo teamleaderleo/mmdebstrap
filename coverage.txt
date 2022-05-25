@@ -1,0 +1,314 @@
+Test: check-against-debootstrap-dist
+Dists: any
+Variants: minbase buildd -
+Needs-Root: true
+
+Test: as-debootstrap-unshare-wrapper
+Needs-QEMU: true
+
+Test: help
+
+Test: man
+
+Test: version
+
+Test: create-directory
+Needs-Root: true
+
+Test: unshare-as-root-user
+Needs-Root: true
+
+Test: dist-using-codename
+Dists: any
+
+Test: fail-without-etc-subuid
+Needs-QEMU: true
+
+Test: fail-without-username-in-etc-subuid
+Needs-QEMU: true
+
+Test: unshare-as-root-user-inside-chroot
+Needs-Root: true
+
+Test: root-mode-inside-chroot
+Needs-Root: true
+
+Test: root-mode-inside-unshare-chroot
+Needs-QEMU: true
+
+Test: root-without-cap-sys-admin
+Needs-Root: true
+
+Test: mount-is-missing
+Needs-QEMU: true
+
+Test: check-for-bit-by-bit-identical-format-output
+Needs-QEMU: true
+Formats: tar squashfs ext2
+Variants: essential apt minbase buildd important standard
+Skip-If:
+ variant == "standard" and dist in ["oldstable", "stable"] # #864082, #1004557, #1004558
+ variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
+ fmt == "squashfs" and dist == "oldstable" # squashfs-tools-ng is not available
+ fmt == "ext2" and dist == "oldstable" # genext2fs does not support SOURCE_DATE_EPOCH
+
+Test: taridshift-utility
+Needs-QEMU: true
+Skip-If: dist == "oldstable" # python3 tarfile module does not preserve xattrs
+
+Test: progress-bars-on-fake-tty
+
+Test: debug-output-on-fake-tty
+
+Test: existing-empty-directory
+Needs-Root: true
+
+Test: existing-directory-with-lost-found
+Needs-Root: true
+
+Test: fail-installing-to-non-empty-lost-found
+
+Test: fail-installing-to-non-empty-target-directory
+
+Test: missing-device-nodes-outside-the-chroot
+Needs-QEMU: true
+
+Test: missing-dev-sys-proc-inside-the-chroot
+Needs-QEMU: true
+
+Test: chroot-directory-not-accessible-by-apt-user
+Needs-Root: true
+
+Test: cwd-directory-not-accessible-by-unshared-user
+Needs-QEMU: true
+
+Test: create-gzip-compressed-tarball
+Needs-QEMU: true
+
+Test: custom-tmpdir
+Needs-QEMU: true
+
+Test: xz-compressed-tarball
+
+Test: directory-ending-in-tar
+Modes: root
+Needs-Root: true
+
+Test: auto-mode-without-unshare-capabilities
+Needs-QEMU: true
+
+Test: fail-with-missing-lz4
+
+Test: fail-with-path-with-quotes
+
+Test: create-tarball-with-tmp-mounted-nodev
+Needs-QEMU: true
+
+Test: read-from-stdin-write-to-stdout
+
+Test: supply-components-manually
+Modes: root
+Needs-Root: true
+
+Test: stable-default-mirror
+Needs-QEMU: true
+
+Test: pass-distribution-but-implicitly-write-to-stdout
+Needs-QEMU: true
+
+Test: aspcud-apt-solver
+
+Test: mirror-is-stdin
+
+Test: copy-mirror
+Needs-QEMU: true
+
+Test: file-mirror
+Needs-QEMU: true
+
+Test: file-mirror-automount-hook
+Needs-QEMU: true
+
+Test: mirror-is-deb
+
+Test: mirror-is-real-file
+
+Test: deb822-1-2
+Modes: root
+Needs-Root: true
+
+Test: deb822-2-2
+Modes: root
+Needs-Root: true
+
+Test: automatic-mirror-from-suite
+Needs-QEMU: true
+
+Test: invalid-mirror
+
+Test: fail-installing-to-root
+Modes: root
+Needs-Root: true
+
+Test: fail-installing-to-existing-file
+Modes: root
+Needs-Root: true
+
+Test: arm64-without-qemu-support
+Needs-QEMU: true
+Skip-If: hostarch != "amd64"
+
+Test: i386-which-can-be-executed-without-qemu
+Needs-QEMU: true
+Skip-If:
+ hostarch != "amd64"
+ not run_ma_same_tests
+
+Test: include-libmagic-mgc-arm64
+Needs-Root: true
+Skip-If:
+ hostarch != "amd64"
+ not run_ma_same_tests
+
+Test: include-libmagic-mgc-arm64-with-multiple-arch-options
+Needs-Root: true
+Skip-If:
+ hostarch != "amd64"
+ not run_ma_same_tests
+
+Test: aptopt
+Needs-Root: true
+
+Test: keyring
+Needs-QEMU: true
+
+Test: keyring-overwrites
+Needs-Root: true
+
+Test: signed-by-without-host-keys
+Needs-QEMU: true
+
+Test: ascii-armored-keys
+Needs-QEMU: true
+
+Test: signed-by-with-host-keys
+Needs-Root: true
+
+Test: dpkgopt
+Needs-Root: true
+
+Test: include
+Needs-Root: true
+
+Test: multiple-include
+Needs-Root: true
+
+Test: include-with-multiple-apt-sources
+Needs-Root: true
+
+Test: merged-usr-via-setup-hook
+Needs-Root: true
+
+Test: essential-hook
+Needs-Root: true
+
+Test: customize-hook
+Needs-Root: true
+
+Test: failing-customize-hook
+Needs-Root: true
+
+Test: sigint-during-customize-hook
+Needs-Root: true
+
+Test: hook-directory
+Needs-Root: true
+
+Test: eatmydata-via-hook-dir
+Needs-Root: true
+
+Test: special-hooks-using-helpers
+Needs-Root: true
+
+Test: special-hooks-using-helpers-and-env-vars
+Needs-Root: true
+
+Test: special-hooks-with-mode-mode
+Modes: root unshare fakechroot
+Needs-QEMU: true
+
+Test: debootstrap-no-op-options
+Needs-Root: true
+
+Test: verbose
+Needs-Root: true
+
+Test: debug
+Needs-Root: true
+
+Test: quiet
+Needs-Root: true
+
+Test: logfile
+Needs-Root: true
+
+Test: without-etc-resolv-conf-and-etc-hostname
+Needs-QEMU: true
+
+Test: preserve-mode-of-etc-resolv-conf-and-etc-hostname
+Modes: root
+Needs-QEMU: true
+
+Test: not-having-to-install-apt-in-include-because-a-hook-did-it-before
+
+Test: remove-start-stop-daemon-and-policy-rc-d-in-hook
+
+Test: compare-output-with-pre-seeded-var-cache-apt-archives
+Needs-QEMU: true
+Variants: any
+Skip-If:
+ variant == "standard" and dist in ["oldstable", "stable"] # #864082, #1004557, #1004558
+ variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
+
+Test: create-tarball-dry-run
+Variants: any
+Modes: any
+
+Test: unpack-doc-debian
+Needs-QEMU: true
+Modes: any
+Variants: extract
+
+Test: install-doc-debian
+Modes: chrootless
+Variants: custom
+
+Test: install-known-good-from-essential-yes
+Variants: custom
+Modes: chrootless
+Skip-If:
+ True # #1006692
+ dist in ["oldstable", "stable"]
+
+Test: install-doc-debian-and-output-tarball
+Variants: custom
+Modes: chrootless
+
+Test: install-doc-debian-and-test-hooks
+Variants: custom
+Modes: chrootless
+
+Test: install-libmagic-mgc-on-arm64
+Skip-If:
+ hostarch != "amd64"
+ not have_binfmt
+
+Test: install-busybox-based-sub-essential-system
+Needs-Root: true
+
+Test: create-arm64-tarball
+Modes: root unshare fakechroot
+Skip-If:
+ hostarch != "amd64"
+ mode == "fakechroot" and not run_ma_same_tests
+ not have_binfmt

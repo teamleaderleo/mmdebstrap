@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+rm /etc/apt/trusted.gpg.d/*.gpg
+{{ CMD }} --mode=root --variant=apt {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
+printf 'deb [signed-by="/usr/share/keyrings/debian-archive-keyring.gpg"] {{ MIRROR }} {{ DIST }} main\n' | cmp /tmp/debian-chroot/etc/apt/sources.list -
+tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort | diff -u tar1.txt -
+rm -r /tmp/debian-chroot
