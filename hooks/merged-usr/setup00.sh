@@ -47,11 +47,8 @@ fi
 
 TARGET="$1"
 
-if [ -e "$TARGET/var/lib/dpkg/arch" ]; then
-	ARCH=$(head -1 "$TARGET/var/lib/dpkg/arch")
-else
-	ARCH=$(dpkg --print-architecture)
-fi
+ARCH=$(dpkg --print-architecture)
+eval "$(APT_CONFIG="$MMDEBSTRAP_APT_CONFIG" apt-config shell ARCH Apt::Architecture)"
 
 if [ -e /usr/share/debootstrap/functions ]; then
 	. /usr/share/debootstrap/functions
