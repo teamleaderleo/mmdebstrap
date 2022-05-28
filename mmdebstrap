@@ -1072,7 +1072,7 @@ sub run_chroot {
                         }
                         push @cleanup_tasks, sub {
                             unlink "$options->{root}/dev/$fname"
-                              or warn "cannot unlink ./dev/$fname: $!";
+                              or warning("cannot unlink ./dev/$fname: $!");
                         };
                         symlink $linkname, "$options->{root}/dev/$fname"
                           or error
@@ -1114,9 +1114,9 @@ sub run_chroot {
                         push @cleanup_tasks, sub {
                             0 == system('umount', @umountopts,
                                 "$options->{root}/dev/$fname")
-                              or warn "umount ./dev/$fname failed: $?";
+                              or warning("umount ./dev/$fname failed: $?");
                             unlink "$options->{root}/dev/$fname"
-                              or warn "cannot unlink ./dev/$fname: $!";
+                              or warning("cannot unlink ./dev/$fname: $!");
                         };
                         0 == system('mount', '-o', 'bind', "/dev/$fname",
                             "$options->{root}/dev/$fname")
@@ -1150,7 +1150,7 @@ sub run_chroot {
                         # was already created in the run_setup function.
                         push @cleanup_tasks, sub {
                             rmdir "$options->{root}/dev/$fname"
-                              or warn "cannot rmdir ./dev/$fname: $!";
+                              or warning("cannot rmdir ./dev/$fname: $!");
                         };
                         if (-e "$options->{root}/dev/$fname") {
                             if (!-d "$options->{root}/dev/$fname") {
@@ -1185,7 +1185,7 @@ sub run_chroot {
                     push @cleanup_tasks, sub {
                         0 == system('umount', @umountopts,
                             "$options->{root}/dev/$fname")
-                          or warn "umount ./dev/$fname failed: $?";
+                          or warning("umount ./dev/$fname failed: $?");
                     };
                     0 == system('mount', '-o', 'bind', "/dev/$fname",
                         "$options->{root}/dev/$fname")
@@ -1236,7 +1236,7 @@ sub run_chroot {
             ) {
                 push @cleanup_tasks, sub {
                     0 == system('umount', "$options->{root}/sys")
-                      or warn "umount /sys failed: $?";
+                      or warning("umount /sys failed: $?");
                 };
             } elsif (
                 0 == system('mount', '-o', 'rbind', '/sys',
@@ -1247,7 +1247,7 @@ sub run_chroot {
                     0 == system(
                         'umount', '--no-mtab',
                         '--lazy', "$options->{root}/sys"
-                    ) or warn "umount /sys failed: $?";
+                    ) or warning("umount /sys failed: $?");
                 };
             } else {
                 error "mount /sys failed: $?";
@@ -1263,7 +1263,7 @@ sub run_chroot {
                 # unmounting /sys only seems to be successful with --lazy
                 0 == system('umount', '--no-mtab', '--lazy',
                     "$options->{root}/sys")
-                  or warn "umount /sys failed: $?";
+                  or warning("umount /sys failed: $?");
             };
             # without the network namespace unshared, we cannot mount a new
             # sysfs. Since we need network, we just bind-mount.
@@ -1317,11 +1317,11 @@ sub run_chroot {
                     ) {
                         0 == system('umount',
                             "$options->{root}/proc/sys/fs/binfmt_misc")
-                          or error
-                          "umount /proc/sys/fs/binfmt_misc failed: $?";
+                          or warning(
+                            "umount /proc/sys/fs/binfmt_misc failed: $?");
                     }
                     0 == system('umount', "$options->{root}/proc")
-                      or error "umount /proc failed: $?";
+                      or warning("umount /proc failed: $?");
                 };
             } elsif (
                 0 == system('mount', '-t', 'proc', 'proc',
@@ -1329,7 +1329,7 @@ sub run_chroot {
                 push @cleanup_tasks, sub {
                     # since we cannot write to /etc/mtab we need --no-mtab
                     0 == system('umount', '--no-mtab', "$options->{root}/proc")
-                      or error "umount /proc failed: $?";
+                      or warning("umount /proc failed: $?");
                 };
             } else {
                 error "mount /proc failed: $?";
@@ -1343,7 +1343,7 @@ sub run_chroot {
             push @cleanup_tasks, sub {
                 # since we cannot write to /etc/mtab we need --no-mtab
                 0 == system('umount', '--no-mtab', "$options->{root}/proc")
-                  or error "umount /proc failed: $?";
+                  or warning("umount /proc failed: $?");
             };
             0 == system('mount', '-t', 'proc', 'proc', "$options->{root}/proc")
               or error "mount /proc failed: $?";
