@@ -1,3 +1,13 @@
+1.0.0 (2022-05-28)
+------------------
+
+ - all documented interfaces are now considered stable
+ - allow file:// mirrors
+ - /var/cache/apt/archives/ is now allowed to contain *.deb packages
+ - add file-mirror-automount hook-dir
+ - set $MMDEBSTRAP_VERBOSITY in hooks
+ - rewrite coverage with multiple individual and skippable shell scripts
+
 0.8.6 (2022-03-25)
 ------------------
 
