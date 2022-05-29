@@ -231,7 +231,7 @@ def main():
         if args.maxfail and len(failed) >= args.maxfail:
             break
     print(
-        "successully ran %d tests" % (len(tests) - len(skipped) - len(failed)),
+        "successfully ran %d tests" % (len(tests) - len(skipped) - len(failed)),
         file=sys.stderr,
     )
     if skipped:
