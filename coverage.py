@@ -74,6 +74,7 @@ def main():
         default=0,
         help="exit after first num failures or errors.",
     )
+    parser.add_argument("--mode", metavar="mode", help="only run tests with this mode")
     args = parser.parse_args()
 
     # copy over files from git or as distributed
@@ -146,6 +147,8 @@ def main():
                 if only_dists and dist not in only_dists:
                     continue
                 for mode in modes:
+                    if args.mode and args.mode != mode:
+                        continue
                     for variant in variants:
                         for fmt in formats:
                             skipreason = skip(
