@@ -2346,17 +2346,24 @@ sub run_prepare {
         # /etc/fakechroot/debootstrap.env and
         # /etc/fakechroot/chroot.env
         {
-            my $ldconfig = getcwd() . '/ldconfig.fakechroot';
-            if (!-x $ldconfig) {
-                $ldconfig = '/usr/libexec/mmdebstrap/ldconfig.fakechroot';
+            my %subst = (
+                chroot   => "/usr/sbin/chroot.fakechroot",
+                mkfifo   => "/bin/true",
+                ldconfig => (getcwd() . '/ldconfig.fakechroot'),
+                ldd      => "/usr/bin/ldd.fakechroot",
+                ischroot => "/bin/true"
+            );
+            if (!-x $subst{ldconfig}) {
+                $subst{ldconfig}
+                  = '/usr/libexec/mmdebstrap/ldconfig.fakechroot';
             }
             my @fakechrootsubst = ();
-            foreach my $d ('/usr/sbin', '/usr/bin', '/sbin', '/bin') {
-                push @fakechrootsubst, "$d/chroot=/usr/sbin/chroot.fakechroot";
-                push @fakechrootsubst, "$d/mkfifo=/bin/true";
-                push @fakechrootsubst, "$d/ldconfig=$ldconfig";
-                push @fakechrootsubst, "$d/ldd=/usr/bin/ldd.fakechroot";
-                push @fakechrootsubst, "$d/ischroot=/bin/true";
+            foreach my $d (split ':', $ENV{PATH}) {
+                foreach my $k (sort keys %subst) {
+                    if (-e "$d/$k") {
+                        push @fakechrootsubst, "$d/$k=$subst{$k}";
+                    }
+                }
             }
             if (defined $ENV{FAKECHROOT_CMD_SUBST}
                 && $ENV{FAKECHROOT_CMD_SUBST} ne "") {

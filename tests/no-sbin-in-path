@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# If FAKECHROOT_CMD_SUBST sets up wrong substitutions, then binaries cannot be
+# found. For example if /usr/bin/chroot is listed in FAKECHROOT_CMD_SUBST but
+# /usr/sbin (the actual location of the chroot binary) is not in PATH, the
+# command fails
+
+set -eu
+export LC_ALL=C.UTF-8
+[ "{{ MODE }}" = "fakechroot" ]
+trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
+if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
+	if [ ! -e /mmdebstrap-testenv ]; then
+		echo "this test modifies the system and should only be run inside a container" >&2
+		exit 1
+	fi
+	adduser --gecos user --disabled-password user
+fi
+prefix=
+[ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
+$prefix env PATH=/usr/bin:/bin fakechroot fakeroot {{ CMD }} --mode=fakechroot --variant=apt {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -

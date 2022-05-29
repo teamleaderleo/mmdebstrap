@@ -312,3 +312,6 @@ Skip-If:
  hostarch != "amd64"
  mode == "fakechroot" and not run_ma_same_tests
  not have_binfmt
+
+Test: no-sbin-in-path
+Modes: fakechroot
