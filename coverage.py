@@ -76,6 +76,34 @@ def main():
     )
     args = parser.parse_args()
 
+    # copy over files from git or as distributed
+    for (git, dist, target) in [
+        ("./mmdebstrap", "/usr/bin/mmdebstrap", "mmdebstrap"),
+        ("./taridshift", "/usr/bin/mmtaridshift", "taridshift"),
+        ("./tarfilter", "/usr/bin/mmtarfilter", "tarfilter"),
+        (
+            "./proxysolver",
+            "/usr/lib/apt/solvers/mmdebstrap-dump-solution",
+            "proxysolver",
+        ),
+        (
+            "./ldconfig.fakechroot",
+            "/usr/libexec/mmdebstrap/ldconfig.fakechroot",
+            "ldconfig.fakechroot",
+        ),
+    ]:
+        if os.path.exists(git):
+            shutil.copy(git, f"shared/{target}")
+        else:
+            shutil.copy(dist, f"shared/{target}")
+    # copy over hooks from git or as distributed
+    if os.path.exists("hooks"):
+        shutil.copytree("hooks", "shared/hooks", dirs_exist_ok=True)
+    else:
+        shutil.copytree(
+            "/usr/share/mmdebstrap/hooks", "shared/hooks", dirs_exist_ok=True
+        )
+
     onlyrun = None
     if len(sys.argv) > 1:
         onlyrun = sys.argv[1]
