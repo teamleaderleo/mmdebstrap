@@ -185,7 +185,7 @@ def main():
         if i > 0:
             currenttime = time.time()
             timeleft = timedelta(
-                seconds=(len(tests) - i) * (currenttime - starttime) / i
+                seconds=int((len(tests) - i) * (currenttime - starttime) / i)
             )
             print("time left: %s" % timeleft, file=sys.stderr)
         with open("tests/" + name) as fin, open("shared/test.sh", "w") as fout:
