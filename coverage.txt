@@ -127,6 +127,7 @@ Test: file-mirror
 Needs-QEMU: true
 
 Test: file-mirror-automount-hook
+Modes: root unshare fakechroot
 Needs-QEMU: true
 
 Test: mirror-is-deb

@@ -14,13 +14,26 @@ fi
 
 xargsopts="--null --no-run-if-empty -I {} --max-args=1"
 
-echo "unmounting the following mountpoints:" >&2
+case $MMDEBSTRAP_MODE in
+	root|unshare)
+		echo "unmounting the following mountpoints:" >&2 ;;
+	*)
+		echo "removing the following directories:" >&2 ;;
+esac
 
 cat "$rootdir/run/mmdebstrap/file-mirror-automount" \
 	| xargs $xargsopts echo "    $rootdir/{}"
 
-cat "$rootdir/run/mmdebstrap/file-mirror-automount" \
-	| xargs $xargsopts umount "$rootdir/{}"
+case $MMDEBSTRAP_MODE in
+	root|unshare)
+		cat "$rootdir/run/mmdebstrap/file-mirror-automount" \
+			| xargs $xargsopts umount "$rootdir/{}"
+		;;
+	*)
+		cat "$rootdir/run/mmdebstrap/file-mirror-automount" \
+			| xargs $xargsopts rm -r "$rootdir/{}"
+		;;
+esac
 
 rm "$rootdir/run/mmdebstrap/file-mirror-automount"
 rmdir --ignore-fail-on-non-empty "$rootdir/run/mmdebstrap"
