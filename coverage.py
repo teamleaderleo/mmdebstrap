@@ -175,6 +175,7 @@ def main():
     starttime = time.time()
     skipped = defaultdict(list)
     failed = []
+    num_success = 0
     for i, (test, name, dist, mode, variant, fmt) in enumerate(tests):
         print(separator, file=sys.stderr)
         print("(%d/%d) %s" % (i + 1, len(tests), name), file=sys.stderr)
@@ -228,10 +229,11 @@ def main():
             print("result: FAILURE", file=sys.stderr)
         else:
             print("result: SUCCESS", file=sys.stderr)
+            num_success += 1
         if args.maxfail and len(failed) >= args.maxfail:
             break
     print(
-        "successfully ran %d tests" % (len(tests) - len(skipped) - len(failed)),
+        "successfully ran %d tests" % num_success,
         file=sys.stderr,
     )
     if skipped:
