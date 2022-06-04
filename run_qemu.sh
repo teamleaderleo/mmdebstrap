@@ -31,7 +31,7 @@ qemu-img create -f qcow2 -b "$(realpath $cachedir)/debian-$DEFAULT_DIST.qcow" -F
 # to connect to serial use:
 #   minicom -D 'unix#/tmp/ttyS0'
 ret=0
-timeout 20m qemu-system-x86_64 \
+timeout --foreground 20m qemu-system-x86_64 \
 	-cpu host \
 	-no-user-config \
 	-M accel=kvm:tcg -m 4G -nographic \
