@@ -5,7 +5,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	echo "this test modifies the system and should only be run inside a container" >&2
 	exit 1
 fi
-apt-get remove --yes qemu-user-static binfmt-support qemu-user
+echo 0 > /proc/sys/fs/binfmt_misc/qemu-aarch64
 ret=0
 {{ CMD }} --mode={{ MODE }} --variant=apt --architectures=arm64 {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }} || ret=$?
 if [ "$ret" = 0 ]; then
