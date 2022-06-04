@@ -5,14 +5,18 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	echo "this test modifies the system and should only be run inside a container" >&2
 	exit 1
 fi
+# https://www.etalabs.net/sh_tricks.html
+quote () { printf %s\\n "$1" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/'/" ; }
 adduser --gecos user --disabled-password user
 sysctl -w kernel.unprivileged_userns_clone=1
 homedir=$(runuser -u user -- sh -c 'cd && pwd')
-runuser -u user -- mkdir "$homedir/tmp"
-runuser -u user -- env TMPDIR="$homedir/tmp" {{ CMD }} --mode=unshare --variant=apt \
-	--setup-hook='case "$1" in "'"$homedir/tmp/mmdebstrap."'"??????????) exit 0;; *) exit 1;; esac' \
+# apt:test/integration/test-apt-key
+TMPDIR_ADD="This is fü\$\$ing cràzy, \$(apt -v)\$!"
+runuser -u user -- mkdir "$homedir/$TMPDIR_ADD"
+runuser -u user -- env TMPDIR="$homedir/$TMPDIR_ADD" {{ CMD }} --mode=unshare --variant=apt \
+	--setup-hook='case "$1" in '"$(quote "$homedir/$TMPDIR_ADD/mmdebstrap.")"'??????????) exit 0;; *) echo "$1"; exit 1;; esac' \
 	 {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
 tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
 # use rmdir as a quick check that nothing is remaining in TMPDIR
-runuser -u user -- rmdir "$homedir/tmp"
+runuser -u user -- rmdir "$homedir/$TMPDIR_ADD"
 rm /tmp/debian-chroot.tar

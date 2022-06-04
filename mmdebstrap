@@ -4896,8 +4896,8 @@ sub main() {
                 }
                 # initialize gpg trustdb with empty one
                 {
-                    `@gpgcmd --update-trustdb >/dev/null 2>/dev/null`;
-                    $? == 0 or error "gpg failed to initialize trustdb: $?";
+                    0 == system(@gpgcmd, '--update-trustdb')
+                      or error "gpg failed to initialize trustdb:: $?";
                 }
                 # find all the fingerprints of the keys apt currently
                 # knows about
