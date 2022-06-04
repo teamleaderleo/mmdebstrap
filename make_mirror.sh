@@ -660,6 +660,7 @@ for dist in oldstable stable testing unstable; do
 set -eu
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
+echo "SOURCE_DATE_EPOCH=\$SOURCE_DATE_EPOCH"
 tmpdir="\$(mktemp -d)"
 chmod 755 "\$tmpdir"
 debootstrap --no-merged-usr --variant=$variant $dist "\$tmpdir" $mirror

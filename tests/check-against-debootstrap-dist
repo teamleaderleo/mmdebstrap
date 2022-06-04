@@ -3,6 +3,8 @@ set -eu
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
 
+echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
+
 # we create the apt user ourselves or otherwise its uid/gid will differ
 # compared to the one chosen in debootstrap because of different installation
 # order in comparison to the systemd users
