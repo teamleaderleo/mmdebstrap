@@ -8,8 +8,8 @@ fi
 
 rootdir="$1"
 
-env APT_CONFIG=$MMDEBSTRAP_APT_CONFIG apt-get indextargets --no-release-info \
-	| sed -ne 's/^Repo-URI: file:\/\+//p' \
+env APT_CONFIG=$MMDEBSTRAP_APT_CONFIG apt-get indextargets --no-release-info --format '$(REPO_URI)' \
+	| sed -ne 's/^file:\/\+//p' \
 	| sort -u \
 	| while read path; do
 		mkdir -p "$rootdir/run/mmdebstrap"
