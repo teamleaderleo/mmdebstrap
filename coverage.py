@@ -219,7 +219,8 @@ def main():
         try:
             proc.wait()
         except KeyboardInterrupt:
-            proc.kill()
+            proc.terminate()
+            proc.wait()
             break
         print(separator, file=sys.stderr)
         if proc.returncode != 0:
