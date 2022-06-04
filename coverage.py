@@ -238,7 +238,7 @@ def main():
         file=sys.stderr,
     )
     if skipped:
-        print("skipped %d:" % len(skipped), file=sys.stderr)
+        print("skipped %d:" % sum([len(v) for v in skipped.values()]), file=sys.stderr)
         for reason, l in skipped.items():
             print(f"skipped because of {reason}:", file=sys.stderr)
             for t in l:
