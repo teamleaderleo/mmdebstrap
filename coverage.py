@@ -118,10 +118,6 @@ def main():
             "/usr/share/mmdebstrap/hooks", "shared/hooks", dirs_exist_ok=True
         )
 
-    onlyrun = None
-    if len(sys.argv) > 1:
-        onlyrun = sys.argv[1]
-
     tests = []
     with open("coverage.txt") as f:
         for test in Deb822.iter_paragraphs(f):
