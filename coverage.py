@@ -122,8 +122,6 @@ def main():
     with open("coverage.txt") as f:
         for test in Deb822.iter_paragraphs(f):
             name = test["Test"]
-            if args.test and name not in args.test:
-                continue
             dists = test.get("Dists", default_dist)
             if dists == "any":
                 dists = all_dists
@@ -177,23 +175,56 @@ def main():
                                 tt = "null"
                             tests.append((tt, name, dist, mode, variant, fmt))
 
+    torun = []
+    num_tests = len(tests)
+    if args.test:
+        # check if all given tests are either a valid name or a valid number
+        for test in args.test:
+            if test in [name for (_, name, _, _, _, _) in tests]:
+                continue
+            if not test.isdigit():
+                print(f"cannot find test named {test}", file=sys.stderr)
+                exit(1)
+            if int(test) >= len(tests) or int(test) <= 0 or str(int(test)) != test:
+                print(f"test number {test} doesn't exist", file=sys.stderr)
+                exit(1)
+
+        for i, (_, name, _, _, _, _) in enumerate(tests):
+            # if either the number or test name matches, then we use this test,
+            # otherwise we skip it
+            if name in args.test:
+                torun.append(i)
+            if str(i + 1) in args.test:
+                torun.append(i)
+        num_tests = len(torun)
+
     starttime = time.time()
     skipped = defaultdict(list)
     failed = []
     num_success = 0
+    num_finished = 0
     for i, (test, name, dist, mode, variant, fmt) in enumerate(tests):
+        if torun and i not in torun:
+            continue
         print(separator, file=sys.stderr)
         print("(%d/%d) %s" % (i + 1, len(tests), name), file=sys.stderr)
         print("dist: %s" % dist, file=sys.stderr)
         print("mode: %s" % mode, file=sys.stderr)
         print("variant: %s" % variant, file=sys.stderr)
         print("format: %s" % fmt, file=sys.stderr)
-        if i > 0:
+        if num_finished > 0:
             currenttime = time.time()
             timeleft = timedelta(
-                seconds=int((len(tests) - i) * (currenttime - starttime) / i)
+                seconds=int(
+                    (num_tests - num_finished)
+                    * (currenttime - starttime)
+                    / num_finished
+                )
             )
             print("time left: %s" % timeleft, file=sys.stderr)
+        if failed:
+            print("failed: %d" % len(failed))
+        num_finished += 1
         with open("tests/" + name) as fin, open("shared/test.sh", "w") as fout:
             for line in fin:
                 line = line.replace("{{ CMD }}", cmd)
