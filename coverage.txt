@@ -271,6 +271,8 @@ Skip-If:
  variant == "standard" and dist in ["oldstable", "stable"] # #864082, #1004557, #1004558
  variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
 
+Test: create-directory-dry-run
+
 Test: create-tarball-dry-run
 Variants: any
 Modes: any
