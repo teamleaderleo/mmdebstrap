@@ -35,8 +35,6 @@ all_variants = [
 default_format = "auto"
 all_formats = ["auto", "directory", "tar", "squashfs", "ext2", "null"]
 
-only_dists = []
-
 mirror = os.getenv("mirror", "http://127.0.0.1/debian")
 hostarch = subprocess.check_output(["dpkg", "--print-architecture"]).decode().strip()
 
@@ -89,6 +87,7 @@ def main():
         help="exit after first num failures or errors.",
     )
     parser.add_argument("--mode", metavar="mode", help="only run tests with this mode")
+    parser.add_argument("--dist", metavar="dist", help="only run tests with this dist")
     args = parser.parse_args()
 
     # copy over files from git or as distributed
@@ -158,11 +157,7 @@ def main():
             else:
                 formats = formats.split()
             for dist in dists:
-                if only_dists and dist not in only_dists:
-                    continue
                 for mode in modes:
-                    if args.mode and args.mode != mode:
-                        continue
                     for variant in variants:
                         for fmt in formats:
                             skipreason = skip(
@@ -229,6 +224,12 @@ def main():
                 print(f"skipped because of {reason}", file=sys.stderr)
                 continue
         print(separator, file=sys.stderr)
+        if args.dist and args.dist != dist:
+            print(f"skipping because of --dist={args.dist}", file=sys.stderr)
+            continue
+        if args.mode and args.mode != mode:
+            print(f"skipping because of --mode={args.mode}", file=sys.stderr)
+            continue
         proc = subprocess.Popen(argv)
         try:
             proc.wait()
