@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from debian.deb822 import Deb822
+from debian.deb822 import Deb822, Release
+import email.utils
 import os
 import sys
 import shutil
@@ -14,6 +15,7 @@ have_qemu = os.getenv("HAVE_QEMU", "yes") == "yes"
 have_unshare = os.getenv("HAVE_UNSHARE", "yes") == "yes"
 have_binfmt = os.getenv("HAVE_BINFMT", "yes") == "yes"
 run_ma_same_tests = os.getenv("RUN_MA_SAME_TESTS", "yes") == "yes"
+cmd = os.getenv("CMD", "./mmdebstrap")
 
 default_dist = os.getenv("DEFAULT_DIST", "unstable")
 all_dists = ["oldstable", "stable", "testing", "unstable"]
@@ -37,6 +39,18 @@ only_dists = []
 
 mirror = os.getenv("mirror", "http://127.0.0.1/debian")
 hostarch = subprocess.check_output(["dpkg", "--print-architecture"]).decode().strip()
+
+release_path = f"./shared/cache/debian/dists/{default_dist}/Release"
+if not os.path.exists(release_path):
+    print("path doesn't exist:", release_path, file=sys.stderr)
+    print("run ./make_mirror.sh first", file=sys.stderr)
+    exit(1)
+if os.getenv("SOURCE_DATE_EPOCH") is not None:
+    s_d_e = os.getenv("SOURCE_DATE_EPOCH")
+else:
+    with open(release_path) as f:
+        rel = Release(f)
+    s_d_e = str(email.utils.mktime_tz(email.utils.parsedate_tz(rel["Date"])))
 
 separator = (
     "------------------------------------------------------------------------------"
@@ -191,8 +205,8 @@ def main():
             print("time left: %s" % timeleft, file=sys.stderr)
         with open("tests/" + name) as fin, open("shared/test.sh", "w") as fout:
             for line in fin:
-                for e in ["CMD", "SOURCE_DATE_EPOCH"]:
-                    line = line.replace("{{ " + e + " }}", os.getenv(e))
+                line = line.replace("{{ CMD }}", cmd)
+                line = line.replace("{{ SOURCE_DATE_EPOCH }}", s_d_e)
                 line = line.replace("{{ DIST }}", dist)
                 line = line.replace("{{ MIRROR }}", mirror)
                 line = line.replace("{{ MODE }}", mode)
