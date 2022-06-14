@@ -318,3 +318,7 @@ Skip-If:
 
 Test: no-sbin-in-path
 Modes: fakechroot
+
+Test: dev-ptmx
+Modes: root unshare
+Needs-QEMU: true
