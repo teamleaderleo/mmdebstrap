@@ -2236,7 +2236,7 @@ sub run_download() {
                   . " -- use copy:// instead of file:// or a bind-mount. You"
                   . " can also try using --hook-dir=/usr/share/mmdebstrap/"
                   . "hooks/file-mirror-automount to automatically create"
-                  . " the necessary bind-mounts.";
+                  . " bind-mounts or copy the files as necessary.";
             }
             push @essential_pkgs, $deb;
             next;
