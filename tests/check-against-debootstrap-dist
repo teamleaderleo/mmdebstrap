@@ -10,8 +10,13 @@ echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 # order in comparison to the systemd users
 # https://bugs.debian.org/969631
 # we cannot use useradd because passwd is not Essential:yes
+#
+# with cron 3.0pl1-142 and the introduction of cron-daemon-common, installation
+# order of cron and systemd started to differ between debootstrap and
+# mmdebstrap, resulting in different gid values
 {{ CMD }} --variant={{ VARIANT }} --mode={{ MODE }} \
 	--essential-hook='if [ {{ VARIANT }} = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd; fi' \
+	--essential-hook='if [ {{ VARIANT }} = - ] && [ {{ DIST }} = unstable -o {{ DIST }} = testing ]; then printf "systemd-journal:x:101:\nsystemd-network:x:102:\nsystemd-resolve:x:103:\ncrontab:x:104:" >> "$1"/etc/group; fi' \
 	$(case {{ DIST }} in oldstable|stable) : ;; *) echo --hook-dir=./hooks/merged-usr ;; esac) \
 	{{ DIST }} /tmp/debian-{{ DIST }}-mm.tar {{ MIRROR }}
 
@@ -141,6 +146,14 @@ for f in shadow shadow-; do
 	if grep -q '^_apt:!:' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
 		sed -i 's/^_apt:\*:\([^:]\+\):0:99999:7:::$/_apt:!:\1::::::/' /tmp/debian-{{ DIST }}-mm/etc/$f
 	fi
+done
+# same as above but for cron and systemd groups
+for f in gshadow gshadow-; do
+	for group in systemd-journal systemd-network systemd-resolve crontab; do
+		if grep -q '^'"$group"':!:' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
+			sed -i 's/^'"$group"':x::/'"$group"':!::/' /tmp/debian-{{ DIST }}-mm/etc/$f
+		fi
+	done
 done
 
 # workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
