@@ -1,3 +1,10 @@
+1.1.0 (2022-07-26)
+----------------
+
+ - mount a new /dev/pts instance into the chroot to make posix_openpt work
+ - adjust merged-/usr hook to work the same way as debootstrap
+ - add no-merged-usr hook
+
 1.0.1 (2022-05-29)
 ------------------
 
