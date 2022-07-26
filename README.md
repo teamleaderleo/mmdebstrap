@@ -137,6 +137,11 @@ By default, `coverage.sh` will skip running a single test which tries creating
 a Ubuntu Focal chroot. To not skip that test, run `coverage.sh` with the
 environment variable `ONLINE=yes`.
 
+If a test fails you can run individual tests by executing `coverage.py` with
+the test name and optionally limit it to a specific distribution like so:
+
+    CMD=./mmdebstrap ./coverage.py --dist unstable check-against-debootstrap-dist
+
 Bugs
 ====
 
