@@ -135,8 +135,21 @@ rm /tmp/debian-{{ DIST }}-mm/var/lib/apt/extended_states
 rm /tmp/debian-{{ DIST }}-mm/var/lib/apt/lists/lock
 
 # the list of shells might be sorted wrongly
-for f in "/tmp/debian-{{ DIST }}-debootstrap/etc/shells" "/tmp/debian-{{ DIST }}-mm/etc/shells"; do
-	sort -o "$f" "$f"
+# /var/lib/dpkg/triggers/File might be sorted wrongly
+for f in "/var/lib/dpkg/triggers/File" "/etc/shells"; do
+	f1="/tmp/debian-{{ DIST }}-debootstrap/$f"
+	f2="/tmp/debian-{{ DIST }}-mm/$f"
+	# both chroots must have the file
+	if [ ! -e "$f1" ] || [ ! -e "$f2" ]; then
+		continue
+	fi
+	# the file must be different
+	if cmp "$f1" "$f2"; then
+		continue
+	fi
+	# then sort both
+	sort -o "$f1" "$f1"
+	sort -o "$f2" "$f2"
 done
 
 # Because of unreproducible uids (#969631) we created the _apt user ourselves
