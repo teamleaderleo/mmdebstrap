@@ -4451,7 +4451,7 @@ sub main() {
         );
         close $fh;
         if (    $? == 0
-            and $content =~ /^apt ([0-9]+\.[0-9]+\.[0-9]+) \([a-z0-9-]+\)$/m) {
+            and $content =~ /^apt ([0-9]+\.[0-9]+\.[0-9]+)[a-z0-9]* \([a-z0-9-]+\)$/m) {
             $aptversion = version->new($1);
         }
         if ($aptversion < "2.3.14") {
