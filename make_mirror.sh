@@ -266,6 +266,13 @@ END
 
 	pkgs="$(echo $pkgs) build-essential busybox gpg eatmydata"
 
+	# we need usr-is-merged to simulate debootstrap behaviour for all dists
+	# starting from Debian 12 (Bullseye)
+	case "$dist" in
+		oldstable|stable) : ;;
+		*) pkgs="$pkgs usr-is-merged" ;;
+	esac
+
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --yes install $pkgs
 
 	# to be able to also test gpg verification, we need to create a mirror
@@ -654,7 +661,7 @@ fi
 mirror="http://127.0.0.1/debian"
 for dist in oldstable stable testing unstable; do
 	for variant in minbase buildd -; do
-		echo "running debootstrap --no-merged-usr --variant=$variant $dist \${TEMPDIR} $mirror"
+		echo "running debootstrap --variant=$variant $dist \${TEMPDIR} $mirror"
 		cat << END > shared/test.sh
 #!/bin/sh
 set -eu
@@ -663,7 +670,14 @@ export SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
 echo "SOURCE_DATE_EPOCH=\$SOURCE_DATE_EPOCH"
 tmpdir="\$(mktemp -d)"
 chmod 755 "\$tmpdir"
-debootstrap --no-merged-usr --variant=$variant $dist "\$tmpdir" $mirror
+case "$dist" in
+	oldstable|stable)
+		debootstrap --no-merged-usr --variant=$variant $dist "\$tmpdir" $mirror
+		;;
+	*)
+		debootstrap --merged-usr --variant=$variant $dist "\$tmpdir" $mirror
+		;;
+esac
 tar --sort=name --mtime=@$SOURCE_DATE_EPOCH --clamp-mtime --numeric-owner --one-file-system --xattrs -C "\$tmpdir" -c . > "$newcache/debian-$dist-$variant.tar"
 rm -r "\$tmpdir"
 END

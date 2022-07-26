@@ -6098,10 +6098,6 @@ package list is free of duplicates. So the following are equivalent:
     --include=pkg1/stable,pkg2=1.0,pkg3-
     --incl=pkg1/stable --incl="pkg2=1.0 pkg3-" --incl=pkg2=1.0,pkg3-
 
-Example: setting up merged-/usr via the usrmerge package
-
-    --include=usrmerge
-
 =item B<--components>=I<comp1>[,I<comp2>,...]
 
 Comma or whitespace separated list of components like main, contrib and
@@ -6148,18 +6144,7 @@ installed. At that point, the chroot directory does not contain any
 executables and thus cannot be chroot-ed into. See section B<HOOKS> for more
 information.
 
-Example 1: Setup merged-/usr via symlinks, omitting the architecture specific
-symlinks
-
-    --setup-hook='for d in bin sbin lib; do ln -s usr/$d "$1/$d";
-        mkdir -p "$1/usr/$d"; done'
-
-Example 2: Setup merged-/usr using debootstrap-method which takes care of the
-architecture specific symlinks
-
-    --setup-hook=/usr/share/mmdebstrap/hooks/merged-usr/setup00.sh
-
-Example 3: Setup chroot for installing a sub-essential busybox-based chroot
+Example: Setup chroot for installing a sub-essential busybox-based chroot
 with --variant=custom
 --include=dpkg,busybox,libc-bin,base-files,base-passwd,debianutils
 
@@ -6170,8 +6155,8 @@ with --variant=custom
     --setup-hook='echo root:x:0:0:root:/root:/bin/sh > "$1/etc/passwd"'
     --setup-hook='printf "root:x:0:\nmail:x:8:\nutmp:x:43:\n" > "$1/etc/group"'
 
-For a more elegant way to setup merged-/usr via symlinks and for setting up a
-sub-essential busybox-based chroot, see the B<--hook-dir> option below.
+For a more elegant way for setting up a sub-essential busybox-based chroot, see
+the B<--hook-dir> option below.
 
 =item B<--extract-hook>=I<command>
 
@@ -6252,12 +6237,7 @@ Example 2: Setup chroot for installing a sub-essential busybox-based chroot
 
     --hook-dir=/usr/share/mmdebstrap/hooks/busybox
 
-Example 3: Setup merged-/usr using debootstrap-method which takes care of the
-architecture specific symlinks
-
-    --hook-dir=/usr/share/mmdebstrap/hooks/merged-usr
-
-Example 4: Automatically mount all directories referenced by C<file://> mirrors
+Example 3: Automatically mount all directories referenced by C<file://> mirrors
 into the chroot
 
     --hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount
@@ -7094,6 +7074,33 @@ I<--second-stage>, I<--exclude>, I<--resolve-deps>, I<--force-check-gpg>,
 I<--merged-usr> and I<--no-merged-usr>
 
 =back
+
+=head1 MERGED-/USR
+
+B<mmdebstrap> will create a merged-/usr chroot or not depending on whether
+packages setting up merged-/usr (i.e. the B<usrmerge> package) are installed or
+not. In Debian, the essential package B<init-system-helpers> is will depend
+on the B<usrmerge> package, starting with Debian 12 (Bookworm).
+
+Before Debian 12 (Bookworm), to force B<mmdebstrap> to create a chroot with
+merged-/usr using symlinks, either explicitly install the B<usrmerge> package:
+
+    --include=usrmerge
+
+or setup merged-/usr using the debootstrap-method which takes care of the
+architecture specific symlinks and installs the B<usr-is-merged> package.
+
+    --hook-dir=/usr/share/mmdebstrap/hooks/merged-usr
+
+To force B<mmdebstrap> to create a chroot without merged-/usr even after the
+Debian 12 (Bookworm) release, you can use the following hook:
+
+    --hook-dir=/usr/share/mmdebstrap/hooks/no-merged-usr
+
+This will write "this system will not be supported in the future" into
+F</etc/unsupported-skip-usrmerge-conversion> inside the chroot and install the
+B<usr-is-merged> package to avoid the installation of the B<usrmerge> package
+and its dependencies.
 
 =head1 COMPRESSION
 

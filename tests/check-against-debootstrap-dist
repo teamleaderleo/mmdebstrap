@@ -12,6 +12,7 @@ echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 # we cannot use useradd because passwd is not Essential:yes
 {{ CMD }} --variant={{ VARIANT }} --mode={{ MODE }} \
 	--essential-hook='if [ {{ VARIANT }} = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd; fi' \
+	$(case {{ DIST }} in oldstable|stable) : ;; *) echo --hook-dir=./hooks/merged-usr ;; esac) \
 	{{ DIST }} /tmp/debian-{{ DIST }}-mm.tar {{ MIRROR }}
 
 mkdir /tmp/debian-{{ DIST }}-mm
