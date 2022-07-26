@@ -629,7 +629,7 @@ END
 	# buildd variant will not be 400MB but 1.3GB large and needs a 10G
 	# disk.
 	if [ -z ${DISK_SIZE+x} ]; then
-		DISK_SIZE=3G
+		DISK_SIZE=10G
 	fi
 	guestfish -N "$tmpdir/debian-$DEFAULT_DIST.img"=disk:$DISK_SIZE -- \
 		part-disk /dev/sda mbr : \
