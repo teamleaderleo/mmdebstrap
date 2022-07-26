@@ -5785,6 +5785,8 @@ sub main() {
                         error("failed to run " . (join " ", @argv));
                     }
                 } else {
+                    # somehow, when running under qemu, writing to a virtio
+                    # device will not result in a ENOSPC but just stall forever
                     if (!copy($rfh, $options->{target})) {
                         error "cannot copy to $options->{target}: $!";
                     }
