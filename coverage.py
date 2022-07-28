@@ -223,7 +223,7 @@ def main():
             )
             print("time left: %s" % timeleft, file=sys.stderr)
         if failed:
-            print("failed: %d" % len(failed))
+            print("failed: %d" % len(failed), file=sys.stderr)
         num_finished += 1
         with open("tests/" + name) as fin, open("shared/test.sh", "w") as fout:
             for line in fin:
