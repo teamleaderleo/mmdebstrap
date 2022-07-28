@@ -322,3 +322,5 @@ Modes: fakechroot
 Test: dev-ptmx
 Modes: root unshare
 Needs-QEMU: true
+
+Test: error-if-stdout-is-tty

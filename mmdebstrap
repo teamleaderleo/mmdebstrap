@@ -37,7 +37,8 @@ use Cwd qw(abs_path getcwd);
 require "syscall.ph";    ## no critic (Modules::RequireBarewordIncludes)
 use Fcntl qw(S_IFCHR S_IFBLK FD_CLOEXEC F_GETFD F_SETFD);
 use List::Util qw(any none);
-use POSIX qw(SIGINT SIGHUP SIGPIPE SIGTERM SIG_BLOCK SIG_UNBLOCK strftime);
+use POSIX
+  qw(SIGINT SIGHUP SIGPIPE SIGTERM SIG_BLOCK SIG_UNBLOCK strftime isatty);
 use Carp;
 use Term::ANSIColor;
 use Socket;
@@ -5126,7 +5127,11 @@ sub main() {
         $options->{sourceslists} = $sourceslists;
     }
 
-    if ($options->{target} ne '-') {
+    if ($options->{target} eq '-') {
+        if (POSIX::isatty STDOUT) {
+            error "stdout is a an interactive tty";
+        }
+    } else {
         my $abs_path = abs_path($options->{target});
         if (!defined $abs_path) {
             error "unable to get absolute path of target directory"
