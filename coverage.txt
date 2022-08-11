@@ -286,11 +286,10 @@ Test: install-doc-debian
 Modes: chrootless
 Variants: custom
 
-Test: install-known-good-from-essential-yes
+Test: chrootless-essential
 Variants: custom
 Modes: chrootless
 Skip-If:
- True # #1006692
  dist in ["oldstable", "stable"]
 
 Test: install-doc-debian-and-output-tarball

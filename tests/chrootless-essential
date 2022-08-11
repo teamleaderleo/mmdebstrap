@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
+	if [ ! -e /mmdebstrap-testenv ]; then
+		echo "this test modifies the system and should only be run inside a container" >&2
+		exit 1
+	fi
+	adduser --gecos user --disabled-password user
+fi
+prefix=
+[ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
+$prefix fakechroot fakeroot {{ CMD }} --mode=chrootless --variant=essential {{ DIST }} /dev/null {{ MIRROR }}
