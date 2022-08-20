@@ -962,6 +962,16 @@ sub run_apt_download_progress {
     } else {
         info "downloading packages with apt...";
     }
+
+    if ($verbosity_level >= 3) {
+        my @apt_debug_opts = qw(
+            -oDebug::pkgProblemResolver=true
+            -oDebug::pkgDepCache::Marker=1
+            -oDebug::pkgDepCache::AutoInstall=1
+	);
+	push @{ $options->{APT_ARGV} }, @apt_debug_opts;
+    }
+
     pipe my $rfh, my $wfh;
     my $pid = open my $fh, '-|' // error "fork() failed: $!";
     if ($pid == 0) {
