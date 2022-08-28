@@ -132,6 +132,7 @@ script -qfc "$prefix {{ CMD }} --mode={{ MODE }} --variant=apt \
 	{{ DIST }} /dev/null {{ MIRROR }}" /dev/null
 
 fail=0
+[ -r /tmp/log ] || fail=1
 grep '^E:' /tmp/log && fail=1
 grep 'Can not write log' /tmp/log && fail=1
 grep 'posix_openpt' /tmp/log && fail=1
