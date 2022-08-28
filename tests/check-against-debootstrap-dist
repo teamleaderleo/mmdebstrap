@@ -32,7 +32,7 @@ tar --xattrs --xattrs-include='*' -C /tmp/debian-{{ DIST }}-debootstrap -xf "cac
 tar -C /tmp/debian-{{ DIST }}-debootstrap -cf dev1.tar ./dev
 tar -C /tmp/debian-{{ DIST }}-mm -cf dev2.tar ./dev
 ret=0
-cmp dev1.tar dev2.tar || ret=$?
+cmp dev1.tar dev2.tar >&2 || ret=$?
 if [ "$ret" -ne 0 ]; then
 	if type diffoscope >/dev/null; then
 		diffoscope dev1.tar dev2.tar
@@ -144,7 +144,7 @@ for f in "/var/lib/dpkg/triggers/File" "/etc/shells"; do
 		continue
 	fi
 	# the file must be different
-	if cmp "$f1" "$f2"; then
+	if cmp "$f1" "$f2" >&2; then
 		continue
 	fi
 	# then sort both
@@ -182,7 +182,7 @@ for log in faillog lastlog; do
 done
 
 # workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
-if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/shadow /tmp/debian-{{ DIST }}-mm/etc/shadow; then
+if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/shadow /tmp/debian-{{ DIST }}-mm/etc/shadow >&2; then
 	echo patching /etc/shadow on {{ DIST }} {{ VARIANT }} >&2
 	awk -v FS=: -v OFS=: -v SDE={{ SOURCE_DATE_EPOCH }} '{ print $1,$2,int(SDE/60/60/24),$4,$5,$6,$7,$8,$9 }' < /tmp/debian-{{ DIST }}-mm/etc/shadow > /tmp/debian-{{ DIST }}-mm/etc/shadow.bak
 	cat /tmp/debian-{{ DIST }}-mm/etc/shadow.bak > /tmp/debian-{{ DIST }}-mm/etc/shadow
@@ -190,7 +190,7 @@ if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/shadow /tmp/debian-{{ DIST }}-mm
 else
 	echo no difference for /etc/shadow on {{ DIST }} {{ VARIANT }} >&2
 fi
-if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/shadow- /tmp/debian-{{ DIST }}-mm/etc/shadow-; then
+if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/shadow- /tmp/debian-{{ DIST }}-mm/etc/shadow- >&2; then
 	echo patching /etc/shadow- on {{ DIST }} {{ VARIANT }} >&2
 	awk -v FS=: -v OFS=: -v SDE={{ SOURCE_DATE_EPOCH }} '{ print $1,$2,int(SDE/60/60/24),$4,$5,$6,$7,$8,$9 }' < /tmp/debian-{{ DIST }}-mm/etc/shadow- > /tmp/debian-{{ DIST }}-mm/etc/shadow-.bak
 	cat /tmp/debian-{{ DIST }}-mm/etc/shadow-.bak > /tmp/debian-{{ DIST }}-mm/etc/shadow-
