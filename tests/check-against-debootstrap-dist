@@ -16,7 +16,7 @@ echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 # mmdebstrap, resulting in different gid values
 {{ CMD }} --variant={{ VARIANT }} --mode={{ MODE }} \
 	--essential-hook='if [ {{ VARIANT }} = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd; fi' \
-	--essential-hook='if [ {{ VARIANT }} = - ] && [ {{ DIST }} = unstable -o {{ DIST }} = testing ]; then printf "systemd-journal:x:101:\nsystemd-network:x:102:\nsystemd-resolve:x:103:\ncrontab:x:104:" >> "$1"/etc/group; fi' \
+	--essential-hook='if [ {{ VARIANT }} = - ] && [ {{ DIST }} = unstable -o {{ DIST }} = testing ]; then printf "systemd-journal:x:999:\nsystemd-network:x:998:\ncrontab:x:101:" >> "$1"/etc/group; fi' \
 	$(case {{ DIST }} in oldstable|stable) : ;; *) echo --hook-dir=./hooks/merged-usr ;; esac) \
 	{{ DIST }} /tmp/debian-{{ DIST }}-mm.tar {{ MIRROR }}
 
@@ -162,11 +162,23 @@ for f in shadow shadow-; do
 done
 # same as above but for cron and systemd groups
 for f in gshadow gshadow-; do
-	for group in systemd-journal systemd-network systemd-resolve crontab; do
-		if grep -q '^'"$group"':!:' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
-			sed -i 's/^'"$group"':x::/'"$group"':!::/' /tmp/debian-{{ DIST }}-mm/etc/$f
-		fi
+	for group in systemd-journal systemd-network crontab; do
+		for password in "!" "!\\*"; do
+			if grep -q '^'"$group"':'"$password"':' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
+				sed -i 's/^'"$group"':x::/'"$group"':'"$password"'::/' /tmp/debian-{{ DIST }}-mm/etc/$f
+			fi
+		done
 	done
+done
+
+for log in faillog lastlog; do
+	if ! cmp /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log >&2;then
+		# if the files differ, make sure they are all zeroes
+		cmp -n $(stat -c %s /tmp/debian-{{ DIST }}-debootstrap/var/log/$log) /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /dev/zero >&2
+		cmp -n $(stat -c %s /tmp/debian-{{ DIST }}-mm/var/log/$log) /tmp/debian-{{ DIST }}-mm/var/log/$log /dev/zero >&2
+		# then delete them
+		rm /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log
+	fi
 done
 
 # workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
