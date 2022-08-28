@@ -88,6 +88,9 @@ def main():
     )
     parser.add_argument("--mode", metavar="mode", help="only run tests with this mode")
     parser.add_argument("--dist", metavar="dist", help="only run tests with this dist")
+    parser.add_argument(
+        "--variant", metavar="variant", help="only run tests with this variant"
+    )
     args = parser.parse_args()
 
     # copy over files from git or as distributed
@@ -256,6 +259,9 @@ def main():
             continue
         if args.mode and args.mode != mode:
             print(f"skipping because of --mode={args.mode}", file=sys.stderr)
+            continue
+        if args.variant and args.variant != variant:
+            print(f"skipping because of --variant={args.variant}", file=sys.stderr)
             continue
         proc = subprocess.Popen(argv)
         try:
