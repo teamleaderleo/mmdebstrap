@@ -13,6 +13,10 @@ homedir=$(runuser -u user -- sh -c 'cd && pwd')
 # apt:test/integration/test-apt-key
 TMPDIR_ADD="This is fü\$\$ing cràzy, \$(apt -v)\$!"
 runuser -u user -- mkdir "$homedir/$TMPDIR_ADD"
+# make sure the unshared user can traverse into the TMPDIR
+chmod 711 "$homedir"
+# set permissions and sticky bit like the real /tmp
+chmod 1777 "$homedir/$TMPDIR_ADD"
 runuser -u user -- env TMPDIR="$homedir/$TMPDIR_ADD" {{ CMD }} --mode=unshare --variant=apt \
 	--setup-hook='case "$1" in '"$(quote "$homedir/$TMPDIR_ADD/mmdebstrap.")"'??????????) exit 0;; *) echo "$1"; exit 1;; esac' \
 	 {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
