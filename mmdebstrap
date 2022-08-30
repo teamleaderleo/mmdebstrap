@@ -979,46 +979,59 @@ sub run_apt_download_progress {
     my $flags = fcntl($wfh, F_GETFD, 0)        or error "fcntl F_GETFD: $!";
     fcntl($wfh, F_SETFD, $flags & ~FD_CLOEXEC) or error "fcntl F_SETFD: $!";
     my $fd = fileno $wfh;
-    # 2022-05-02, #debian-apt on OFTC, times in UTC+2
-    # 16:57 < josch> DonKult: how is -oDebug::pkgDpkgPm=1 -oDir::Log=/dev/null
-    #                a "fancy no-op"?
-    # 11:52 < DonKult> josch: "fancy no-op" in sofar as it does nothing to the
-    #                  system even through its not in a special mode ala
-    #                  simulation or download-only. It does all the things it
-    #                  normally does, except that it just prints the dpkg calls
-    #                  instead of execv() them which in practice amounts means
-    #                  it does nothing (the Dir::Log just prevents libapt from
-    #                  creating the /var/log/apt directories. As the code
-    #                  creates them even if no logs will be placed there…). As
-    #                  said, midterm an apt --print-install-packages or
-    #                  something would be nice to avoid running everything.
-    run_apt_progress({
-            ARGV => [
-                'apt-get',
-                '--yes',
-                '-oDebug::pkgDpkgPm=1',
-                '-oDir::Log=/dev/null',
-                $options->{dryrun}
-                ? '-oAPT::Get::Simulate=true'
-                : (
-                    "-oAPT::Keep-Fds::=$fd",
-                    "-oDPkg::Tools::options::'cat >&$fd'::InfoFD=$fd",
-                    "-oDpkg::Pre-Install-Pkgs::=cat >&$fd",
-                    # no need to lock the database if we are just downloading
-                    "-oDebug::NoLocking=1",
-                    # no need for pty magic if we write no log
-                    "-oDpkg::Use-Pty=0",
-                ),
-                @{ $options->{APT_ARGV} },
-            ],
-        });
+    # run_apt_progress() can raise an exception which would leave this function
+    # without cleaning up the other thread we started, making mmdebstrap hang
+    # in case run_apt_progress() fails -- so wrap this in eval() instead
+    eval {
+        # 2022-05-02, #debian-apt on OFTC, times in UTC+2
+        # 16:57 < josch> DonKult: how is -oDebug::pkgDpkgPm=1
+        #                -oDir::Log=/dev/null a "fancy no-op"?
+        # 11:52 < DonKult> josch: "fancy no-op" in sofar as it does nothing to
+        #                  the system even through its not in a special mode
+        #                  ala simulation or download-only. It does all the
+        #                  things it normally does, except that it just prints
+        #                  the dpkg calls instead of execv() them which in
+        #                  practice amounts means it does nothing (the Dir::Log
+        #                  just prevents libapt from creating the /var/log/apt
+        #                  directories. As the code creates them even if no
+        #                  logs will be placed there…). As said, midterm an apt
+        #                  --print-install-packages or something would be nice
+        #                  to avoid running everything.
+        run_apt_progress({
+                ARGV => [
+                    'apt-get',
+                    '--yes',
+                    '-oDebug::pkgDpkgPm=1',
+                    '-oDir::Log=/dev/null',
+                    $options->{dryrun}
+                    ? '-oAPT::Get::Simulate=true'
+                    : (
+                        "-oAPT::Keep-Fds::=$fd",
+                        "-oDPkg::Tools::options::'cat >&$fd'::InfoFD=$fd",
+                        "-oDpkg::Pre-Install-Pkgs::=cat >&$fd",
+                      # no need to lock the database if we are just downloading
+                        "-oDebug::NoLocking=1",
+                        # no need for pty magic if we write no log
+                        "-oDpkg::Use-Pty=0",
+                    ),
+                    @{ $options->{APT_ARGV} },
+                ],
+            });
+    };
+    my $err = '';
+    if ($@) {
+        $err = "apt download failed: $@";
+    }
     # signal the child process that we are done
     close $wfh;
     # and then read from it what it got
     my @listofdebs = <$fh>;
     close $fh;
     if ($? != 0) {
-        error "status child failed";
+        $err = "status child failed";
+    }
+    if ($err) {
+        error $err;
     }
     # remove trailing newlines
     chomp @listofdebs;
