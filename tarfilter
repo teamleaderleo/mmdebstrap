@@ -68,7 +68,10 @@ Both types of options use Unix shell-style wildcards:
 Thirdly, strip leading directory components off of tar members. Just as with
 GNU tar --strip-components, tar members that have less or equal components in
 their path are not passed through.
-"""
+
+Lastly, shift user id and group id of each entry by the value given by the
+--idshift argument. The resulting uid or gid must not be negative.
+""",
     )
     parser.add_argument(
         "--path-exclude",
@@ -99,6 +102,12 @@ their path are not passed through.
         metavar="number",
         type=int,
         help="Strip NUMBER leading components from file names",
+    )
+    parser.add_argument(
+        "--idshift",
+        metavar="NUM",
+        type=int,
+        help="Integer value by which to shift the uid and gid of each entry",
     )
     args = parser.parse_args()
     if (
@@ -165,6 +174,15 @@ their path are not passed through.
                 for k, v in member.pax_headers.items()
                 if not pax_filter_should_skip(k)
             }
+            if args.idshift:
+                if args.idshift < 0 and -args.idshift > member.uid:
+                    print("uid cannot be negative", file=sys.stderr)
+                    exit(1)
+                if args.idshift < 0 and -args.idshift > member.gid:
+                    print("gid cannot be negative", file=sys.stderr)
+                    exit(1)
+                member.uid += args.idshift
+                member.gid += args.idshift
             if member.isfile():
                 with in_tar.extractfile(member) as file:
                     out_tar.addfile(member, file)

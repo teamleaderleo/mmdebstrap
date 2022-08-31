@@ -96,7 +96,6 @@ def main():
     # copy over files from git or as distributed
     for (git, dist, target) in [
         ("./mmdebstrap", "/usr/bin/mmdebstrap", "mmdebstrap"),
-        ("./taridshift", "/usr/bin/mmtaridshift", "taridshift"),
         ("./tarfilter", "/usr/bin/mmtarfilter", "tarfilter"),
         (
             "./proxysolver",
