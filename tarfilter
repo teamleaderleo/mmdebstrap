@@ -43,17 +43,53 @@ class PaxFilterAction(argparse.Action):
         setattr(namespace, "paxfilter", items)
 
 
+class TransformAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        items = getattr(namespace, "trans", [])
+        # This function mimics what src/transform.c from tar does
+        if not values.startswith("s"):
+            raise ValueError("regex must start with an 's'")
+        if len(values) <= 4:
+            # minimum regex: s/x//
+            raise ValueError("invalid regex (too short)")
+        d = values[1]
+        if values.startswith(f"s{d}{d}"):
+            raise ValueError("empty regex")
+        values = values.removeprefix(f"s{d}")
+        flags = 0
+        if values.endswith(f"{d}i"):
+            # trailing flags
+            flags = re.IGNORECASE
+            values = values.removesuffix(f"{d}i")
+        # This regex only finds non-empty tokens.
+        # Finding empty tokens would require a variable length look-behind
+        # or \K in order to find escaped delimiters which is not supported by
+        # the python re module.
+        tokens = re.findall(rf"(?:\\[\\{d}]|[^{d}])+", values)
+        match len(tokens):
+            case 0:
+                raise ValueError("invalid regex: not enough terms")
+            case 1:
+                repl = ""
+            case 2:
+                repl = tokens[1]
+            case _:
+                raise ValueError("invalid regex: too many terms: %s" % tokens)
+        items.append((re.compile(tokens[0], flags), repl))
+        setattr(namespace, "trans", items)
+
+
 def main():
     parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 Filters a tarball on standard input by the same rules as the dpkg --path-exclude
 and --path-include options and writes resulting tarball to standard output. See
-dpkg(1) for information on how these two options work in detail. Since this is
-meant for filtering tarballs storing a rootfs, notice that paths must be given
-as /path and not as ./path even though they might be stored as such in the
-tarball.
+dpkg(1) for information on how these two options work in detail. To reuse the
+exact same semantics as used by dpkg, paths must be given as /path and not as
+./path even though they might be stored as such in the tarball.
 
-Similarly, filter out unwanted pax extended headers. This is useful in cases
+Secondly, filter out unwanted pax extended headers. This is useful in cases
 where a tool only accepts certain xattr prefixes. For example tar2sqfs only
 supports SCHILY.xattr.user.*, SCHILY.xattr.trusted.* and
 SCHILY.xattr.security.* but not SCHILY.xattr.system.posix_acl_default.*.
@@ -65,7 +101,10 @@ Both types of options use Unix shell-style wildcards:
    [seq] matches any character in seq
   [!seq] matches any character not in seq
 
-Thirdly, strip leading directory components off of tar members. Just as with
+Thirdly, transform the path of tar members using a sed expression just as with
+GNU tar --transform.
+
+Fourthly, strip leading directory components off of tar members. Just as with
 GNU tar --strip-components, tar members that have less or equal components in
 their path are not passed through.
 
@@ -77,29 +116,41 @@ Lastly, shift user id and group id of each entry by the value given by the
         "--path-exclude",
         metavar="pattern",
         action=PathFilterAction,
-        help="Exclude path matching the given shell pattern.",
+        help="Exclude path matching the given shell pattern. "
+        "This option can be specified multiple times.",
     )
     parser.add_argument(
         "--path-include",
         metavar="pattern",
         action=PathFilterAction,
-        help="Re-include a pattern after a previous exclusion.",
+        help="Re-include a pattern after a previous exclusion. "
+        "This option can be specified multiple times.",
     )
     parser.add_argument(
         "--pax-exclude",
         metavar="pattern",
         action=PaxFilterAction,
-        help="Exclude pax header matching the given globbing pattern.",
+        help="Exclude pax header matching the given globbing pattern. "
+        "This option can be specified multiple times.",
     )
     parser.add_argument(
         "--pax-include",
         metavar="pattern",
         action=PaxFilterAction,
-        help="Re-include a pax header after a previous exclusion.",
+        help="Re-include a pax header after a previous exclusion. "
+        "This option can be specified multiple times.",
+    )
+    parser.add_argument(
+        "--transform",
+        "--xform",
+        metavar="EXPRESSION",
+        action=TransformAction,
+        help="Use sed replace EXPRESSION to transform file names. "
+        "This option can be specified multiple times.",
     )
     parser.add_argument(
         "--strip-components",
-        metavar="number",
+        metavar="NUMBER",
         type=int,
         help="Strip NUMBER leading components from file names",
     )
@@ -166,6 +217,8 @@ Lastly, shift user id and group id of each entry by the value given by the
                 continue
             if args.strip_components:
                 comps = member.name.split("/")
+                # just as with GNU tar, archive members with less or equal
+                # number of components are not passed through at all
                 if len(comps) <= args.strip_components:
                     continue
                 member.name = "/".join(comps[args.strip_components :])
@@ -183,6 +236,9 @@ Lastly, shift user id and group id of each entry by the value given by the
                     exit(1)
                 member.uid += args.idshift
                 member.gid += args.idshift
+            if hasattr(args, "trans"):
+                for r, s in args.trans:
+                    member.name = r.sub(s, member.name)
             if member.isfile():
                 with in_tar.extractfile(member) as file:
                     out_tar.addfile(member, file)
