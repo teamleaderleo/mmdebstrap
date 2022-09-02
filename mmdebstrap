@@ -4355,8 +4355,18 @@ sub main() {
         #                  here prepare for long suffering in dependency hell.
         'simulate' => \$options->{dryrun},
         'dry-run'  => \$options->{dryrun},
-        'skip=s@'  => \$options->{skip},
-    ) or pod2usage(-exitval => 2, -verbose => 1);
+        'skip=s'   => sub {
+            my ($opt_name, $opt_value) = @_;
+            for my $skip (split /[,\s]+/, $opt_value) {
+                # strip leading and trailing whitespace
+                $skip =~ s/^\s+|\s+$//g;
+                # skip if the remainder is an empty string
+                if ($skip eq '') {
+                    next;
+                }
+                push @{ $options->{skip} }, $skip;
+            }
+        }) or pod2usage(-exitval => 2, -verbose => 1);
 
     if (defined($logfile)) {
         open(STDERR, '>', $logfile) or error "cannot open $logfile: $!";
@@ -6278,7 +6288,8 @@ B<mmdebstrap> tries hard to implement sensible defaults and will try to stop
 you before shooting yourself in the foot. This option is for when you are sure
 you know what you are doing and allows one to skip certain actions and safety
 checks. See section B<OPERATION> for a list of possible arguments and their
-context.
+context. The option can be specified multiple times or you can separate
+multiple values by comma or whitespace.
 
 =item B<-q,--quiet>, B<-s,--silent>
 
