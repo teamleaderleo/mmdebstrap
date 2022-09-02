@@ -4300,15 +4300,44 @@ sub main() {
         'variant=s'     => \$options->{variant},
         'include=s'     => sub {
             my ($opt_name, $opt_value) = @_;
-            for my $pkg (split /[,\s]+/, $opt_value) {
-                # strip leading and trailing whitespace
-                $pkg =~ s/^\s+|\s+$//g;
-                # skip if the remainder is an empty string
-                if ($pkg eq '') {
-                    next;
+            my $sanitize_path = sub {
+                my $pkg = shift;
+                $pkg = abs_path($pkg);
+                if (!defined $pkg) {
+                    error "cannot resolve absolute path of $pkg: $!";
                 }
-                push @{ $options->{include} }, $pkg;
+                if (!-f $pkg) {
+                    error "$pkg is not an existing file";
+                }
+                return $pkg;
+            };
+            if ($opt_value =~ /^[?~!(]/) {
+                # Treat option as a single apt pattern and don't split by comma
+                # or whitespace -- append it verbatim.
+                push @{ $options->{include} }, $opt_value;
+            } elsif ($opt_value =~ /^\.?\.?\//) {
+                # Treat option as a single path name and don't split by comma
+                # or whitespace -- append the normalized path.
+                push @{ $options->{include} }, sanitize_path($opt_value);
+            } else {
+                for my $pkg (split /[,\s]+/, $opt_value) {
+                    # strip leading and trailing whitespace
+                    $pkg =~ s/^\s+|\s+$//g;
+                    # skip if the remainder is an empty string
+                    if ($pkg eq '') {
+                        next;
+                    }
+                    # Make paths canonical absolute paths, resolve symlinks
+                    # and check if it's an existing file.
+                    if ($pkg =~ /^\.?\.?\//) {
+                        $pkg = sanitize_path($pkg);
+                    }
+                    push @{ $options->{include} }, $pkg;
+                }
             }
+            # We are not sorting or otherwise normalizing the order of
+            # arguments to apt because package order matters for "apt install"
+            # since https://salsa.debian.org/apt-team/apt/-/merge_requests/256
         },
         'architectures=s@' => \$options->{architectures},
         'mode=s'           => \$options->{mode},
@@ -6181,15 +6210,34 @@ by this option will be the only ones that get either extracted or installed by
 dpkg, respectively.  For all other variants, apt is used to install the
 additional packages. Package names are directly passed to apt and thus, you
 can use apt features like C<pkg/suite>, C<pkg=version>, C<pkg->, use a glob or
-regex for C<pkg> or use apt patterns. See apt(8) for the supported
-syntax. The option can be specified multiple times and the packages are
-concatenated in the order in which they are given on the command line. If
-later list items are repeated, then they get dropped so that the resulting
-package list is free of duplicates. So the following are equivalent:
+regex for C<pkg>, use apt patterns or pass a path to a .deb package file. See
+apt(8) for the supported syntax.
+
+The option can be specified multiple times and the packages are concatenated in
+the order in which they are given on the command line. If later list items are
+repeated, then they get dropped so that the resulting package list is free of
+duplicates. So the following are equivalent:
 
     --include="pkg1/stable pkg2=1.0 pkg3-"
-    --include=pkg1/stable,pkg2=1.0,pkg3-
+    --include=pkg1/stable,pkg2=1.0,pkg3-,,,
     --incl=pkg1/stable --incl="pkg2=1.0 pkg3-" --incl=pkg2=1.0,pkg3-
+
+Since the list of packages is separated by comma or whitespace, it is not
+possible to mix apt patterns or .deb package file paths containing either
+commas or whitespace with normal package names. If you do, your patterns and
+paths will be split by comma and whitespace as well and become useless. To pass
+such a pattern or package file path, put them into their own B<--include>
+option. If the argument to B<--include> starts with an apt pattern or with a
+file path, then it will not be split:
+
+    --include="?or(?priority(required), ?priority(important))"
+    --include="./path/to/deb with spaces/and,commas/foo.deb"
+
+Specifically, all arguments to B<--include> that start with a C<?>, C<!>, C<~>,
+C<(>, C</>, C<./> or C<../> are not split and treated as single arguments to
+apt. To add more packages, use multiple B<--include> options. To disable this
+detection of patterns and paths, start the argument to B<--include> with a
+comma or whitespace.
 
 =item B<--components>=I<comp1>[,I<comp2>,...]
 
