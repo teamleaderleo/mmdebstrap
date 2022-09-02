@@ -1104,8 +1104,10 @@ sub run_chroot {
                     }
                 } elsif ($type == 3 or $type == 4) {
                     # character/block special
-                    if ((any { $_ eq $options->{mode} } ('root', 'unshare'))
-                        && !$options->{canmount}) {
+                    if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
+                        @{ $options->{skip} }) {
+                        info "skipping chroot/mount/dev as requested";
+                    } elsif (!$options->{canmount}) {
                         warning "skipping bind-mounting ./dev/$fname";
                     } elsif (!$options->{havemknod}) {
                         if (!-d "$options->{root}/dev") {
@@ -1160,96 +1162,102 @@ sub run_chroot {
                             "$options->{root}/dev/$fname")
                           or error "mount ./dev/$fname failed: $?";
                     }
-                } elsif ($type == 5
-                    && (any { $_ eq $options->{mode} } ('root', 'unshare'))
-                    && !$options->{canmount}) {
-                    warning "skipping bind-mounting ./dev/$fname";
-                } elsif ($type == 5) {    # directory
-                    if (!-d "$options->{root}/dev") {
-                        warning(
-                                "skipping creation of ./dev/$fname because the"
-                              . " /dev directory is missing in the target");
-                        next;
-                    }
-                    if (!-e "/dev/$fname" && $fname ne "pts/") {
-                        warning("skipping creation of ./dev/$fname because"
-                              . " /dev/$fname does not exist"
-                              . " on the outside");
-                        next;
-                    }
-                    if (!-d "/dev/$fname" && $fname ne "pts/") {
-                        warning("skipping creation of ./dev/$fname because"
-                              . " /dev/$fname on the outside is not a"
-                              . " directory");
-                        next;
-                    }
-                    if (!$options->{havemknod}) {
-                        # If had mknod, then the directory to bind-mount into
-                        # was already created in the run_setup function.
-                        push @cleanup_tasks, sub {
-                            rmdir "$options->{root}/dev/$fname"
-                              or warning("cannot rmdir ./dev/$fname: $!");
-                        };
-                        if (-e "$options->{root}/dev/$fname") {
-                            if (!-d "$options->{root}/dev/$fname") {
-                                error "./dev/$fname already exists but is not"
-                                  . " a directory";
-                            }
-                        } else {
-                            my $num_created
-                              = make_path "$options->{root}/dev/$fname",
-                              { error => \my $err };
-                            if ($err && @$err) {
-                                error(
-                                    join "; ",
-                                    (
-                                        map {
-                                            "cannot create "
-                                              . (join ": ", %{$_})
-                                        } @$err
-                                    ));
-                            } elsif ($num_created == 0) {
-                                error
-                                  "cannot create $options->{root}/dev/$fname";
-                            }
-                        }
-                        chmod $mode, "$options->{root}/dev/$fname"
-                          or error "cannot chmod ./dev/$fname: $!";
-                    }
-                    my @umountopts = ();
-                    if ($options->{mode} eq 'unshare') {
-                        push @umountopts, '--no-mtab';
-                    }
-                    push @cleanup_tasks, sub {
-                        0 == system('umount', @umountopts,
-                            "$options->{root}/dev/$fname")
-                          or warning("umount ./dev/$fname failed: $?");
-                    };
-                    if ($fname eq "pts/") {
-                        # We cannot just bind-mount /dev/pts from the host as
-                        # doing so will make posix_openpt() fail. Instead, we
-                        # need to mount a new devpts.
-                        # We need ptmxmode=666 because /dev/ptmx is a symlink
-                        # to /dev/pts/ptmx and without it posix_openpt() will
-                        # fail if we are not the root user.
-                        # See also:
-                        # kernel.org/doc/Documentation/filesystems/devpts.txt
-                        # salsa.debian.org/debian/schroot/-/merge_requests/2
-                        # https://bugs.debian.org/856877
-                        # https://bugs.debian.org/817236
-                        0 == system(
-                            'mount',
-                            '-t',
-                            'devpts',
-                            'none',
-                            "$options->{root}/dev/pts",
-                            '-o',
-                            'noexec,nosuid,uid=5,mode=620,ptmxmode=666'
-                        ) or error "mount /dev/pts failed";
+                } elsif ($type == 5) {
+                    # directory
+                    if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
+                        @{ $options->{skip} }) {
+                        info "skipping chroot/mount/dev as requested";
+                    } elsif (!$options->{canmount}) {
+                        warning "skipping bind-mounting ./dev/$fname";
                     } else {
-                        0 == system('mount', '-o', 'bind', "/dev/$fname",
-                            "$options->{root}/dev/$fname")
-                          or error "mount ./dev/$fname failed: $?";
+                        if (!-d "$options->{root}/dev") {
+                            warning(
+                                "skipping creation of ./dev/$fname because the"
+                                  . " /dev directory is missing in the target"
+                            );
+                            next;
+                        }
+                        if (!-e "/dev/$fname" && $fname ne "pts/") {
+                            warning("skipping creation of ./dev/$fname because"
+                                  . " /dev/$fname does not exist"
+                                  . " on the outside");
+                            next;
+                        }
+                        if (!-d "/dev/$fname" && $fname ne "pts/") {
+                            warning("skipping creation of ./dev/$fname because"
+                                  . " /dev/$fname on the outside is not a"
+                                  . " directory");
+                            next;
+                        }
+                        if (!$options->{havemknod}) {
+                          # If had mknod, then the directory to bind-mount into
+                          # was already created in the run_setup function.
+                            push @cleanup_tasks, sub {
+                                rmdir "$options->{root}/dev/$fname"
+                                  or warning("cannot rmdir ./dev/$fname: $!");
+                            };
+                            if (-e "$options->{root}/dev/$fname") {
+                                if (!-d "$options->{root}/dev/$fname") {
+                                    error
+                                      "./dev/$fname already exists but is not"
+                                      . " a directory";
+                                }
+                            } else {
+                                my $num_created
+                                  = make_path "$options->{root}/dev/$fname",
+                                  { error => \my $err };
+                                if ($err && @$err) {
+                                    error(
+                                        join "; ",
+                                        (
+                                            map {
+                                                "cannot create "
+                                                  . (join ": ", %{$_})
+                                            } @$err
+                                        ));
+                                } elsif ($num_created == 0) {
+                                    error(  "cannot create $options->{root}"
+                                          . "/dev/$fname");
+                                }
+                            }
+                            chmod $mode, "$options->{root}/dev/$fname"
+                              or error "cannot chmod ./dev/$fname: $!";
+                        }
+                        my @umountopts = ();
+                        if ($options->{mode} eq 'unshare') {
+                            push @umountopts, '--no-mtab';
+                        }
+                        push @cleanup_tasks, sub {
+                            0 == system('umount', @umountopts,
+                                "$options->{root}/dev/$fname")
+                              or warning("umount ./dev/$fname failed: $?");
+                        };
+                        if ($fname eq "pts/") {
+                          # We cannot just bind-mount /dev/pts from the host as
+                          # doing so will make posix_openpt() fail. Instead, we
+                          # need to mount a new devpts.
+                          # We need ptmxmode=666 because /dev/ptmx is a symlink
+                          # to /dev/pts/ptmx and without it posix_openpt() will
+                          # fail if we are not the root user.
+                          # See also:
+                          # kernel.org/doc/Documentation/filesystems/devpts.txt
+                          # salsa.debian.org/debian/schroot/-/merge_requests/2
+                          # https://bugs.debian.org/856877
+                          # https://bugs.debian.org/817236
+                            0 == system(
+                                'mount',
+                                '-t',
+                                'devpts',
+                                'none',
+                                "$options->{root}/dev/pts",
+                                '-o',
+                                'noexec,nosuid,uid=5,mode=620,ptmxmode=666'
+                            ) or error "mount /dev/pts failed";
+                        } else {
+                            0 == system('mount', '-o', 'bind', "/dev/$fname",
+                                "$options->{root}/dev/$fname")
+                              or error "mount ./dev/$fname failed: $?";
+                        }
                     }
                 } else {
                     error "unsupported type: $type";
@@ -1269,6 +1277,9 @@ sub run_chroot {
         # set because if we mount it before, then base-files will not be able
         # to extract those
         if ((any { $_ eq $options->{mode} } ('root', 'unshare'))
+            && (any { $_ =~ '^chroot/mount(?:/sys)?$' } @{ $options->{skip} })) {
+            info "skipping chroot/mount/sys as requested";
+        } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !$options->{canmount}) {
             warning "skipping mount sysfs";
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
@@ -1344,6 +1355,9 @@ sub run_chroot {
             error "unknown mode: $options->{mode}";
         }
         if ((any { $_ eq $options->{mode} } ('root', 'unshare'))
+            && (any { $_ =~ '^chroot/mount(?:/proc)?$' } @{ $options->{skip} })) {
+            info "skipping chroot/mount/proc as requested";
+        } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !$options->{canmount}) {
             warning "skipping mount proc";
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
@@ -6782,6 +6796,12 @@ out in B<extract> mode.
 
 Run B<--customize-hook> options and all F<customize*> scripts in B<--hook-dir>.
 This step is not carried out in B<extract> mode.
+
+Whenever B<mmdebstrap> does a chroot call in B<root> or B<unshare> modes, it
+will mount relevant device nodes, F</proc> and F</sys> into the chroot and
+unmount them afterwards. This can be disabled using B<--skip=chroot/mount> or
+specifically by B<--skip=chroot/mount/dev>, B<--skip=chroot/mount/proc> and
+B<--skip=chroot/mount/sys>, respectively.
 
 For each command that is run inside the chroot, B<mmdebstrap> will disable
 running services by temporarily moving F</usr/sbin/policy-rc.d> and

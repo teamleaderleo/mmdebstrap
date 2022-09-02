@@ -266,6 +266,9 @@ Test: remove-start-stop-daemon-and-policy-rc-d-in-hook
 
 Test: skip-start-stop-daemon-policy-rc
 
+Test: skip-mount
+Modes: unshare
+
 Test: compare-output-with-pre-seeded-var-cache-apt-archives
 Needs-QEMU: true
 Variants: any
