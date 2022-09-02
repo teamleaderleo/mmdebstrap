@@ -1426,48 +1426,66 @@ sub run_chroot {
         # existing inside the chroot
         #
         # See #911290 for more problems of this interface
-        if (-d "$options->{root}/usr/sbin/") {
-            open my $fh, '>', "$options->{root}/usr/sbin/policy-rc.d"
-              or error "cannot open policy-rc.d: $!";
-            print $fh "#!/bin/sh\n";
-            print $fh "exit 101\n";
-            close $fh;
-            chmod 0755, "$options->{root}/usr/sbin/policy-rc.d"
-              or error "cannot chmod policy-rc.d: $!";
+        if (any { $_ eq 'chroot/policy-rc.d' } @{ $options->{skip} }) {
+            info "skipping chroot/policy-rc.d as requested";
+        } else {
+            if (-d "$options->{root}/usr/sbin/") {
+                open my $fh, '>', "$options->{root}/usr/sbin/policy-rc.d"
+                  or error "cannot open policy-rc.d: $!";
+                print $fh "#!/bin/sh\n";
+                print $fh "exit 101\n";
+                close $fh;
+                chmod 0755, "$options->{root}/usr/sbin/policy-rc.d"
+                  or error "cannot chmod policy-rc.d: $!";
+            }
         }
 
         # the file might not exist if it was removed in a hook
-        if (-f "$options->{root}/sbin/start-stop-daemon") {
-            if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
-                error "$options->{root}/sbin/start-stop-daemon.REAL already"
-                  . " exists";
+        if (any { $_ eq 'chroot/start-stop-daemon' } @{ $options->{skip} }) {
+            info "skipping chroot/start-stop-daemon as requested";
+        } else {
+            if (-f "$options->{root}/sbin/start-stop-daemon") {
+                if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
+                    error
+                      "$options->{root}/sbin/start-stop-daemon.REAL already"
+                      . " exists";
+                }
+                move(
+                    "$options->{root}/sbin/start-stop-daemon",
+                    "$options->{root}/sbin/start-stop-daemon.REAL"
+                ) or error "cannot move start-stop-daemon: $!";
+                open my $fh, '>', "$options->{root}/sbin/start-stop-daemon"
+                  or error "cannot open start-stop-daemon: $!";
+                print $fh "#!/bin/sh\n";
+                print $fh
+                  "echo \"Warning: Fake start-stop-daemon called, doing"
+                  . " nothing\">&2\n";
+                close $fh;
+                chmod 0755, "$options->{root}/sbin/start-stop-daemon"
+                  or error "cannot chmod start-stop-daemon: $!";
             }
-            move(
-                "$options->{root}/sbin/start-stop-daemon",
-                "$options->{root}/sbin/start-stop-daemon.REAL"
-            ) or error "cannot move start-stop-daemon: $!";
-            open my $fh, '>', "$options->{root}/sbin/start-stop-daemon"
-              or error "cannot open start-stop-daemon: $!";
-            print $fh "#!/bin/sh\n";
-            print $fh "echo \"Warning: Fake start-stop-daemon called, doing"
-              . " nothing\">&2\n";
-            close $fh;
-            chmod 0755, "$options->{root}/sbin/start-stop-daemon"
-              or error "cannot chmod start-stop-daemon: $!";
         }
 
         &{$cmd}();
 
         # cleanup
-        if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
-            move(
-                "$options->{root}/sbin/start-stop-daemon.REAL",
-                "$options->{root}/sbin/start-stop-daemon"
-            ) or error "cannot move start-stop-daemon: $!";
+        if (any { $_ eq 'chroot/start-stop-daemon' } @{ $options->{skip} }) {
+            info "skipping chroot/start-stop-daemon as requested";
+        } else {
+            if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
+                move(
+                    "$options->{root}/sbin/start-stop-daemon.REAL",
+                    "$options->{root}/sbin/start-stop-daemon"
+                ) or error "cannot move start-stop-daemon: $!";
+            }
         }
-        if (-f "$options->{root}/usr/sbin/policy-rc.d") {
-            unlink "$options->{root}/usr/sbin/policy-rc.d"
-              or error "cannot unlink policy-rc.d: $!";
+        if (any { $_ eq 'chroot/policy-rc.d' } @{ $options->{skip} }) {
+            info "skipping chroot/policy-rc.d as requested";
+        } else {
+            if (-f "$options->{root}/usr/sbin/policy-rc.d") {
+                unlink "$options->{root}/usr/sbin/policy-rc.d"
+                  or error "cannot unlink policy-rc.d: $!";
+            }
         }
 
     };
@@ -6764,6 +6782,12 @@ out in B<extract> mode.
 
 Run B<--customize-hook> options and all F<customize*> scripts in B<--hook-dir>.
 This step is not carried out in B<extract> mode.
+
+For each command that is run inside the chroot, B<mmdebstrap> will disable
+running services by temporarily moving F</usr/sbin/policy-rc.d> and
+F</sbin/start-stop-daemon> if they exist. This can be disabled with
+B<--skip=chroot/policy-rc.d> and B<--skip=chroot/start-stop-daemon>,
+respectively.
 
 =item B<cleanup>
 

@@ -264,6 +264,8 @@ Test: not-having-to-install-apt-in-include-because-a-hook-did-it-before
 
 Test: remove-start-stop-daemon-and-policy-rc-d-in-hook
 
+Test: skip-start-stop-daemon-policy-rc
+
 Test: compare-output-with-pre-seeded-var-cache-apt-archives
 Needs-QEMU: true
 Variants: any
