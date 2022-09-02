@@ -3033,10 +3033,31 @@ sub run_cleanup() {
         }
     }
 
+    if (any { $_ eq 'cleanup/run' } @{ $options->{skip} }) {
+        info "skipping cleanup/run as requested";
+    } else {
+        # remove any possible leftovers in /run
+        if (-d "$options->{root}/run") {
+            opendir(my $dh, "$options->{root}/run")
+              or error "Can't opendir($options->{root}/run): $!";
+            while (my $entry = readdir $dh) {
+                # skip the "." and ".." entries
+                next if $entry eq ".";
+                next if $entry eq "..";
+                debug "deleting files in /run: $entry";
+                0 == system(
+                    'rm',                '--interactive=never',
+                    '--recursive',       '--preserve-root',
+                    '--one-file-system', "$options->{root}/run/$entry"
+                ) or error "rm failed: $?";
+            }
+            closedir($dh);
+        }
+    }
     if (any { $_ eq 'cleanup/tmp' } @{ $options->{skip} }) {
         info "skipping cleanup/tmp as requested";
     } else {
-        # remove any possible leftovers in /tmp but warn about it
+        # remove any possible leftovers in /tmp
         if (-d "$options->{root}/tmp") {
             opendir(my $dh, "$options->{root}/tmp")
               or error "Can't opendir($options->{root}/tmp): $!";
@@ -3044,7 +3065,7 @@ sub run_cleanup() {
                 # skip the "." and ".." entries
                 next if $entry eq ".";
                 next if $entry eq "..";
-                warning "deleting files in /tmp: $entry";
+                debug "deleting files in /tmp: $entry";
                 0 == system(
                     'rm',                '--interactive=never',
                     '--recursive',       '--preserve-root',
@@ -6838,6 +6859,8 @@ Performs cleanup tasks, unless B<--skip=cleanup> is used:
 =item * F</var/lib/dbus/machine-id>
 
 =back
+
+=item * Remove everything in F</run> inside the chroot. This can be disabled using B<--skip=cleanup/run>.
 
 =item * Remove everything in F</tmp> inside the chroot. This can be disabled using B<--skip=cleanup/tmp>.
 

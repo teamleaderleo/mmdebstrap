@@ -34,6 +34,9 @@ rm /tmp/debian-debootstrap/var/log/dpkg.log \
 	/tmp/debian-debootstrap/var/log/alternatives.log \
 	/tmp/debian-mm/var/log/bootstrap.log
 
+# clear out /run
+rm -r /tmp/debian-debootstrap/run/*
+
 # debootstrap doesn't clean apt
 rm /tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_main_binary-{{ HOSTARCH }}_Packages \
 	/tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_Release \
