@@ -4708,7 +4708,7 @@ sub main() {
         0 == syscall &SYS_capget, $hdrp, $datap
           or error "capget failed: $!";
         my ($effective, undef) = unpack "LLLLLL", $datap;
-        if (($effective >> $CAP_SYS_ADMIN) & 1 != 1) {
+        if ((($effective >> $CAP_SYS_ADMIN) & 1) != 1) {
             warning
               "cannot mount because CAP_SYS_ADMIN is not in the effective set";
             $options->{canmount} = 0;
