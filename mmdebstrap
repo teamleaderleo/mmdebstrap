@@ -1562,6 +1562,20 @@ sub run_hooks {
     # Store the verbosity of mmdebstrap so that hooks can be just as verbose
     # as the mmdebstrap invocation that called them.
     push @env_opts, ("MMDEBSTRAP_VERBOSITY=" . $verbosity_level);
+    # Store the packages given via --include in an environment variable so that
+    # hooks can, for example, make .deb files available inside the chroot.
+    {
+        my @escaped_includes = @{ $options->{include} };
+        foreach my $incl (@escaped_includes) {
+            # We have to encode commas so that values containing commas can
+            # be stored in the list. Since we encode using percent-encoding
+            # (urlencoding) we also have to encode the percent sign.
+            $incl =~ s/%/%25/g;
+            $incl =~ s/,/%2C/g;
+        }
+        push @env_opts,
+          ("MMDEBSTRAP_INCLUDE=" . (join ",", @escaped_includes));
+    }
 
     my $runner = sub {
         foreach my $script (@{ $options->{"${name}_hook"} }) {
@@ -6684,7 +6698,9 @@ B<TMPDIR>. Furthermore, C<MMDEBSTRAP_MODE> will store the mode set by
 B<--mode>, C<MMDEBSTRAP_HOOK> stores which hook is currently run (setup,
 extract, essential, customize) and C<MMDEBSTRAP_VERBOSITY> stores the numerical
 verbosity level (0 for no output, 1 for normal, 2 for verbose and 3 for debug
-output).
+output). The C<MMDEBSTRAP_INCLUDE> variable stores the list of packages, apt
+patterns or file paths given by the B<--include> option, separated by a comma
+and with commas and percent signs in the option values urlencoded.
 
 In special hooks, the paths inside the chroot are relative to the root
 directory of the chroot.  The path on the outside is relative to current
