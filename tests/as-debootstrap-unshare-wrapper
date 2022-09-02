@@ -20,7 +20,7 @@ tar --xattrs --xattrs-include='*' -C /tmp/debian-debootstrap -xf "cache/debian-u
 # delete the directory
 tar -C /tmp/debian-debootstrap -cf dev1.tar ./dev
 tar -C /tmp/debian-mm -cf dev2.tar ./dev
-cmp dev1.tar dev2.tar
+cmp dev1.tar dev2.tar >&2
 rm dev1.tar dev2.tar
 rm -r /tmp/debian-debootstrap/dev /tmp/debian-mm/dev
 
@@ -47,7 +47,7 @@ rm /tmp/debian-mm/var/cache/apt/archives/lock
 rm /tmp/debian-mm/var/lib/apt/lists/lock
 
 # check if the file content differs
-diff --no-dereference --recursive /tmp/debian-debootstrap /tmp/debian-mm
+diff --no-dereference --recursive /tmp/debian-debootstrap /tmp/debian-mm >&2
 
 # check permissions, ownership, symlink targets, modification times using tar
 # mtimes of directories created by mmdebstrap will differ, thus we equalize them first
@@ -67,7 +67,7 @@ tar --full-time --verbose -tf /tmp/root2.tar > /tmp/root2.tar.list
 # will slightly differ from each other in the sub-second precision (last
 # decimals) so the tarballs will not be identical, so we use diff to compare
 # content and tar to compare attributes
-diff -u /tmp/root1.tar.list /tmp/root2.tar.list
+diff -u /tmp/root1.tar.list /tmp/root2.tar.list >&2
 rm /tmp/root1.tar /tmp/root2.tar /tmp/root1.tar.list /tmp/root2.tar.list
 
 rm /tmp/debian-mm.tar
