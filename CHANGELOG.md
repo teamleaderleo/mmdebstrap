@@ -1,3 +1,18 @@
+1.2.0 (2022-09-05)
+------------------
+
+ - remove proot mode
+ - error out if stdout is an interactive terminal
+ - replace taridshift by tarfilter --idshift
+ - tarfilter: add --transform option
+ - multiple --skip options can be separated by comma or whitespace
+ - also cleanup the contents of /run
+ - support apt patterns and paths with commas and whitespace in --include
+ - hooks: store the values of the --include option in MMDEBSTRAP_INCLUDE
+ - add new --skip options: chroot/start-stop-daemon, chroot/policy-rc.d
+   chroot/mount, chroot/mount/dev, chroot/mount/proc, chroot/mount/sys,
+   cleanup/run
+
 1.1.0 (2022-07-26)
 ----------------
 
