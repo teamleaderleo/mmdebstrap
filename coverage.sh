@@ -2,7 +2,7 @@
 
 set -eu
 
-if [ -e ./mmdebstrap -a -e ./tarfilter -a -e ./coverage.py ]; then
+if [ -e ./mmdebstrap ]; then
 	TMPFILE=$(mktemp)
 	perltidy < ./mmdebstrap > "$TMPFILE"
 	ret=0
@@ -20,9 +20,10 @@ if [ -e ./mmdebstrap -a -e ./tarfilter -a -e ./coverage.py ]; then
 	fi
 
 	perlcritic --severity 4 --verbose 8 ./mmdebstrap
-
-	black --check ./tarfilter ./coverage.py
 fi
+
+[ -e ./tarfilter ] && black --check ./tarfilter
+[ -e ./coverage.py ] && black --check ./coverage.py
 
 mirrordir="./shared/cache/debian"
 
