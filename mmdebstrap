@@ -965,11 +965,11 @@ sub run_apt_download_progress {
 
     if ($verbosity_level >= 3) {
         my @apt_debug_opts = qw(
-            -oDebug::pkgProblemResolver=true
-            -oDebug::pkgDepCache::Marker=1
-            -oDebug::pkgDepCache::AutoInstall=1
-	);
-	push @{ $options->{APT_ARGV} }, @apt_debug_opts;
+          -oDebug::pkgProblemResolver=true
+          -oDebug::pkgDepCache::Marker=1
+          -oDebug::pkgDepCache::AutoInstall=1
+        );
+        push @{ $options->{APT_ARGV} }, @apt_debug_opts;
     }
 
     pipe my $rfh, my $wfh;
@@ -1104,8 +1104,10 @@ sub run_chroot {
                     }
                 } elsif ($type == 3 or $type == 4) {
                     # character/block special
-                    if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
-                        @{ $options->{skip} }) {
+                    if (
+                        any { $_ =~ '^chroot/mount(?:/dev)?$' }
+                        @{ $options->{skip} }
+                    ) {
                         info "skipping chroot/mount/dev as requested";
                     } elsif (!$options->{canmount}) {
                         warning "skipping bind-mounting ./dev/$fname";
@@ -1164,8 +1166,10 @@ sub run_chroot {
                     }
                 } elsif ($type == 5) {
                     # directory
-                    if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
-                        @{ $options->{skip} }) {
+                    if (
+                        any { $_ =~ '^chroot/mount(?:/dev)?$' }
+                        @{ $options->{skip} }
+                    ) {
                         info "skipping chroot/mount/dev as requested";
                     } elsif (!$options->{canmount}) {
                         warning "skipping bind-mounting ./dev/$fname";
@@ -1271,8 +1275,9 @@ sub run_chroot {
         # We can only mount /proc and /sys after extracting the essential
         # set because if we mount it before, then base-files will not be able
         # to extract those
-        if ((any { $_ eq $options->{mode} } ('root', 'unshare'))
-            && (any { $_ =~ '^chroot/mount(?:/sys)?$' } @{ $options->{skip} })) {
+        if (   (any { $_ eq $options->{mode} } ('root', 'unshare'))
+            && (any { $_ =~ '^chroot/mount(?:/sys)?$' } @{ $options->{skip} }))
+        {
             info "skipping chroot/mount/sys as requested";
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !$options->{canmount}) {
@@ -1344,8 +1349,10 @@ sub run_chroot {
         } else {
             error "unknown mode: $options->{mode}";
         }
-        if ((any { $_ eq $options->{mode} } ('root', 'unshare'))
-            && (any { $_ =~ '^chroot/mount(?:/proc)?$' } @{ $options->{skip} })) {
+        if (
+               (any { $_ eq $options->{mode} } ('root', 'unshare'))
+            && (any { $_ =~ '^chroot/mount(?:/proc)?$' } @{ $options->{skip} })
+        ) {
             info "skipping chroot/mount/proc as requested";
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !$options->{canmount}) {
