@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# © 2018 - 2021 Johannes Schauer Marin Rodrigues <josch@mister-muffin.de>
+# © 2018 - 2022 Johannes Schauer Marin Rodrigues <josch@mister-muffin.de>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -6429,8 +6429,8 @@ I<TARGET> without dpkg and apt inside I<TARGET> but using apt and dpkg from the
 machine running B<mmdebstrap>. Maintainer scripts are run without chrooting
 into I<TARGET> and rely on their dependencies being installed on the machine
 running B<mmdebstrap>. Only very few packages support this mode. Namely, as of
-2021, not all essential packages support it, mainly due to missing support in
-debconf. See https://wiki.debian.org/Teams/Dpkg/Spec/InstallBootstrap or the
+2022, not all essential packages support it.  See
+https://wiki.debian.org/Teams/Dpkg/Spec/InstallBootstrap or the
 dpkg-root-support usertag of debian-dpkg@lists.debian.org in the Debian bug
 tracking system. B<WARNING>: if this option is used carelessly with packages
 that do not support C<DPKG_ROOT>, this mode can result in undesired changes to
