@@ -19,7 +19,7 @@ prefix=
 [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && prefix="runuser -u user --"
 [ "{{ MODE }}" = "fakechroot" ] && prefix="$prefix fakechroot fakeroot"
 symlinktarget=/real
-case {{ MODE }} in fakechroot|proot) symlinktarget='$1/real';; esac
+[ "{{ MODE }}" = "fakechroot" ] && symlinktarget='$1/real'
 echo copy-in-setup > /tmp/copy-in-setup
 echo copy-in-essential > /tmp/copy-in-essential
 echo copy-in-customize > /tmp/copy-in-customize

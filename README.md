@@ -34,7 +34,7 @@ Summary:
  - chroot with apt in 11 seconds
  - gzipped tarball with apt is 27M small
  - bit-by-bit reproducible output
- - unprivileged operation using Linux user namespaces, fakechroot or proot
+ - unprivileged operation using Linux user namespaces or fakechroot
  - can operate on filesystems mounted with nodev
  - foreign architecture chroots with qemu-user
  - variant installing only Essential:yes packages and dependencies
@@ -78,9 +78,9 @@ privileges to create a file (the chroot tarball) in one's home directory.
 Thus, mmdebstrap provides multiple options to create a chroot tarball with the
 right permissions **without superuser privileges**. This avoids a whole class
 of bugs like #921815. Depending on what is available, it uses either Linux user
-namespaces, fakechroot or proot.  Debootstrap supports fakechroot but will not
+namespaces or fakechroot. Debootstrap supports fakechroot but will not
 create a tarball with the right permissions by itself. Support for Linux user
-namespaces and proot is missing (see bugs #829134 and #698347, respectively).
+namespaces is missing (see #829134).
 
 When creating a chroot tarball with debootstrap, the temporary chroot directory
 cannot be on a filesystem that has been mounted with nodev. In unprivileged

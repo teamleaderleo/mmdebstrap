@@ -1263,13 +1263,8 @@ sub run_chroot {
                     error "unsupported type: $type";
                 }
             }
-        } elsif (
-            any { $_ eq $options->{mode} }
-            ('proot', 'fakechroot', 'chrootless')
-        ) {
-            # we cannot mount in fakechroot and proot mode
-            # in proot mode we have /dev bind-mounted already through
-            # --bind=/dev
+        } elsif (any { $_ eq $options->{mode} } ('fakechroot', 'chrootless')) {
+            # we cannot mount in fakechroot mode
         } else {
             error "unknown mode: $options->{mode}";
         }
@@ -1344,13 +1339,8 @@ sub run_chroot {
             # type, bad option, bad superblock" error
             0 == system('mount', '-o', 'rbind', '/sys', "$options->{root}/sys")
               or error "mount /sys failed: $?";
-        } elsif (
-            any { $_ eq $options->{mode} }
-            ('proot', 'fakechroot', 'chrootless')
-        ) {
-            # we cannot mount in fakechroot and proot mode
-            # in proot mode we have /proc bind-mounted already through
-            # --bind=/proc
+        } elsif (any { $_ eq $options->{mode} } ('fakechroot', 'chrootless')) {
+            # we cannot mount in fakechroot mode
         } else {
             error "unknown mode: $options->{mode}";
         }
@@ -1422,13 +1412,8 @@ sub run_chroot {
             };
             0 == system('mount', '-t', 'proc', 'proc', "$options->{root}/proc")
               or error "mount /proc failed: $?";
-        } elsif (
-            any { $_ eq $options->{mode} }
-            ('proot', 'fakechroot', 'chrootless')
-        ) {
-            # we cannot mount in fakechroot and proot mode
-            # in proot mode we have /sys bind-mounted already through
-            # --bind=/sys
+        } elsif (any { $_ eq $options->{mode} } ('fakechroot', 'chrootless')) {
+            # we cannot mount in fakechroot mode
         } else {
             error "unknown mode: $options->{mode}";
         }
@@ -1588,13 +1573,11 @@ sub run_hooks {
                 )\ /x
             ) {
                 info "running special hook: $script";
-                if (
-                    any { $_ eq $options->{variant} } ('extract', 'custom')
-                      and any { $_ eq $options->{mode} }
-                    ('fakechroot', 'proot') and $name ne 'setup'
-                ) {
+                if ((any { $_ eq $options->{variant} } ('extract', 'custom'))
+                    and $options->{mode} eq 'fakechroot'
+                    and $name ne 'setup') {
                     info "the copy-in, copy-out, tar-in and tar-out commands"
-                      . " in fakechroot mode or proot mode might fail in"
+                      . " in fakechroot mode might fail in"
                       . " extract and custom variants because there might be"
                       . " no tar inside the chroot";
                 }
@@ -2120,14 +2103,14 @@ sub run_setup() {
         copy($tmpfile, \*STDERR);
     }
 
-    if (none { $_ eq $options->{mode} } ('fakechroot', 'proot')) {
+    if ($options->{mode} ne 'fakechroot') {
         # Apt dropping privileges to another user than root is not useful in
-        # fakechroot and proot mode because all users are faked and thus there
-        # is no real privilege difference anyways. We could set
-        # APT::Sandbox::User "root" in fakechroot and proot mode but we don't
-        # because if we would, then /var/cache/apt/archives/partial/ and
-        # /var/lib/apt/lists/partial/ would not be owned by the _apt user
-        # if mmdebstrap was run in fakechroot or proot mode.
+        # fakechroot mode because all users are faked and thus there is no real
+        # privilege difference anyways. We could set APT::Sandbox::User "root"
+        # in fakechroot mode but we don't because if we would, then
+        # /var/cache/apt/archives/partial/ and /var/lib/apt/lists/partial/
+        # would not be owned by the _apt user if mmdebstrap was run in
+        # fakechroot mode.
         #
         # when apt-get update is run by the root user, then apt will attempt to
         # drop privileges to the _apt user. This will fail if the _apt user
@@ -2539,29 +2522,15 @@ sub run_prepare {
     # make sure that APT_CONFIG and TMPDIR are not set when executing
     # anything inside the chroot
     my @chrootcmd = ('env', '--unset=APT_CONFIG', '--unset=TMPDIR');
-    if ($options->{mode} eq 'proot') {
-        push @chrootcmd,
-          (
-            'proot',       '--root-id',
-            '--bind=/dev', '--bind=/proc',
-            '--bind=/sys', "--rootfs=$options->{root}",
-            '--cwd=/'
-          );
-    } elsif (
-        any { $_ eq $options->{mode} }
-        ('root', 'unshare', 'fakechroot')
-    ) {
+    if (any { $_ eq $options->{mode} } ('root', 'unshare', 'fakechroot')) {
         push @chrootcmd, ('chroot', $options->{root});
     } else {
         error "unknown mode: $options->{mode}";
     }
 
-    # copy qemu-user-static binary into chroot or setup proot with
-    # --qemu
+    # copy qemu-user-static binary into chroot
     if (defined $options->{qemu}) {
-        if ($options->{mode} eq 'proot') {
-            push @chrootcmd, "--qemu=qemu-$options->{qemu}";
-        } elsif ($options->{mode} eq 'fakechroot') {
+        if ($options->{mode} eq 'fakechroot') {
             # Make sure that the fakeroot and fakechroot shared
             # libraries exist for the right architecture
             open my $fh, '-|', 'dpkg-architecture', '-a',
@@ -2647,29 +2616,21 @@ sub run_prepare {
     }
 
     # some versions of coreutils use the renameat2 system call in mv.
-    # This breaks certain versions of fakechroot and proot. Here we do
+    # This breaks certain versions of fakechroot. Here we do
     # a sanity check and warn the user in case things might break.
-    if (any { $_ eq $options->{mode} } ('fakechroot', 'proot')
-          and -e "$options->{root}/bin/mv") {
+    if ($options->{mode} eq 'fakechroot'
+        and -e "$options->{root}/bin/mv") {
         mkdir "$options->{root}/000-move-me"
           or error "cannot create directory: $!";
         my $ret = system @chrootcmd, '/bin/mv', '/000-move-me',
           '/001-delete-me';
         if ($ret != 0) {
-            if ($options->{mode} eq 'proot') {
-                info "the /bin/mv binary inside the chroot doesn't"
-                  . " work under proot";
-                info "this is likely due to missing support for"
-                  . " renameat2 in proot";
-                info "see https://github.com/proot-me/PRoot/issues/147";
-            } else {
-                info "the /bin/mv binary inside the chroot doesn't"
-                  . " work under fakechroot";
-                info "with certain versions of coreutils and glibc,"
-                  . " this is due to missing support for renameat2 in"
-                  . " fakechroot";
-                info "see https://github.com/dex4er/fakechroot/issues/60";
-            }
+            info "the /bin/mv binary inside the chroot doesn't"
+              . " work under fakechroot";
+            info "with certain versions of coreutils and glibc,"
+              . " this is due to missing support for renameat2 in"
+              . " fakechroot";
+            info "see https://github.com/dex4er/fakechroot/issues/60";
             info "expect package post installation scripts not to work";
             rmdir "$options->{root}/000-move-me"
               or error "cannot rmdir: $!";
@@ -2739,10 +2700,8 @@ sub run_essential() {
                     '--force-depends'
                 ],
                 PKGS => [map { "$options->{root}/$_" } @{$essential_pkgs}] });
-    } elsif (
-        any { $_ eq $options->{mode} }
-        ('root', 'unshare', 'fakechroot', 'proot')
-    ) {
+    } elsif (any { $_ eq $options->{mode} } ('root', 'unshare', 'fakechroot'))
+    {
         # install the extracted packages properly
         # we need --force-depends because dpkg does not take Pre-Depends
         # into account and thus doesn't install them in the right order
@@ -2862,10 +2821,8 @@ sub run_install() {
                 PKGS => [@pkgs_to_install],
             });
         }
-    } elsif (
-        any { $_ eq $options->{mode} }
-        ('root', 'unshare', 'fakechroot', 'proot')
-    ) {
+    } elsif (any { $_ eq $options->{mode} } ('root', 'unshare', 'fakechroot'))
+    {
         if ($options->{variant} ne 'custom'
             and scalar @pkgs_to_install > 0) {
             # Advantage of running apt on the outside instead of inside the
@@ -3172,26 +3129,12 @@ sub hookhelper {
               . 'delete=atime,delete=ctime'
         );
         if ($hook eq 'setup') {
-            if ($mode eq 'proot') {
-                # since we cannot run tar inside the chroot under proot during
-                # the setup hook because the chroot is empty, we have to run
-                # tar from the outside, which leads to all files being owned
-                # by the user running mmdebstrap. To let the ownership
-                # information not be completely off, we force all files be
-                # owned by the root user.
-                push @tarcmd, '--owner=0', '--group=0';
-            }
         } elsif (any { $_ eq $hook } ('extract', 'essential', 'customize')) {
             if ($mode eq 'fakechroot') {
                 # Fakechroot requires tar to run inside the chroot or
                 # otherwise absolute symlinks will include the path to the
                 # root directory
                 push @cmdprefix, 'chroot', $root;
-            } elsif ($mode eq 'proot') {
-                # proot requires tar to run inside proot or otherwise
-                # permissions will be completely off
-                push @cmdprefix, 'proot', '--root-id', "--rootfs=$root",
-                  '--cwd=/', "--qemu=$qemu";
             } elsif (any { $_ eq $mode } ('root', 'chrootless', 'unshare')) {
                 # not chrooting in this case
             } else {
@@ -3222,7 +3165,7 @@ sub hookhelper {
                     any { $_ eq $hook }
                     ('extract', 'essential', 'customize')
                 ) {
-                    if (any { $_ eq $mode } ('fakechroot', 'proot')) {
+                    if ($mode eq 'fakechroot') {
                         # tar will run inside the chroot
                         $directory = $outpath;
                     } elsif (
@@ -3237,10 +3180,10 @@ sub hookhelper {
                     error "unknown hook: $hook";
                 }
 
-                # if chrooted_realpath was used and if neither fakechroot or
-                # proot were used (absolute symlinks will be broken) we can
+                # if chrooted_realpath was used and if fakechroot
+                # was used (absolute symlinks will be broken) we can
                 # check and potentially fail early if the target does not exist
-                if (none { $_ eq $mode } ('fakechroot', 'proot')) {
+                if ($mode ne 'fakechroot') {
                     my $dirtocheck = $directory;
                     if ($command eq 'upload') {
                         # check the parent directory instead
@@ -3369,7 +3312,7 @@ sub hookhelper {
                     any { $_ eq $hook }
                     ('extract', 'essential', 'customize')
                 ) {
-                    if (any { $_ eq $mode } ('fakechroot', 'proot')) {
+                    if ($mode eq 'fakechroot') {
                         # tar will run inside the chroot
                         $directory = $ARGV[$i];
                     } elsif (
@@ -3384,10 +3327,10 @@ sub hookhelper {
                     error "unknown hook: $hook";
                 }
 
-                # if chrooted_realpath was used and if neither fakechroot or
-                # proot were used (absolute symlinks will be broken) we can
+                # if chrooted_realpath was used and if fakechroot
+                # was used (absolute symlinks will be broken) we can
                 # check and potentially fail early if the source does not exist
-                if (none { $_ eq $mode } ('fakechroot', 'proot')) {
+                if ($mode ne 'fakechroot') {
                     if (!-e $directory) {
                         error "path does not exist: $directory";
                     }
@@ -4506,8 +4449,7 @@ sub main() {
     if ($options->{mode} eq 'sudo') {
         $options->{mode} = 'root';
     }
-    my @valid_modes
-      = ('auto', 'root', 'unshare', 'fakechroot', 'proot', 'chrootless');
+    my @valid_modes = ('auto', 'root', 'unshare', 'fakechroot', 'chrootless');
     if (none { $_ eq $options->{mode} } @valid_modes) {
         error "invalid mode. Choose from " . (join ', ', @valid_modes);
     }
@@ -4631,9 +4573,6 @@ sub main() {
                 @prefix = ($EXECUTABLE_NAME, '-MDevel::Cover=-silent,-nogcov');
             }
             exec 'fakechroot', 'fakeroot', @prefix, $PROGRAM_NAME, @ARGVORIG;
-        } elsif (can_execute 'proot') {
-            # and lastly, proot
-            $options->{mode} = 'proot';
         } else {
             error "unable to pick chroot mode automatically";
         }
@@ -4641,10 +4580,6 @@ sub main() {
     } elsif ($options->{mode} eq 'root') {
         if ($EFFECTIVE_USER_ID != 0) {
             error "need to be root";
-        }
-    } elsif ($options->{mode} eq 'proot') {
-        if (!can_execute 'proot') {
-            error "need working proot binary";
         }
     } elsif ($options->{mode} eq 'fakechroot') {
         if (&{$check_fakechroot_running}()) {
@@ -5376,10 +5311,10 @@ sub main() {
 
     if (any { $_ eq $format } ('tar', 'squashfs', 'ext2', 'null')) {
         if ($format ne 'null') {
-            if (      any { $_ eq $options->{variant} } ('extract', 'custom')
-                  and any { $_ eq $options->{mode} } ('fakechroot', 'proot')) {
+            if (any { $_ eq $options->{variant} } ('extract', 'custom')
+                  and $options->{mode} eq 'fakechroot') {
                 info "creating a tarball or squashfs image or ext2 image in"
-                  . " fakechroot mode or proot mode might fail in extract and"
+                  . " fakechroot mode might fail in extract and"
                   . " custom variants because there might be no tar inside the"
                   . " chroot";
             }
@@ -5517,7 +5452,7 @@ sub main() {
         $? == 0 or error "havemknod failed";
     } elsif (
         any { $_ eq $options->{mode} }
-        ('root', 'fakechroot', 'proot', 'chrootless')
+        ('root', 'fakechroot', 'chrootless')
     ) {
         $options->{havemknod} = havemknod($options->{root});
     } else {
@@ -5678,7 +5613,7 @@ sub main() {
         );
     } elsif (
         any { $_ eq $options->{mode} }
-        ('root', 'fakechroot', 'proot', 'chrootless')
+        ('root', 'fakechroot', 'chrootless')
     ) {
         $pid = fork() // error "fork() failed: $!";
         if ($pid == 0) {
@@ -5740,18 +5675,6 @@ sub main() {
                     # root directory
                     0 == system('chroot', $options->{root}, 'tar',
                         @taropts, '-C', '/', '.')
-                      or error "tar failed: $?";
-                } elsif ($options->{mode} eq 'proot') {
-                    # proot requires tar to run inside proot or otherwise
-                    # permissions will be completely off
-                    my @qemuopt = ();
-                    if (defined $options->{qemu}) {
-                        push @qemuopt, "--qemu=qemu-$options->{qemu}";
-                        push @taropts, "--exclude=./host-rootfs";
-                    }
-                    0 == system('proot', '--root-id',
-                        "--rootfs=$options->{root}", '--cwd=/', @qemuopt,
-                        'tar', @taropts, '-C', '/', '.')
                       or error "tar failed: $?";
                 } elsif (
                     any { $_ eq $options->{mode} }
@@ -5990,15 +5913,11 @@ sub main() {
             }
         } elsif (
             any { $_ eq $options->{mode} }
-            ('root', 'fakechroot', 'proot', 'chrootless')
+            ('root', 'fakechroot', 'chrootless')
         ) {
             # without unshare, we use the system's rm to recursively remove the
             # temporary directory just to make sure that we do not accidentally
             # remove more than we should by using --one-file-system.
-            #
-            # --interactive=never is needed when in proot mode, the
-            # write-protected file /apt/apt.conf.d/01autoremove-kernels is to
-            # be removed.
             0 == system('rm', '--interactive=never', '--recursive',
                 '--preserve-root', '--one-file-system', $options->{root})
               or error "rm failed: $?";
@@ -6119,7 +6038,7 @@ B<debootstrap>. See the section B<VARIANTS> for more information.
 
 Choose how to perform the chroot operation and create a filesystem with
 ownership information different from the current user. Valid mode I<name>s are
-B<auto>, B<sudo>, B<root>, B<unshare>, B<fakeroot>, B<fakechroot>, B<proot> and
+B<auto>, B<sudo>, B<root>, B<unshare>, B<fakeroot>, B<fakechroot> and
 B<chrootless>.  The default mode is B<auto>. See the section B<MODES> for more
 information.
 
@@ -6444,8 +6363,7 @@ This mode automatically selects a fitting mode. If the effective user id is the
 one of the superuser, then the B<sudo> mode is chosen. Otherwise, the
 B<unshare> mode is picked if the system has the sysctl
 C<kernel.unprivileged_userns_clone> set to C<1>. Should that not be the case
-and if the fakechroot binary exists, the B<fakechroot> mode is chosen. Lastly,
-the B<proot> mode is used if the proot binary exists.
+and if the fakechroot binary exists, the B<fakechroot> mode is chosen.
 
 =item B<sudo>, B<root>
 
@@ -6496,15 +6414,6 @@ maintainer scripts are unable to handle C<LD_PRELOAD> correctly like the
 package B<initramfs-tools> until version 0.132. This mode will also not work
 with a different libc inside the chroot than on the outside. See the section
 B<LIMITATIONS> in B<fakechroot(1)>.
-
-=item B<proot>
-
-This mode will carry out all calls to chroot with proot instead. Since
-ownership information is only retained while proot is still running, this will
-lead to wrong ownership information in the final directory (everything will be
-owned by the user that executed B<mmdebstrap>) and tarball (everything will be
-owned by the root user). Extended attributes are not retained. This mode is
-useful if you plan to use the chroot with proot.
 
 =item B<chrootless>
 
@@ -6707,12 +6616,11 @@ directory of the chroot.  The path on the outside is relative to current
 directory of the original B<mmdebstrap> invocation. The path inside the chroot
 must already exist. Paths outside the chroot are created as necessary.
 
-In B<fakechroot> and B<proot> mode, C<tar>, or C<sh> and C<cat> have to be run
-inside the chroot or otherwise, symlinks will be wrongly resolved and/or
-permissions will be off. This means that the special hooks might fail in
-B<fakechroot> and B<proot> mode for the B<setup> hook or for the B<extract> and
-B<custom> variants if no C<tar> or C<sh> and C<cat> is available inside the
-chroot.
+In B<fakechroot> mode, C<tar>, or C<sh> and C<cat> have to be run inside the
+chroot or otherwise, symlinks will be wrongly resolved and/or permissions will
+be off. This means that the special hooks might fail in B<fakechroot> mode for
+the B<setup> hook or for the B<extract> and B<custom> variants if no C<tar> or
+C<sh> and C<cat> is available inside the chroot.
 
 =over 8
 
@@ -7216,7 +7124,7 @@ This section lists some differences to debootstrap.
 
 =item * Default mirrors for stable releases include updates and security mirror
 
-=item * Multiple ways to operate as non-root: fakechroot, proot, unshare
+=item * Multiple ways to operate as non-root: fakechroot and unshare
 
 =item * twice as fast
 
