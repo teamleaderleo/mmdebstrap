@@ -4282,7 +4282,7 @@ sub main() {
             } elsif ($opt_value =~ /^\.?\.?\//) {
                 # Treat option as a single path name and don't split by comma
                 # or whitespace -- append the normalized path.
-                push @{ $options->{include} }, sanitize_path($opt_value);
+                push @{ $options->{include} }, &{$sanitize_path}($opt_value);
             } else {
                 for my $pkg (split /[,\s]+/, $opt_value) {
                     # strip leading and trailing whitespace
@@ -4294,7 +4294,7 @@ sub main() {
                     # Make paths canonical absolute paths, resolve symlinks
                     # and check if it's an existing file.
                     if ($pkg =~ /^\.?\.?\//) {
-                        $pkg = sanitize_path($pkg);
+                        $pkg = &{$sanitize_path}($pkg);
                     }
                     push @{ $options->{include} }, $pkg;
                 }

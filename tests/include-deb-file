@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -eu
+export LC_ALL=C.UTF-8
+
+{{ CMD }} --variant=apt \
+	--customize-hook='mkdir "$1"/tmp/apt' \
+	--customize-hook='chroot "$1" env --chdir=/tmp/apt apt-get download busybox' \
+	--customize-hook='copy-out /tmp/apt /tmp' \
+	{{ DIST }} /dev/null {{ MIRROR }}
+pkg="$(find /tmp/apt -type f)"
+# some sanity checks
+[ -f "$pkg" ]
+case $pkg in
+	/tmp/apt/busybox*_{{ HOSTARCH }}.deb) : ;;
+	*) exit 1;;
+esac
+# now try to install that package
+{{ CMD }} --variant=apt --include="$pkg" \
+	--customize-hook='chroot "$1" dpkg-query -W -f="\${Status}\n" busybox | grep "^install ok installed$"' \
+	{{ DIST }} /dev/null {{ MIRROR }}

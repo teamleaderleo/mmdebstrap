@@ -330,3 +330,5 @@ Needs-QEMU: true
 Test: error-if-stdout-is-tty
 
 Test: variant-custom-timeout
+
+Test: include-deb-file
