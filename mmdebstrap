@@ -3022,6 +3022,9 @@ sub run_cleanup() {
                 # skip the "." and ".." entries
                 next if $entry eq ".";
                 next if $entry eq "..";
+                # skip deleting /run/lock as /var/lock is a symlink to it
+                # according to Debian policy §9.1.4
+                next if $entry eq "lock";
                 debug "deleting files in /run: $entry";
                 0 == system(
                     'rm',                '--interactive=never',
