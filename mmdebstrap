@@ -5011,6 +5011,10 @@ sub main() {
                     0 == system(@gpgcmd, '--update-trustdb')
                       or error "gpg failed to initialize trustdb:: $?";
                 }
+                if (!-d $options->{apttrustedparts}) {
+                    warning "$options->{apttrustedparts} doesn't exist";
+                    last;
+                }
                 # find all the fingerprints of the keys apt currently
                 # knows about
                 my @keyrings = ();
