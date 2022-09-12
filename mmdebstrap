@@ -4001,6 +4001,7 @@ sub get_sourceslist_by_suite {
             variants() { :; };
             keyring() { :; };
             doing_variant() { false; };
+            info() { fmt="$2"; shift; shift; printf "I: $fmt\n" "$@" >&2; };
             . /usr/share/debootstrap/scripts/gutsy;';
             open my $fh, '-|', 'env', "ARCH=$arch", "SUITE=$suite",
               'sh', '-c', $script // last;
