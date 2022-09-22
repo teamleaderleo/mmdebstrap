@@ -1858,18 +1858,14 @@ sub run_setup() {
         close $fh;
     }
 
-    # we create /var/lib/dpkg/arch inside the chroot either if there is more
-    # than the native architecture in the chroot or if chrootless mode is
-    # used to create a chroot of a different architecture than the native
-    # architecture outside the chroot.
+    # In theory, /var/lib/dpkg/arch is only useful if there are foreign
+    # architectures configured or if the architecture of a chrootless chroot
+    # is different from the native architecture outside the chroot.
+    # We nevertheless always add /var/lib/dpkg/arch to make a chroot built the
+    # normal way bit-by-bit identical to a foreign arch chroot built in
+    # chrootless mode.
     chomp(my $hostarch = `dpkg --print-architecture`);
-    if (
-        (!-e "$options->{root}/var/lib/dpkg/arch")
-        and (
-            scalar @{ $options->{foreignarchs} } > 0
-            or (    $options->{mode} eq 'chrootless'
-                and $hostarch ne $options->{nativearch}))
-    ) {
+    if ((!-e "$options->{root}/var/lib/dpkg/arch")) {
         open my $fh, '>', "$options->{root}/var/lib/dpkg/arch"
           or error "cannot open /var/lib/dpkg/arch: $!";
         print $fh "$options->{nativearch}\n";
