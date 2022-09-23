@@ -6946,8 +6946,9 @@ Create a bootable USB Stick that boots into a full Debian desktop:
     $ guestfish -N debian-unstable.img=disk:8G -- \
         part-disk /dev/sda mbr : \
         part-set-bootable /dev/sda 1 true : \
+        mkfs ext4 /dev/sda1 : \
         set-label /dev/sda1 rootfs : \
-        mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
+        mount /dev/sda1 / : \
         tar-in debian-unstable.tar / xattrs:true : \
         upload /usr/lib/EXTLINUX/mbr.bin /boot/mbr.bin : \
         copy-file-to-device /boot/mbr.bin /dev/sda size:440 : \
@@ -6961,8 +6962,9 @@ On architectures without extlinux you can also boot using grub2:
     $ guestfish -N debian-unstable.img=disk:2G -- \
         part-disk /dev/sda mbr : \
         part-set-bootable /dev/sda 1 true : \
+        mkfs ext4 /dev/sda1 : \
         set-label /dev/sda1 rootfs : \
-        mkfs ext4 /dev/sda1 : mount /dev/sda1 / : \
+        mount /dev/sda1 / : \
         tar-in fs.tar / xattrs:true : \
         command "grub-install /dev/sda" : \
         command update-grub : \
