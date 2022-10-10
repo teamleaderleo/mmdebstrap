@@ -3002,7 +3002,6 @@ sub run_cleanup() {
               or error "cannot unlink /etc/machine-id: $!";
             open my $fh, '>', "$options->{root}/etc/machine-id"
               or error "failed to open(): $!";
-            print $fh "uninitialized\n";
             close $fh;
         }
     }
@@ -6823,7 +6822,7 @@ Performs cleanup tasks, unless B<--skip=cleanup> is used:
 
 =item * Remove all files that were put into the chroot for setup purposes, like F</etc/apt/apt.conf.d/00mmdebstrap>, the temporary apt config and the qemu-user-static binary. This can be disabled using B<--skip=cleanup/mmdebstrap>.
 
-=item * Remove files that make the result unreproducible and write "uninitialized" to /etc/machine-id if it exists. This can be disabled using B<--skip=cleanup/reproducible>. Note that this will not remove files that make the result unreproducible on machines with differing F</etc/resolv.conf> or F</etc/hostname>. Use a B<--customize-hook> to make those two files reproducible across multiple hosts. See section C<SOURCE_DATE_EPOCH> for more information. The following files will be removed:
+=item * Remove files that make the result unreproducible and write the empty string to /etc/machine-id if it exists. This can be disabled using B<--skip=cleanup/reproducible>. Note that this will not remove files that make the result unreproducible on machines with differing F</etc/resolv.conf> or F</etc/hostname>. Use a B<--customize-hook> to make those two files reproducible across multiple hosts. See section C<SOURCE_DATE_EPOCH> for more information. The following files will be removed:
 
 =over 4
 
