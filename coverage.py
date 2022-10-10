@@ -292,8 +292,11 @@ def main():
                 print(f"    {t}", file=sys.stderr)
     if failed:
         print("failed %d:" % len(failed), file=sys.stderr)
-        for t in failed:
-            print(f"    {t}", file=sys.stderr)
+        for name, dist, mode, variant, fmt in failed:
+            print(
+                f"    {name} --dist={dist} --mode={mode} --variant={variant}",
+                file=sys.stderr,
+            )
         exit(1)
 
 
