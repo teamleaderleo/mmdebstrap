@@ -101,6 +101,11 @@ def main():
         metavar="variant",
         help=f"only run tests with this variant (Default = {default_variant})",
     )
+    parser.add_argument(
+        "--format",
+        metavar="format",
+        help=f"only run tests with this format (Default = {default_format})",
+    )
     args = parser.parse_args()
 
     # copy over files from git or as distributed
@@ -288,6 +293,9 @@ def main():
         if args.variant and args.variant != variant:
             print(f"skipping because of --variant={args.variant}", file=sys.stderr)
             continue
+        if args.format and args.format != fmt:
+            print(f"skipping because of --format={args.format}", file=sys.stderr)
+            continue
         proc = subprocess.Popen(argv)
         try:
             proc.wait()
@@ -320,7 +328,7 @@ def main():
         print("failed %d:" % len(failed), file=sys.stderr)
         for name, dist, mode, variant, fmt in failed:
             print(
-                f"    {name} --dist={dist} --mode={mode} --variant={variant}",
+                f"    {name} --dist={dist} --mode={mode} --variant={variant} --format={fmt}",
                 file=sys.stderr,
             )
         exit(1)
