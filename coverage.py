@@ -128,28 +128,44 @@ def main():
             if dists == "any":
                 dists = all_dists
             elif dists == "default":
-                dists = [default_dist]
+                print(
+                    f"Setting Dists to default in Test {name} is redundant",
+                    file=sys.stderr,
+                )
+                exit(1)
             else:
                 dists = dists.split()
             modes = test.get("Modes", default_mode)
             if modes == "any":
                 modes = all_modes
             elif modes == "default":
-                modes = [default_mode]
+                print(
+                    f"Setting Modes to default in Test {name} is redundant",
+                    file=sys.stderr,
+                )
+                exit(1)
             else:
                 modes = modes.split()
             variants = test.get("Variants", default_variant)
             if variants == "any":
                 variants = all_variants
             elif variants == "default":
-                variants = [default_variant]
+                print(
+                    f"Setting Variants to default in Test {name} is redundant",
+                    file=sys.stderr,
+                )
+                exit(1)
             else:
                 variants = variants.split()
             formats = test.get("Formats", default_format)
             if formats == "any":
                 formats = all_formats
             elif formats == "default":
-                formats = [default_format]
+                print(
+                    f"Setting Formats to default in Test {name} is redundant",
+                    file=sys.stderr,
+                )
+                exit(1)
             else:
                 formats = formats.split()
             for dist in dists:
