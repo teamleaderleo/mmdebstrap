@@ -86,10 +86,20 @@ def main():
         default=0,
         help="exit after first num failures or errors.",
     )
-    parser.add_argument("--mode", metavar="mode", help="only run tests with this mode")
-    parser.add_argument("--dist", metavar="dist", help="only run tests with this dist")
     parser.add_argument(
-        "--variant", metavar="variant", help="only run tests with this variant"
+        "--mode",
+        metavar="mode",
+        help=f"only run tests with this mode (Default = {default_mode})",
+    )
+    parser.add_argument(
+        "--dist",
+        metavar="dist",
+        help=f"only run tests with this dist (Default = {default_dist})",
+    )
+    parser.add_argument(
+        "--variant",
+        metavar="variant",
+        help=f"only run tests with this variant (Default = {default_variant})",
     )
     args = parser.parse_args()
 
