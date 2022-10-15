@@ -10,6 +10,7 @@ import argparse
 import time
 from datetime import timedelta
 from collections import defaultdict
+from itertools import product
 
 have_qemu = os.getenv("HAVE_QEMU", "yes") == "yes"
 have_unshare = os.getenv("HAVE_UNSHARE", "yes") == "yes"
@@ -64,6 +65,58 @@ def skip(condition, dist, mode, variant, fmt):
         if eval(line):
             return line.strip()
     return ""
+
+
+def parse_config(confname):
+    config_dict = defaultdict(dict)
+    config_order = list()
+    all_vals = {
+        "Dists": all_dists,
+        "Modes": all_modes,
+        "Variants": all_variants,
+        "Formats": all_formats,
+    }
+    with open(confname) as f:
+        for test in Deb822.iter_paragraphs(f):
+            if "Test" not in test.keys():
+                print("Test without name", file=sys.stderr)
+                exit(1)
+            name = test["Test"]
+            config_order.append(name)
+            for k in test.keys():
+                v = test[k]
+                if k not in [
+                    "Test",
+                    "Dists",
+                    "Modes",
+                    "Variants",
+                    "Formats",
+                    "Skip-If",
+                    "Needs-QEMU",
+                    "Needs-Root",
+                ]:
+                    print(f"Unknown field name {k} in test {name}")
+                    exit(1)
+                if k in all_vals.keys():
+                    if v == "default":
+                        print(
+                            f"Setting {k} to default in Test {name} is redundant",
+                            file=sys.stderr,
+                        )
+                        exit(1)
+                    if v == "any":
+                        v = all_vals[k]
+                    else:
+                        # else, split the value by whitespace
+                        v = v.split()
+                        for i in v:
+                            if i not in all_vals[k]:
+                                print(
+                                    f"{i} is not a valid value for {k}", file=sys.stderr
+                                )
+                                exit(1)
+                config_dict[name][k] = v
+    return config_order, config_dict
 
 
 def main():
@@ -135,78 +188,38 @@ def main():
             "/usr/share/mmdebstrap/hooks", "shared/hooks", dirs_exist_ok=True
         )
 
+    # parse coverage.txt
+    config_order, config_dict = parse_config("coverage.txt")
+
+    # produce the list of tests using the cartesian product of all allowed
+    # dists, modes, variants and formats of a given test
     tests = []
-    with open("coverage.txt") as f:
-        for test in Deb822.iter_paragraphs(f):
-            name = test["Test"]
-            dists = test.get("Dists", default_dist)
-            if dists == "any":
-                dists = all_dists
-            elif dists == "default":
-                print(
-                    f"Setting Dists to default in Test {name} is redundant",
-                    file=sys.stderr,
-                )
-                exit(1)
+    for name in config_order:
+        test = config_dict[name]
+        for dist, mode, variant, fmt in product(
+            test.get("Dists", [default_dist]),
+            test.get("Modes", [default_mode]),
+            test.get("Variants", [default_variant]),
+            test.get("Formats", [default_format]),
+        ):
+            skipreason = skip(test.get("Skip-If"), dist, mode, variant, fmt)
+            if skipreason:
+                tt = ("skip", skipreason)
+            elif have_qemu:
+                tt = "qemu"
+            elif test.get("Needs-QEMU", "false") == "true":
+                tt = ("skip", "test needs QEMU")
+            elif test.get("Needs-Root", "false") == "true":
+                tt = "sudo"
+            elif mode == "auto" and not have_unshare:
+                tt = "sudo"
+            elif mode == "root":
+                tt = "sudo"
+            elif mode == "unshare" and not have_unshare:
+                tt = ("skip", "test needs unshare")
             else:
-                dists = dists.split()
-            modes = test.get("Modes", default_mode)
-            if modes == "any":
-                modes = all_modes
-            elif modes == "default":
-                print(
-                    f"Setting Modes to default in Test {name} is redundant",
-                    file=sys.stderr,
-                )
-                exit(1)
-            else:
-                modes = modes.split()
-            variants = test.get("Variants", default_variant)
-            if variants == "any":
-                variants = all_variants
-            elif variants == "default":
-                print(
-                    f"Setting Variants to default in Test {name} is redundant",
-                    file=sys.stderr,
-                )
-                exit(1)
-            else:
-                variants = variants.split()
-            formats = test.get("Formats", default_format)
-            if formats == "any":
-                formats = all_formats
-            elif formats == "default":
-                print(
-                    f"Setting Formats to default in Test {name} is redundant",
-                    file=sys.stderr,
-                )
-                exit(1)
-            else:
-                formats = formats.split()
-            for dist in dists:
-                for mode in modes:
-                    for variant in variants:
-                        for fmt in formats:
-                            skipreason = skip(
-                                test.get("Skip-If"), dist, mode, variant, fmt
-                            )
-                            if skipreason:
-                                tt = ("skip", skipreason)
-                            elif have_qemu:
-                                tt = "qemu"
-                            elif test.get("Needs-QEMU", "false") == "true":
-                                tt = ("skip", "test needs QEMU")
-                            elif test.get("Needs-Root", "false") == "true":
-                                tt = "sudo"
-                            elif mode == "auto" and not have_unshare:
-                                tt = "sudo"
-                            elif mode == "root":
-                                tt = "sudo"
-                            elif mode == "unshare" and not have_unshare:
-                                tt = ("skip", "test needs unshare")
-                            else:
-                                tt = "null"
-                            tests.append((tt, name, dist, mode, variant, fmt))
+                tt = "null"
+            tests.append((tt, name, dist, mode, variant, fmt))
 
     torun = []
     num_tests = len(tests)
