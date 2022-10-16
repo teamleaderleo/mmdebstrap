@@ -34,7 +34,8 @@ use File::Temp qw(tempfile tempdir);
 use File::Basename;
 use File::Find;
 use Cwd qw(abs_path getcwd);
-require "syscall.ph";    ## no critic (Modules::RequireBarewordIncludes)
+require "syscall.ph";      ## no critic (Modules::RequireBarewordIncludes)
+require "sys/ioctl.ph";    ## no critic (Modules::RequireBarewordIncludes)
 use Fcntl qw(S_IFCHR S_IFBLK FD_CLOEXEC F_GETFD F_SETFD);
 use List::Util qw(any none);
 use POSIX
@@ -694,30 +695,87 @@ sub havemknod {
     return $havemknod;
 }
 
+# inspired by /usr/share/perl/5.34/pod/perlfaq8.pod
+sub terminal_width {
+    if (!stderr_is_tty()) {
+        return -1;
+    }
+    if (!defined &TIOCGWINSZ) {
+        return -1;
+    }
+    if (!-e "/dev/tty") {
+        return -1;
+    }
+    my $tty_fh;
+    if (!open($tty_fh, "+<", "/dev/tty")) {
+        return -1;
+    }
+    my $winsize = '';
+    if (!ioctl($tty_fh, &TIOCGWINSZ, $winsize)) {
+        return -1;
+    }
+    my (undef, $col, undef, undef) = unpack('S4', $winsize);
+    return $col;
+}
+
+# Prints the current status, the percentage and a progress bar on STDERR if
+# it is an interactive tty and if verbosity is set to 1.
+#
+#    * first 12 chars: status
+#    * following 7 chars: percentage
+#    * progress bar until 79 chars are filled
 sub print_progress {
     if ($verbosity_level != 1) {
         return;
     }
-    my $perc = shift;
     if (!stderr_is_tty()) {
         return;
     }
+    my $perc         = shift;
+    my $status       = shift;
+    my $len_status   = 12;
+    my $len_perc     = 7;
+    my $len_prog_min = 10;
+    my $len_prog_max = 60;
+    my $twidth       = terminal_width();
+
+    if ($twidth <= $len_status) {
+        return;
+    }
+    # \e[2K clears everything on the current line (i.e. the progress bar)
+    print STDERR "\e[2K";
     if ($perc eq "done") {
-        # \e[2K clears everything on the current line (i.e. the progress bar)
-        print STDERR "\e[2Kdone\n";
+        print STDERR "done\n";
+        return;
+    }
+    if (defined $status) {
+        printf STDERR "%*s", -$len_status, "$status:";
+    } else {
+        print STDERR (" " x $len_status);
+    }
+    if ($twidth <= $len_status + $len_perc) {
+        print STDERR "\r";
         return;
     }
     if ($perc >= 100) {
         $perc = 100;
     }
-    my $width = 50;
-    my $num_x = int($perc * $width / 100);
-    my $bar   = '=' x $num_x;
-    if ($num_x != $width) {
-        $bar .= '>';
-        $bar .= ' ' x ($width - $num_x - 1);
+    printf STDERR "%*.2f", $len_perc, $perc;
+    if ($twidth <= $len_status + $len_perc + $len_prog_min) {
+        print STDERR "\r";
+        return;
     }
-    printf STDERR "%6.2f [%s]\r", $perc, $bar;
+    my $len_prog = $twidth - $len_perc - $len_status;
+    if ($len_prog > $len_prog_max) {
+        $len_prog = $len_prog_max;
+    }
+    my $num_x = int($perc * ($len_prog - 3) / 100);
+    my $bar   = '=' x $num_x;
+    if ($num_x != ($len_prog - 3)) {
+        $bar .= '>';
+        $bar .= ' ' x ($len_prog - $num_x - 4);
+    }
+    print STDERR " [$bar]\r";
     return;
 }
 
@@ -787,6 +845,15 @@ sub run_progress {
         POSIX::sigprocmask(SIG_UNBLOCK, $sigset)
           or error "Can't unblock signals: $!";
 
+        if ($verbosity_level != 1 || !stderr_is_tty()) {
+            # no need to print any progress
+            # we still need to consume everything from $rfh or otherwise apt
+            # will block forever if there is too much output
+            local $/;
+            <$rfh>;
+            close $rfh;
+            exit 0;
+        }
         my $progress = 0.0;
         my $status   = undef;
         print_progress($progress);
@@ -801,14 +868,7 @@ sub run_progress {
             if (defined $newstatus) {
                 $status = $newstatus;
             }
-            if (    defined $status
-                and $verbosity_level == 1
-                and stderr_is_tty()) {
-                # \e[2K clears everything on the current line (i.e. the
-                # progress bar)
-                print STDERR "\e[2K$status: ";
-            }
-            print_progress($newprogress);
+            print_progress($newprogress, $status);
             $progress = $newprogress;
         }
         print_progress("done");
@@ -2424,7 +2484,7 @@ sub run_extract() {
         }
         waitpid($pid3, 0);
         $? == 0 or error "tar --extract failed: $?";
-        print_progress($counter / $total * 100);
+        print_progress($counter / $total * 100, "extracting");
     }
     print_progress "done";
 
