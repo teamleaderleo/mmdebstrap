@@ -2,7 +2,7 @@
 
 set -eu
 
-if [ "$MMDEBSTRAP_VERBOSITY" -ge 3 ]; then
+if [ "${MMDEBSTRAP_VERBOSITY:-1}" -ge 3 ]; then
         set -x
 fi
 
