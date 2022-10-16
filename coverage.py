@@ -119,6 +119,19 @@ def parse_config(confname):
     return config_order, config_dict
 
 
+def format_failed(num, total, name, dist, mode, variant, fmt, config_dict):
+    ret = f"({num}/{total}) {name}"
+    if len(config_dict[name].get("Dists", [])) > 0:
+        ret += f" --dist={dist}"
+    if len(config_dict[name].get("Modes", [])) > 0:
+        ret += f" --mode={mode}"
+    if len(config_dict[name].get("Variants", [])) > 0:
+        ret += f" --variant={variant}"
+    if len(config_dict[name].get("Formats", [])) > 0:
+        ret += f" --format={fmt}"
+    return ret
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("test", nargs="*", help="only run these tests")
@@ -319,7 +332,9 @@ def main():
         print(separator, file=sys.stderr)
         if proc.returncode != 0:
             failed.append(
-                ("(%d/%d) %s" % (i + 1, len(tests), name), dist, mode, variant, fmt)
+                format_failed(
+                    i + 1, len(tests), name, dist, mode, variant, fmt, config_dict
+                )
             )
             print("result: FAILURE", file=sys.stderr)
         else:
@@ -339,11 +354,8 @@ def main():
                 print(f"    {t}", file=sys.stderr)
     if failed:
         print("failed %d:" % len(failed), file=sys.stderr)
-        for name, dist, mode, variant, fmt in failed:
-            print(
-                f"    {name} --dist={dist} --mode={mode} --variant={variant} --format={fmt}",
-                file=sys.stderr,
-            )
+        for f in failed:
+            print(f, file=sys.stderr)
         exit(1)
 
 
