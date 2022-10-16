@@ -30,6 +30,9 @@ trap cleanup INT TERM EXIT
 qemu-img create -f qcow2 -b "$(realpath $cachedir)/debian-$DEFAULT_DIST.qcow" -F qcow2 "$tmpdir/debian-$DEFAULT_DIST-overlay.qcow"
 # to connect to serial use:
 #   minicom -D 'unix#/tmp/ttyS0'
+#
+# or this (quit with ctrl+q):
+#   socat stdin,raw,echo=0,escape=0x11 unix-connect:/tmp/ttyS0
 ret=0
 timeout --foreground 20m qemu-system-x86_64 \
 	-cpu host \
