@@ -83,11 +83,11 @@ rm /tmp/debian-{{ DIST }}-mm/var/lib/dpkg/arch
 # thus we first check for equality and then remove the files
 chroot /tmp/debian-{{ DIST }}-debootstrap dpkg --list > dpkg1
 chroot /tmp/debian-{{ DIST }}-mm dpkg --list > dpkg2
-diff -u dpkg1 dpkg2
+diff -u dpkg1 dpkg2 >&2
 rm dpkg1 dpkg2
 grep -v '^Priority: ' /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/status > status1
 grep -v '^Priority: ' /tmp/debian-{{ DIST }}-mm/var/lib/dpkg/status > status2
-diff -u status1 status2
+diff -u status1 status2 >&2
 rm status1 status2
 rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/status /tmp/debian-{{ DIST }}-mm/var/lib/dpkg/status
 # debootstrap exposes the hosts's kernel version
@@ -223,7 +223,7 @@ tar -C /tmp/debian-{{ DIST }}-debootstrap --numeric-owner --sort=name --clamp-mt
 tar -C /tmp/debian-{{ DIST }}-mm --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/root2.tar .
 tar --full-time --verbose -tf /tmp/root1.tar > /tmp/root1.tar.list
 tar --full-time --verbose -tf /tmp/root2.tar > /tmp/root2.tar.list
-diff -u /tmp/root1.tar.list /tmp/root2.tar.list
+diff -u /tmp/root1.tar.list /tmp/root2.tar.list >&2
 rm /tmp/root1.tar /tmp/root2.tar /tmp/root1.tar.list /tmp/root2.tar.list
 
 # check if file properties (permissions, ownership, symlink names, modification time) differ

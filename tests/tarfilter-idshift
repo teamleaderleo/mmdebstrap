@@ -20,7 +20,7 @@ runuser -u user -- {{ CMD }} --mode=unshare --variant=apt --include=iputils-ping
 mkdir /tmp/debian-chroot
 tar --xattrs --xattrs-include='*' --directory /tmp/debian-chroot -xf /tmp/debian-chroot.tar ./bin/ping
 echo "/tmp/debian-chroot/bin/ping cap_net_raw=ep" > /tmp/expected
-getcap /tmp/debian-chroot/bin/ping | diff -u /tmp/expected -
+getcap /tmp/debian-chroot/bin/ping | diff -u /tmp/expected - >&2
 rm /tmp/debian-chroot/bin/ping
 rmdir /tmp/debian-chroot/bin
 rmdir /tmp/debian-chroot
@@ -44,16 +44,16 @@ tar --numeric-owner -tvf /tmp/debian-chroot.tar \
 	> /tmp/debian-chroot.txt
 tar --numeric-owner -tvf /tmp/debian-chroot-shifted.tar \
 	| sed 's/ \+/ /g' \
-	| diff -u /tmp/debian-chroot.txt -
+	| diff -u /tmp/debian-chroot.txt - >&2
 mkdir /tmp/debian-chroot
 tar --xattrs --xattrs-include='*' --directory /tmp/debian-chroot -xf /tmp/debian-chroot-shifted.tar
 echo "100000 100000" > /tmp/expected
-stat --format="%u %g" /tmp/debian-chroot/bin/ping | diff -u /tmp/expected -
+stat --format="%u %g" /tmp/debian-chroot/bin/ping | diff -u /tmp/expected - >&2
 echo "/tmp/debian-chroot/bin/ping cap_net_raw=ep" > /tmp/expected
-getcap /tmp/debian-chroot/bin/ping | diff -u /tmp/expected -
+getcap /tmp/debian-chroot/bin/ping | diff -u /tmp/expected - >&2
 echo "0 0" > /tmp/expected
 runuser -u user -- {{ CMD }} --unshare-helper /usr/sbin/chroot /tmp/debian-chroot stat --format="%u %g" /bin/ping \
-	| diff -u /tmp/expected -
+	| diff -u /tmp/expected - >&2
 echo "/bin/ping cap_net_raw=ep" > /tmp/expected
 runuser -u user -- {{ CMD }} --unshare-helper /usr/sbin/chroot /tmp/debian-chroot getcap /bin/ping \
-	| diff -u /tmp/expected -
+	| diff -u /tmp/expected - >&2
