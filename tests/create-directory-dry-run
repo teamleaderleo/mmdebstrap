@@ -24,5 +24,6 @@ rm /tmp/debian-chroot/etc/hostname
 rm /tmp/debian-chroot/etc/resolv.conf
 rm /tmp/debian-chroot/var/lib/apt/lists/lock
 rm /tmp/debian-chroot/var/lib/dpkg/status
+rm /tmp/debian-chroot/var/lib/dpkg/arch
 # the rest should be empty directories that we can rmdir recursively
 find /tmp/debian-chroot -depth -print0 | xargs -0 rmdir

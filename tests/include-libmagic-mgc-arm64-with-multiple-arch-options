@@ -3,7 +3,6 @@ set -eu
 export LC_ALL=C.UTF-8
 {{ CMD }} --mode=root --variant=apt --architectures=amd64 --architectures=arm64 --include=libmagic-mgc:arm64 {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
 { echo "amd64"; echo "arm64"; } | cmp /tmp/debian-chroot/var/lib/dpkg/arch -
-rm /tmp/debian-chroot/var/lib/dpkg/arch
 rm /tmp/debian-chroot/var/lib/apt/extended_states
 rm /tmp/debian-chroot/var/lib/dpkg/info/libmagic-mgc.list
 rm /tmp/debian-chroot/var/lib/dpkg/info/libmagic-mgc.md5sums

@@ -24,6 +24,7 @@ rm /tmp/debian-chroot/etc/fstab
 rm /tmp/debian-chroot/etc/hostname
 rm /tmp/debian-chroot/etc/resolv.conf
 rm /tmp/debian-chroot/var/lib/dpkg/status
+rm /tmp/debian-chroot/var/lib/dpkg/arch
 rm /tmp/debian-chroot/var/cache/apt/archives/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock
 rm /tmp/debian-chroot/var/lib/dpkg/lock-frontend

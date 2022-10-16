@@ -45,6 +45,7 @@ rm /tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_mai
 rm /tmp/debian-debootstrap/etc/machine-id /tmp/debian-mm/etc/machine-id
 rm /tmp/debian-mm/var/cache/apt/archives/lock
 rm /tmp/debian-mm/var/lib/apt/lists/lock
+rm /tmp/debian-mm/var/lib/dpkg/arch
 
 # check if the file content differs
 diff --no-dereference --recursive /tmp/debian-debootstrap /tmp/debian-mm >&2
