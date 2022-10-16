@@ -207,9 +207,6 @@ Needs-Root: true
 Test: include-with-multiple-apt-sources
 Needs-Root: true
 
-Test: merged-usr-via-setup-hook
-Needs-Root: true
-
 Test: essential-hook
 Needs-Root: true
 
