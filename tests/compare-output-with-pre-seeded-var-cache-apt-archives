@@ -14,7 +14,6 @@ include="--include=doc-debian"
 if [ "{{ VARIANT }}" = "custom" ]; then
 	include="$include,base-files,base-passwd,coreutils,dash,diffutils,dpkg,libc-bin,sed"
 fi
-mount -o size=4G -t tmpfs tmpfs /tmp # workaround for #1010957
 {{ CMD }} $include --mode={{ MODE }} --variant={{ VARIANT }} \
 	--setup-hook='mkdir -p "$1"/var/cache/apt/archives/partial' \
 	--setup-hook='touch "$1"/var/cache/apt/archives/lock' \

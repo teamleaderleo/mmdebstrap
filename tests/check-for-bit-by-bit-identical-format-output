@@ -8,7 +8,6 @@ fi
 adduser --gecos user --disabled-password user
 sysctl -w kernel.unprivileged_userns_clone=1
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
-mount -o size=4G -t tmpfs tmpfs /tmp # workaround for #1010957
 {{ CMD }} --mode=root --variant={{ VARIANT }} {{ DIST }} /tmp/debian-chroot-root.{{ FORMAT }} {{ MIRROR }}
 if [ "{{ FORMAT }}" = tar ]; then
 	printf 'ustar ' | cmp --bytes=6 --ignore-initial=257:0 /tmp/debian-chroot-root.tar -
