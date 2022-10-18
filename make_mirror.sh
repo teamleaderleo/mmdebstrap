@@ -270,7 +270,7 @@ END
 	# starting from Debian 12 (Bullseye)
 	case "$dist" in
 		oldstable|stable) : ;;
-		*) pkgs="$pkgs usr-is-merged" ;;
+		*) pkgs="$pkgs usr-is-merged usrmerge" ;;
 	esac
 
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --yes install $pkgs

@@ -7231,8 +7231,8 @@ I<--merged-usr> and I<--no-merged-usr>
 
 B<mmdebstrap> will create a merged-/usr chroot or not depending on whether
 packages setting up merged-/usr (i.e. the B<usrmerge> package) are installed or
-not. In Debian, the essential package B<init-system-helpers> is will depend
-on the B<usrmerge> package, starting with Debian 12 (Bookworm).
+not. In Debian, the essential package B<init-system-helpers> depends on the
+B<usrmerge> package, starting with Debian 12 (Bookworm).
 
 Before Debian 12 (Bookworm), to force B<mmdebstrap> to create a chroot with
 merged-/usr using symlinks, either explicitly install the B<usrmerge> package:
