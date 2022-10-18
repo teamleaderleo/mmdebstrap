@@ -33,8 +33,7 @@ rmdir /tmp/debian-chroot
 cmp /tmp/debian-chroot.tar /tmp/debian-chroot-shiftedback.tar
 # manually adjust uid/gid and compare "tar -t" output
 tar --numeric-owner -tvf /tmp/debian-chroot.tar \
-	| sed 's# 100/0 # 100100/100000 #' \
-	| sed 's# 100/8 # 100100/100008 #' \
+	| sed 's# 42/0 # 100042/100000 #' \
 	| sed 's# 0/0 # 100000/100000 #' \
 	| sed 's# 0/5 # 100000/100005 #' \
 	| sed 's# 0/8 # 100000/100008 #' \

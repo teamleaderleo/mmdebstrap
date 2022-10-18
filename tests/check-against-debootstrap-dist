@@ -10,13 +10,8 @@ echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 # order in comparison to the systemd users
 # https://bugs.debian.org/969631
 # we cannot use useradd because passwd is not Essential:yes
-#
-# with cron 3.0pl1-142 and the introduction of cron-daemon-common, installation
-# order of cron and systemd started to differ between debootstrap and
-# mmdebstrap, resulting in different gid values
 {{ CMD }} --variant={{ VARIANT }} --mode={{ MODE }} \
-	--essential-hook='if [ {{ VARIANT }} = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd; fi' \
-	--essential-hook='if [ {{ VARIANT }} = - ] && [ {{ DIST }} = unstable -o {{ DIST }} = testing ]; then printf "systemd-journal:x:999:\nsystemd-network:x:998:\ncrontab:x:101:" >> "$1"/etc/group; fi' \
+	--essential-hook='case {{ DIST }} in oldstable|stable) if [ {{ VARIANT }} = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd; fi;; esac' \
 	$(case {{ DIST }} in oldstable|stable) : ;; *) echo --hook-dir=./hooks/merged-usr ;; esac) \
 	{{ DIST }} /tmp/debian-{{ DIST }}-mm.tar {{ MIRROR }}
 
@@ -152,21 +147,13 @@ done
 # Because of unreproducible uids (#969631) we created the _apt user ourselves
 # and because passwd is not Essential:yes we didn't use useradd. But newer
 # versions of adduser and shadow will create a different /etc/shadow
+case {{ DIST }} in oldstable|stable)
 for f in shadow shadow-; do
 	if grep -q '^_apt:!:' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
 		sed -i 's/^_apt:\*:\([^:]\+\):0:99999:7:::$/_apt:!:\1::::::/' /tmp/debian-{{ DIST }}-mm/etc/$f
 	fi
-done
-# same as above but for cron and systemd groups
-for f in gshadow gshadow-; do
-	for group in systemd-journal systemd-network crontab; do
-		for password in "!" "!\\*"; do
-			if grep -q '^'"$group"':'"$password"':' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
-				sed -i 's/^'"$group"':x::/'"$group"':'"$password"'::/' /tmp/debian-{{ DIST }}-mm/etc/$f
-			fi
-		done
-	done
-done
+done;;
+esac
 
 for log in faillog lastlog; do
 	if ! cmp /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log >&2;then
@@ -196,18 +183,6 @@ else
 	echo no difference for /etc/shadow- on {{ DIST }} {{ VARIANT }} >&2
 fi
 
-# Because of unreproducible uids (#969631) we created the _apt user ourselves
-# and because passwd is not Essential:yes we didn't use useradd. But passwd
-# since 1:4.11.1+dfsg1-1 will create empty mail files, so we create it too.
-# https://bugs.debian.org/1004710
-if [ {{ VARIANT }} = - ]; then
-	if [ -e /tmp/debian-{{ DIST }}-debootstrap/var/mail/_apt ]; then
-		touch /tmp/debian-{{ DIST }}-mm/var/mail/_apt
-		chmod 660 /tmp/debian-{{ DIST }}-mm/var/mail/_apt
-		chown 100:8 /tmp/debian-{{ DIST }}-mm/var/mail/_apt
-	fi
-fi
-
 # check if the file content differs
 diff --unified --no-dereference --recursive /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm >&2
 
@@ -217,7 +192,7 @@ find /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm -type d -print
 # debootstrap never ran apt -- fixing permissions
 for d in ./var/lib/apt/lists/partial ./var/cache/apt/archives/partial; do
 	chroot /tmp/debian-{{ DIST }}-debootstrap chmod 0700 $d
-	chroot /tmp/debian-{{ DIST }}-debootstrap chown _apt:root $d
+	chroot /tmp/debian-{{ DIST }}-debootstrap chown $(id -u _apt):root $d
 done
 tar -C /tmp/debian-{{ DIST }}-debootstrap --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/root1.tar .
 tar -C /tmp/debian-{{ DIST }}-mm --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/root2.tar .
