@@ -166,22 +166,21 @@ for log in faillog lastlog; do
 done
 
 # workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
-if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/shadow /tmp/debian-{{ DIST }}-mm/etc/shadow >&2; then
-	echo patching /etc/shadow on {{ DIST }} {{ VARIANT }} >&2
-	awk -v FS=: -v OFS=: -v SDE={{ SOURCE_DATE_EPOCH }} '{ print $1,$2,int(SDE/60/60/24),$4,$5,$6,$7,$8,$9 }' < /tmp/debian-{{ DIST }}-mm/etc/shadow > /tmp/debian-{{ DIST }}-mm/etc/shadow.bak
-	cat /tmp/debian-{{ DIST }}-mm/etc/shadow.bak > /tmp/debian-{{ DIST }}-mm/etc/shadow
-	rm /tmp/debian-{{ DIST }}-mm/etc/shadow.bak
-else
-	echo no difference for /etc/shadow on {{ DIST }} {{ VARIANT }} >&2
-fi
-if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/shadow- /tmp/debian-{{ DIST }}-mm/etc/shadow- >&2; then
-	echo patching /etc/shadow- on {{ DIST }} {{ VARIANT }} >&2
-	awk -v FS=: -v OFS=: -v SDE={{ SOURCE_DATE_EPOCH }} '{ print $1,$2,int(SDE/60/60/24),$4,$5,$6,$7,$8,$9 }' < /tmp/debian-{{ DIST }}-mm/etc/shadow- > /tmp/debian-{{ DIST }}-mm/etc/shadow-.bak
-	cat /tmp/debian-{{ DIST }}-mm/etc/shadow-.bak > /tmp/debian-{{ DIST }}-mm/etc/shadow-
-	rm /tmp/debian-{{ DIST }}-mm/etc/shadow-.bak
-else
-	echo no difference for /etc/shadow- on {{ DIST }} {{ VARIANT }} >&2
-fi
+# also needed for users that are created by systemd-sysusers before systemd 252
+# https://github.com/systemd/systemd/pull/24534
+for f in shadow shadow-; do
+	if [ ! -e /tmp/debian-{{ DIST }}-mm/etc/$f ]; then
+		continue
+	fi
+	if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/$f /tmp/debian-{{ DIST }}-mm/etc/$f >&2; then
+		echo patching /etc/$f on {{ DIST }} {{ VARIANT }} >&2
+		awk -v FS=: -v OFS=: -v SDE={{ SOURCE_DATE_EPOCH }} '{ print $1,$2,int(SDE/60/60/24),$4,$5,$6,$7,$8,$9 }' < /tmp/debian-{{ DIST }}-mm/etc/$f > /tmp/debian-{{ DIST }}-mm/etc/$f.bak
+		cat /tmp/debian-{{ DIST }}-mm/etc/$f.bak > /tmp/debian-{{ DIST }}-mm/etc/$f
+		rm /tmp/debian-{{ DIST }}-mm/etc/$f.bak
+	else
+		echo no difference for /etc/$f on {{ DIST }} {{ VARIANT }} >&2
+	fi
+done
 
 # check if the file content differs
 diff --unified --no-dereference --recursive /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm >&2
