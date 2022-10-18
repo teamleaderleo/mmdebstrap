@@ -31,4 +31,7 @@ case {{ VARIANT }} in essential|apt|minbase|buildd)
 	rm /tmp/debian-chroot-fakechroot.{{ FORMAT }}
 	;;
 esac
+# we cannot test chrootless mode here, because mmdebstrap relies on the
+# usrmerge package to set up merged-/usr and that doesn't work in chrootless
+# mode
 rm /tmp/debian-chroot-root.{{ FORMAT }}
