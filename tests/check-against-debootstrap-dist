@@ -29,34 +29,34 @@ tar --xattrs --xattrs-include='*' -C /tmp/debian-{{ DIST }}-debootstrap -xf "cac
 
 # diff cannot compare device nodes, so we use tar to do that for us and then
 # delete the directory
-tar -C /tmp/debian-{{ DIST }}-debootstrap -cf dev1.tar ./dev
-tar -C /tmp/debian-{{ DIST }}-mm -cf dev2.tar ./dev
+tar -C /tmp/debian-{{ DIST }}-debootstrap -cf /tmp/dev1.tar ./dev
+tar -C /tmp/debian-{{ DIST }}-mm -cf /tmp/dev2.tar ./dev
 ret=0
-cmp dev1.tar dev2.tar >&2 || ret=$?
+cmp /tmp/dev1.tar /tmp/dev2.tar >&2 || ret=$?
 if [ "$ret" -ne 0 ]; then
 	if type diffoscope >/dev/null; then
-		diffoscope dev1.tar dev2.tar
+		diffoscope /tmp/dev1.tar /tmp/dev2.tar
 		exit 1
 	else
 		echo "no diffoscope installed" >&2
 	fi
 	if type base64 >/dev/null; then
-		base64 dev1.tar
-		base64 dev2.tar
+		base64 /tmp/dev1.tar
+		base64 /tmp/dev2.tar
 		exit 1
 	else
 		echo "no base64 installed" >&2
 	fi
 	if type xxd >/dev/null; then
-		xxd dev1.tar
-		xxd dev2.tar
+		xxd /tmp/dev1.tar
+		xxd /tmp/dev2.tar
 		exit 1
 	else
 		echo "no xxd installed" >&2
 	fi
 	exit 1
 fi
-rm dev1.tar dev2.tar
+rm /tmp/dev1.tar /tmp/dev2.tar
 rm -r /tmp/debian-{{ DIST }}-debootstrap/dev /tmp/debian-{{ DIST }}-mm/dev
 
 # remove downloaded deb packages
@@ -81,14 +81,14 @@ rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/cmethopt
 rm /tmp/debian-{{ DIST }}-mm/var/lib/dpkg/arch
 # since we installed packages directly from the .deb files, Priorities differ
 # thus we first check for equality and then remove the files
-chroot /tmp/debian-{{ DIST }}-debootstrap dpkg --list > dpkg1
-chroot /tmp/debian-{{ DIST }}-mm dpkg --list > dpkg2
-diff -u dpkg1 dpkg2 >&2
-rm dpkg1 dpkg2
-grep -v '^Priority: ' /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/status > status1
-grep -v '^Priority: ' /tmp/debian-{{ DIST }}-mm/var/lib/dpkg/status > status2
-diff -u status1 status2 >&2
-rm status1 status2
+chroot /tmp/debian-{{ DIST }}-debootstrap dpkg --list > /tmp/dpkg1
+chroot /tmp/debian-{{ DIST }}-mm dpkg --list > /tmp/dpkg2
+diff -u /tmp/dpkg1 /tmp/dpkg2 >&2
+rm /tmp/dpkg1 /tmp/dpkg2
+grep -v '^Priority: ' /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/status > /tmp/status1
+grep -v '^Priority: ' /tmp/debian-{{ DIST }}-mm/var/lib/dpkg/status > /tmp/status2
+diff -u /tmp/status1 /tmp/status2 >&2
+rm /tmp/status1 /tmp/status2
 rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/status /tmp/debian-{{ DIST }}-mm/var/lib/dpkg/status
 # debootstrap exposes the hosts's kernel version
 if [ -e /tmp/debian-{{ DIST }}-debootstrap/etc/apt/apt.conf.d/01autoremove-kernels ]; then
