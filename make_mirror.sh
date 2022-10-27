@@ -546,7 +546,7 @@ timeout 0
 
 label linux
 kernel /vmlinuz
-append initrd=/initrd.img root=/dev/vda1 rw console=ttyS0,115200
+append initrd=/initrd.img root=/dev/vda1 rw console=tty0 console=ttyS0,115200n8
 serial 0 115200
 END
 	cat << END > "$tmpdir/mmdebstrap.service"
