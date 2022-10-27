@@ -121,13 +121,13 @@ def parse_config(confname):
 
 def format_failed(num, total, name, dist, mode, variant, fmt, config_dict):
     ret = f"({num}/{total}) {name}"
-    if len(config_dict[name].get("Dists", [])) > 0:
+    if len(config_dict[name].get("Dists", [])) > 1:
         ret += f" --dist={dist}"
-    if len(config_dict[name].get("Modes", [])) > 0:
+    if len(config_dict[name].get("Modes", [])) > 1:
         ret += f" --mode={mode}"
-    if len(config_dict[name].get("Variants", [])) > 0:
+    if len(config_dict[name].get("Variants", [])) > 1:
         ret += f" --variant={variant}"
-    if len(config_dict[name].get("Formats", [])) > 0:
+    if len(config_dict[name].get("Formats", [])) > 1:
         ret += f" --format={fmt}"
     return ret
 
