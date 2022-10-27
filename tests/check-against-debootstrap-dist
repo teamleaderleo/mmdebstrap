@@ -165,6 +165,21 @@ for log in faillog lastlog; do
 	fi
 done
 
+# the order in which systemd and cron get installed differ and thus the order
+# of lines in /etc/group and /etc/gshadow differs
+if [ "{{ VARIANT }}" = "-" ]; then
+	case {{ DIST }} in testing|unstable)
+		for f in group group- gshadow gshadow-; do
+			! cmp /tmp/debian-{{ DIST }}-mm/etc/$f /tmp/debian-{{ DIST }}-debootstrap/etc/$f 2>/dev/null
+			for d in mm debootstrap; do
+				sort /tmp/debian-{{ DIST }}-$d/etc/$f > /tmp/debian-{{ DIST }}-$d/etc/$f.bak
+				mv /tmp/debian-{{ DIST }}-$d/etc/$f.bak /tmp/debian-{{ DIST }}-$d/etc/$f
+			done
+		done
+		;;
+	esac
+fi
+
 # workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
 # also needed for users that are created by systemd-sysusers before systemd 252
 # https://github.com/systemd/systemd/pull/24534
