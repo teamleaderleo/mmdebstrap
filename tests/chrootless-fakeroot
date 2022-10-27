@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+trap "rm -f /tmp/chrootless.tar /tmp/root.tar" EXIT INT TERM
+if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
+	if [ ! -e /mmdebstrap-testenv ]; then
+		echo "this test modifies the system and should only be run inside a container" >&2
+		exit 1
+	fi
+	adduser --gecos user --disabled-password user
+fi
+prefix=
+[ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
+# we need --hook-dir=./hooks/merged-usr because usrmerge does not understand
+# DPKG_ROOT
+# permissions drwxr-sr-x and extended attributes of ./var/log/journal/ cannot
+# be preserved under fakeroot
+for INCLUDE in '' 'systemd-sysv'; do
+	{{ CMD }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
+		--customize-hook='if [ -d "$1"/var/log/journal ]; then rmdir "$1"/var/log/journal; mkdir --mode=2755 "$1"/var/log/journal; chroot "$1" chown root:systemd-journal /var/log/journal; fi' \
+		${INCLUDE:+--include="$INCLUDE"} \
+		{{ DIST }} /tmp/root.tar {{ MIRROR }}
+	$prefix fakeroot {{ CMD }} --mode=chrootless --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
+		${INCLUDE:+--include="$INCLUDE"} \
+		{{ DIST }} /tmp/chrootless.tar {{ MIRROR }}
+	cmp /tmp/root.tar /tmp/chrootless.tar
+	rm /tmp/chrootless.tar /tmp/root.tar
+done

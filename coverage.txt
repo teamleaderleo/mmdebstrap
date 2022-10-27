@@ -288,11 +288,26 @@ Test: install-doc-debian
 Modes: chrootless
 Variants: custom
 
-Test: chrootless-essential
-Variants: custom
+Test: chrootless
+Variants: essential
 Modes: chrootless
 Skip-If:
  dist in ["oldstable", "stable"]
+
+Test: chrootless-fakeroot
+Variants: essential
+Modes: chrootless
+Skip-If:
+ dist in ["oldstable", "stable"]
+
+Test: chrootless-foreign
+Variants: essential
+Modes: chrootless
+Skip-If:
+ dist in ["oldstable", "stable"]
+ hostarch != "amd64"
+ not run_ma_same_tests
+Needs-QEMU: true
 
 Test: install-doc-debian-and-output-tarball
 Variants: custom

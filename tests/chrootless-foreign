@@ -1,0 +1,46 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+trap "rm -f /tmp/chrootless.tar /tmp/root.tar" EXIT INT TERM
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+
+[ "$(id -u)" -eq 0 ]
+[ -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ]
+
+# we need --hook-dir=./hooks/merged-usr because usrmerge does not understand
+# DPKG_ROOT
+for INCLUDE in '' 'systemd-sysv'; do
+	echo 1 > /proc/sys/fs/binfmt_misc/qemu-aarch64
+	arch-test arm64
+	{{ CMD }} --mode=root --architecture=arm64 --variant={{ VARIANT }} \
+		--hook-dir=./hooks/merged-usr ${INCLUDE:+--include="$INCLUDE"} \
+		{{ DIST }} "/tmp/root.tar" {{ MIRROR }}
+	echo 0 > /proc/sys/fs/binfmt_misc/qemu-aarch64
+	! arch-test arm64
+	{{ CMD }} --mode=chrootless --architecture=arm64 --variant={{ VARIANT }} \
+		--hook-dir=./hooks/merged-usr ${INCLUDE:+--include="$INCLUDE"} \
+		{{ DIST }} "/tmp/chrootless.tar" {{ MIRROR }}
+	# when creating a foreign architecture chroot, the tarballs are not
+	# bit-by-bit identical but contain a few remaining differences:
+	#
+	#  * /etc/ld.so.cache -- hard problem, must be solved in glibc upstream
+	#  * /var/lib/dpkg/triggers -- #990712
+	#  * /var/cache/debconf/*.dat-old -- needs investigation
+	for tar in root chrootless; do
+		<"/tmp/$tar.tar" \
+		./tarfilter \
+			--path-exclude=/var/cache/debconf/config.dat-old \
+			--path-exclude=/var/cache/debconf/templates.dat-old \
+			--path-exclude=/etc/ld.so.cache \
+			--path-exclude=/var/lib/dpkg/triggers/File \
+			--path-exclude=/var/lib/dpkg/triggers/ldconfig \
+			> "/tmp/$tar.tar.tmp"
+		mv "/tmp/$tar.tar.tmp" "/tmp/$tar.tar"
+	done
+	cmp /tmp/root.tar /tmp/chrootless.tar
+	rm /tmp/chrootless.tar /tmp/root.tar
+done
