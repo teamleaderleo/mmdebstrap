@@ -1,3 +1,12 @@
+1.2.2 (2022-10-27)
+------------------
+
+ - allow /etc/apt/trusted.gpg.d/ not to exist
+ - always create /var/lib/dpkg/arch to make foreign architecture chrootless
+   tarballs bit-by-bit identical
+ - write an empty /etc/machine-id instead of writing 'uninitialized'
+ - only print progress bars on interactive terminals that are wide enough
+
 1.2.1 (2022-09-08)
 ------------------
 
