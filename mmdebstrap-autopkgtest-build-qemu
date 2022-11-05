@@ -145,7 +145,7 @@ case "$nativearch" in
 		[ $BOOT = bios ] || [ $BOOT = efi ]
 		if [ $BOOT = bios ]; then
 			include="linux-image-686-pae grub-pc"
-			grub_target="i386-efi"
+			grub_target="i386-pc"
 		elif [ $BOOT = efi ]; then
 			include="linux-image-686-pae grub-efi"
 			grub_target="i386-efi"
