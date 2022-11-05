@@ -25,6 +25,26 @@ cleanup() {
 
 trap cleanup INT TERM EXIT
 
+ARCH=$(dpkg --print-architecture)
+case $ARCH in
+	i386)
+		MACHINE="accel=kvm:tcg"
+		CODE="/usr/share/OVMF/OVMF32_CODE_4M.secboot.fd"
+		QEMUARCH="i386"
+		;;
+	amd64)
+		MACHINE="accel=kvm:tcg"
+		CODE="/usr/share/OVMF/OVMF_CODE.fd"
+		QEMUARCH="x86_64"
+		;;
+	arm64)
+		MACHINE="type=virt,gic-version=host,accel=kvm"
+		CODE="/usr/share/AAVMF/AAVMF_CODE.fd,readonly"
+		QEMUARCH="aarch64"
+		;;
+	*) echo "qemu kvm not supported on $ARCH" >&2;;
+esac
+
 # the path to debian-$DEFAULT_DIST.qcow must be absolute or otherwise qemu will
 # look for the path relative to debian-$DEFAULT_DIST-overlay.qcow
 qemu-img create -f qcow2 -b "$(realpath $cachedir)/debian-$DEFAULT_DIST.qcow" -F qcow2 "$tmpdir/debian-$DEFAULT_DIST-overlay.qcow"
@@ -34,15 +54,16 @@ qemu-img create -f qcow2 -b "$(realpath $cachedir)/debian-$DEFAULT_DIST.qcow" -F
 # or this (quit with ctrl+q):
 #   socat stdin,raw,echo=0,escape=0x11 unix-connect:/tmp/ttyS0
 ret=0
-timeout --foreground 20m qemu-system-x86_64 \
+timeout --foreground 20m qemu-system-"$QEMUARCH" \
 	-cpu host \
 	-no-user-config \
-	-M accel=kvm:tcg -m 4G -nographic \
+	-M "$MACHINE" -m 4G -nographic \
 	-object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0 \
 	-monitor unix:/tmp/monitor,server,nowait \
 	-serial unix:/tmp/ttyS0,server,nowait \
 	-serial unix:/tmp/ttyS1,server,nowait \
 	-net nic,model=virtio -net user \
+	-drive if=pflash,format=raw,unit=0,read-only,file="$CODE" \
 	-virtfs local,id=mmdebstrap,path="$(pwd)/shared",security_model=none,mount_tag=mmdebstrap \
 	-drive file="$tmpdir/debian-$DEFAULT_DIST-overlay.qcow",cache=unsafe,index=0,if=virtio \
 	>"$tmpdir/log" 2>&1 || ret=$?

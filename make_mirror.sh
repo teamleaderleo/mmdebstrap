@@ -465,12 +465,10 @@ cleanuptmpdir() {
 	if [ ! -e "$tmpdir" ]; then
 		return
 	fi
-	for f in "$tmpdir/extlinux.conf" \
-		"$tmpdir/worker.sh" \
+	for f in "$tmpdir/worker.sh" \
 		"$tmpdir/mini-httpd" "$tmpdir/hosts" \
 		"$tmpdir/debian-chroot.tar" \
-		"$tmpdir/mmdebstrap.service" \
-		"$tmpdir/debian-$DEFAULT_DIST.img"; do
+		"$tmpdir/mmdebstrap.service"; do
 		if [ ! -e "$f" ]; then
 			echo "does not exist: $f" >&2
 			continue
@@ -484,12 +482,12 @@ export SOURCE_DATE_EPOCH=$(date --date="$(grep-dctrl -s Date -n '' "$newmirrordi
 
 if [ "$HAVE_QEMU" = "yes" ]; then
 	case "$HOSTARCH" in
-		amd64|i386)
+		amd64|i386|arm64)
 			# okay
 			;;
 		*)
-			echo "qemu support is only available on amd64 and i386" >&2
-			echo "because syslinux is only available on those arches" >&2
+			echo "qemu support is only available on amd64, i386 and arm64" >&2
+			echo "because grub is only available on those arches" >&2
 			exit 1
 			;;
 	esac
@@ -503,7 +501,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	tmpdir="$(mktemp -d)"
 	trap "cleanuptmpdir; cleanup_newcachedir" EXIT INT TERM
 
-	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils
+	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,grub-efi
 	if [ "$DEFAULT_DIST" != "oldstable" ]; then
 		pkgs="$pkgs,squashfs-tools-ng,genext2fs"
 	fi
@@ -540,15 +538,6 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 		--aptopt='Acquire::Retries "5"' \
 		$DEFAULT_DIST - "$mirror" > "$tmpdir/debian-chroot.tar"
 
-	cat << END > "$tmpdir/extlinux.conf"
-default linux
-timeout 0
-
-label linux
-kernel /vmlinuz
-append initrd=/initrd.img root=/dev/vda1 rw console=tty0 console=ttyS0,115200n8
-serial 0 115200
-END
 	cat << END > "$tmpdir/mmdebstrap.service"
 [Unit]
 Description=mmdebstrap worker script
@@ -631,13 +620,30 @@ END
 	if [ -z ${DISK_SIZE+x} ]; then
 		DISK_SIZE=10G
 	fi
-	guestfish -N "$tmpdir/debian-$DEFAULT_DIST.img"=disk:$DISK_SIZE -- \
-		part-disk /dev/sda mbr : \
-		mkfs ext2 /dev/sda1 : \
-		mount /dev/sda1 / : \
-		tar-in "$tmpdir/debian-chroot.tar" / : \
+	case "$HOSTARCH" in
+		amd64) GRUB_TARGET=x86_64-efi;;
+		i386) GRUB_TARGET=i386-efi;;
+		arm64) GRUB_TARGET=arm64-efi;;
+	esac
+	case "$HOSTARCH" in
+		arm64) SERIAL="loglevel=3 console=tty0 console=ttyAMA0,115200n8" ;;
+		*) SERIAL="loglevel=3 console=tty0 console=ttyS0,115200n8" ;;
+	esac
+	guestfish -- \
+		disk-create "$newcachedir/debian-$DEFAULT_DIST.qcow" qcow2 "$DISK_SIZE" : \
+		add-drive "$newcachedir/debian-$DEFAULT_DIST.qcow" format:qcow2 : \
+		launch : \
+		part-init /dev/sda gpt : \
+		part-add /dev/sda primary 8192 262144 : \
+		part-add /dev/sda primary 262145 -34 : \
+		part-set-gpt-type /dev/sda 1 C12A7328-F81F-11D2-BA4B-00A0C93EC93B  : \
+		mkfs ext2 /dev/sda2 : \
+		mount /dev/sda2 / : \
+		tar-in "$tmpdir/debian-chroot.tar" / xattrs:true : \
+		mkdir-p /boot/efi : \
+		mkfs vfat /dev/sda1 : \
+		mount /dev/sda1 /boot/efi : \
 		command /sbin/ldconfig : \
-		copy-in "$tmpdir/extlinux.conf" / : \
 		mkdir-p /etc/systemd/system/multi-user.target.wants : \
 		ln-s ../mmdebstrap.service /etc/systemd/system/multi-user.target.wants/mmdebstrap.service : \
 		copy-in "$tmpdir/mmdebstrap.service" /etc/systemd/system/ : \
@@ -645,15 +651,16 @@ END
 		copy-in "$tmpdir/mini-httpd" /etc/default : \
 		copy-in "$tmpdir/hosts" /etc/ : \
 		touch /mmdebstrap-testenv : \
-		upload /usr/lib/EXTLINUX/mbr.bin /mbr.bin : \
-		copy-file-to-device /mbr.bin /dev/sda size:440 : \
-		rm /mbr.bin : \
-		extlinux / : \
+		command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda2) / ext4 errors=remount-ro 0 1 > /etc/fstab'" : \
+		command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda1) /boot/efi vfat errors=remount-ro 0 2 >> /etc/fstab'" : \
+		command "sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=/GRUB_CMDLINE_LINUX_DEFAULT=\"biosdevname=0 net.ifnames=0 consoleblank=0 rw $SERIAL\"/' /etc/default/grub" : \
+		command "update-initramfs -u" : \
+		command "grub-mkconfig -o /boot/grub/grub.cfg" : \
+		command "grub-install /dev/sda --target=$GRUB_TARGET --no-nvram --force-extra-removable --no-floppy --modules=part_gpt --grub-mkdevicemap=/boot/grub/device.map" : \
 		sync : \
+		umount /boot/efi : \
 		umount / : \
-		part-set-bootable /dev/sda 1 true : \
 		shutdown
-	qemu-img convert -O qcow2 "$tmpdir/debian-$DEFAULT_DIST.img" "$newcachedir/debian-$DEFAULT_DIST.qcow"
 	cleanuptmpdir
 	trap "cleanup_newcachedir" EXIT INT TERM
 fi
