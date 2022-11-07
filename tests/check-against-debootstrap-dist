@@ -147,6 +147,7 @@ done
 # Because of unreproducible uids (#969631) we created the _apt user ourselves
 # and because passwd is not Essential:yes we didn't use useradd. But newer
 # versions of adduser and shadow will create a different /etc/shadow
+if [ "{{ VARIANT }}" = "-" ]; then
 case {{ DIST }} in oldstable|stable)
 for f in shadow shadow-; do
 	if grep -q '^_apt:!:' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
@@ -154,6 +155,7 @@ for f in shadow shadow-; do
 	fi
 done;;
 esac
+fi
 
 for log in faillog lastlog; do
 	if ! cmp /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log >&2;then
@@ -181,8 +183,7 @@ if [ "{{ VARIANT }}" = "-" ]; then
 fi
 
 # workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
-# also needed for users that are created by systemd-sysusers before systemd 252
-# https://github.com/systemd/systemd/pull/24534
+case {{ DIST }} in oldstable|stable)
 for f in shadow shadow-; do
 	if [ ! -e /tmp/debian-{{ DIST }}-mm/etc/$f ]; then
 		continue
@@ -195,7 +196,8 @@ for f in shadow shadow-; do
 	else
 		echo no difference for /etc/$f on {{ DIST }} {{ VARIANT }} >&2
 	fi
-done
+done;;
+esac
 
 # check if the file content differs
 diff --unified --no-dereference --recursive /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm >&2
