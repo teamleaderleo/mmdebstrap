@@ -1189,7 +1189,7 @@ sub run_chroot {
                               or error "cannot create /dev/pts/ptmx symlink";
                             push @cleanup_tasks, sub {
                                 unlink "$options->{root}/dev/ptmx"
-                                  or error "unlink /dev/ptmx";
+                                  or warning "unlink /dev/ptmx";
                             };
                             next;
                         }
