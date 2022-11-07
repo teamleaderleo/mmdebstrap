@@ -6030,7 +6030,8 @@ B<mmdebstrap> creates a Debian chroot of I<SUITE> into I<TARGET> from one or
 more I<MIRROR>s. It is meant as an alternative to the debootstrap tool (see
 section B<DEBOOTSTRAP>). In contrast to debootstrap it uses apt to resolve
 dependencies and is thus able to use more than one mirror and resolve more
-complex dependencies.
+complex dependencies. See section B<OPERATION> for an overview of how
+B<mmdebstrap> works internally.
 
 If no I<MIRROR> option is provided, L<http://deb.debian.org/debian> is used.
 If I<SUITE> is a stable release name and no I<MIRROR> is specified, then
@@ -6757,7 +6758,28 @@ retained.
 
 =head1 OPERATION
 
-This section gives an overview of the different steps to create a chroot.
+This section gives an overview of the different steps to create a chroot. At
+its core, what B<mmdebstrap> does can be put into a 14 line shell script:
+
+    mkdir -p "$2/etc/apt" "$2/var/cache"
+    cat << END > "$2/apt.conf"
+    Apt::Architecture "$(dpkg --print-architecture)";
+    Apt::Architectures "$(dpkg --print-architecture)";
+    Dir "$(cd "$2" && pwd)";
+    Dir::Etc::Trusted "$(eval "$(apt-config shell v Dir::Etc::Trusted/f)"; printf "$v")";
+    Dir::Etc::TrustedParts "$(eval "$(apt-config shell v Dir::Etc::TrustedParts/d)"; printf "$v")";
+    END
+    echo "deb http://deb.debian.org/debian/ $1 main" > "$2/etc/apt/sources.list"
+    APT_CONFIG="$2/apt.conf" apt-get update
+    APT_CONFIG="$2/apt.conf" apt-get --yes --download-only install '?essential'
+    for f in "$2"/var/cache/apt/archives/*.deb; do dpkg-deb --extract "$f" "$2"; done
+    chroot "$2" sh -c "dpkg --install --force-depends /var/cache/apt/archives/*.deb"
+
+The additional complexity of B<mmdebstrap> is to support operation without
+superuser privileges, bit-by-bit reproducible output, hooks and foreign
+architecture support.
+
+The remainder of this section explains what B<mmdebstrap> does step-by-step.
 
 =over 8
 
