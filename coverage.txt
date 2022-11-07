@@ -291,12 +291,14 @@ Variants: custom
 Test: chrootless
 Variants: essential
 Modes: chrootless
+Needs-Root: true
 Skip-If:
  dist in ["oldstable", "stable"]
 
 Test: chrootless-fakeroot
 Variants: essential
 Modes: chrootless
+Needs-QEMU: true
 Skip-If:
  dist in ["oldstable", "stable"]
 
