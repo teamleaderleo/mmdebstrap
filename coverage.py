@@ -172,6 +172,9 @@ def main():
         metavar="format",
         help=f"only run tests with this format (Default = {default_format})",
     )
+    parser.add_argument(
+        "--skip", metavar="test", action="append", help="skip this test"
+    )
     args = parser.parse_args()
 
     # copy over files from git or as distributed
@@ -310,6 +313,9 @@ def main():
                 print(f"skipped because of {reason}", file=sys.stderr)
                 continue
         print(separator, file=sys.stderr)
+        if args.skip and name in args.skip:
+            print(f"skipping because of --skip={name}", file=sys.stderr)
+            continue
         if args.dist and args.dist != dist:
             print(f"skipping because of --dist={args.dist}", file=sys.stderr)
             continue
