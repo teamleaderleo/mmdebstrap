@@ -45,6 +45,7 @@ use Term::ANSIColor;
 use Socket;
 use Time::HiRes;
 use Math::BigInt;
+use Text::ParseWords;
 use version;
 
 ## no critic (InputOutput::RequireBriefOpen)
@@ -1659,24 +1660,12 @@ sub run_hooks {
                     open(STDIN, '<&', $options->{hooksock})
                       or error "cannot open STDIN: $!";
 
-                    # we execute ourselves under sh to avoid having to
-                    # implement a clever parser of the quoting used in $script
-                    # for the filenames
-                    my $prefix = "";
-                    if ($is_covering) {
-                        $prefix
-                          = "$EXECUTABLE_NAME -MDevel::Cover=-silent,-nogcov ";
-                    }
-                    exec 'sh', '-c',
-                      "$prefix$PROGRAM_NAME --hook-helper"
-                      . " \"\$1\" \"\$2\" \"\$3\" \"\$4\" \"\$5\" $script",
-                      'exec', $options->{root}, $options->{mode}, $name,
-                      (
-                        defined $options->{qemu}
-                        ? "qemu-$options->{qemu}"
-                        : 'env',
-                        $verbosity_level
-                      );
+                    # Text::ParseWords::shellwords does for perl what shlex
+                    # does for python
+                    my @args = shellwords $script;
+                    hookhelper($options->{root}, $options->{mode}, $name,
+                        $options->{qemu}, $verbosity_level, @args);
+                    exit 0;
                 }
                 waitpid($pid, 0);
                 $? == 0 or error "special hook failed with exit code $?";
@@ -3176,16 +3165,12 @@ sub chrooted_realpath {
 }
 
 sub hookhelper {
+    my ($root, $mode, $hook, $qemu, $verbosity, $command, @args) = @_;
+    $verbosity_level = $verbosity;
     # we put everything in an eval block because that way we can easily handle
     # errors without goto labels or much code duplication: the error handler
     # has to send an "error" message to the other side
     eval {
-        my $root = $ARGV[1];
-        my $mode = $ARGV[2];
-        my $hook = $ARGV[3];
-        my $qemu = $ARGV[4];
-        $verbosity_level = $ARGV[5];
-        my $command = $ARGV[6];
 
         my @cmdprefix = ();
         my @tarcmd    = (
@@ -3213,12 +3198,12 @@ sub hookhelper {
             any { $_ eq $command }
             ('copy-in', 'tar-in', 'upload', 'sync-in')
         ) {
-            if (scalar @ARGV < 9) {
+            if (scalar @args < 2) {
                 error "$command needs at least one path on the"
                   . " outside and the output path inside the chroot";
             }
-            my $outpath = $ARGV[-1];
-            for (my $i = 7 ; $i < $#ARGV ; $i++) {
+            my $outpath = pop @args;
+            foreach my $file (@args) {
                 # the right argument for tar's --directory argument depends on
                 # whether tar is called from inside the chroot or from the
                 # outside
@@ -3288,20 +3273,17 @@ sub hookhelper {
                     # instruct the parent process to create a tarball of the
                     # requested path outside the chroot
                     debug "helper: sending mktar";
-                    print STDOUT (
-                        pack("n", length $ARGV[$i]) . "mktar" . $ARGV[$i]);
+                    print STDOUT (pack("n", length $file) . "mktar" . $file);
                 } elsif ($command eq 'sync-in') {
                     # instruct the parent process to create a tarball of the
                     # content of the requested path outside the chroot
                     debug "helper: sending mktac";
-                    print STDOUT (
-                        pack("n", length $ARGV[$i]) . "mktac" . $ARGV[$i]);
+                    print STDOUT (pack("n", length $file) . "mktac" . $file);
                 } elsif (any { $_ eq $command } ('upload', 'tar-in')) {
                     # instruct parent process to open a tarball of the
                     # requested path outside the chroot for reading
                     debug "helper: sending openr";
-                    print STDOUT (
-                        pack("n", length $ARGV[$i]) . "openr" . $ARGV[$i]);
+                    print STDOUT (pack("n", length $file) . "openr" . $file);
                 } else {
                     error "unknown command: $command";
                 }
@@ -3360,31 +3342,31 @@ sub hookhelper {
             any { $_ eq $command }
             ('copy-out', 'tar-out', 'download', 'sync-out')
         ) {
-            if (scalar @ARGV < 9) {
+            if (scalar @args < 2) {
                 error "$command needs at least one path inside the chroot and"
                   . " the output path on the outside";
             }
-            my $outpath = $ARGV[-1];
-            for (my $i = 7 ; $i < $#ARGV ; $i++) {
+            my $outpath = pop @args;
+            foreach my $file (@args) {
                 # the right argument for tar's --directory argument depends on
                 # whether tar is called from inside the chroot or from the
                 # outside
                 my $directory;
                 if ($hook eq 'setup') {
                     # tar runs outside, so acquire the correct path
-                    $directory = chrooted_realpath $root, $ARGV[$i];
+                    $directory = chrooted_realpath $root, $file;
                 } elsif (
                     any { $_ eq $hook }
                     ('extract', 'essential', 'customize')
                 ) {
                     if ($mode eq 'fakechroot') {
                         # tar will run inside the chroot
-                        $directory = $ARGV[$i];
+                        $directory = $file;
                     } elsif (
                         any { $_ eq $mode }
                         ('root', 'chrootless', 'unshare')
                     ) {
-                        $directory = chrooted_realpath $root, $ARGV[$i];
+                        $directory = chrooted_realpath $root, $file;
                     } else {
                         error "unknown mode: $mode";
                     }
@@ -3497,11 +3479,11 @@ sub hookhelper {
 }
 
 sub hooklistener {
+    $verbosity_level = shift;
     # we put everything in an eval block because that way we can easily handle
     # errors without goto labels or much code duplication: the error handler
     # has to send an "error" message to the other side
     eval {
-        $verbosity_level = $ARGV[1];
         while (1) {
             # get the next message
             my $msg = "error";
@@ -4235,14 +4217,15 @@ sub main() {
     umask 022;
 
     if (scalar @ARGV >= 7 && $ARGV[0] eq "--hook-helper") {
-        hookhelper();
+        shift @ARGV;    # shift off "--hook-helper"
+        hookhelper(@ARGV);
         exit 0;
     }
 
     # this is the counterpart to --hook-helper and will receive and carry
     # out its instructions
     if (scalar @ARGV == 2 && $ARGV[0] eq "--hook-listener") {
-        hooklistener();
+        hooklistener($ARGV[1]);
         exit 0;
     }
 
@@ -5812,11 +5795,8 @@ sub main() {
         open(STDIN, '<&', $parentsock)
           or error "cannot open STDIN: $!";
 
-        my @prefix = ();
-        if ($is_covering) {
-            @prefix = ($EXECUTABLE_NAME, "-MDevel::Cover=-silent,-nogcov");
-        }
-        exec @prefix, $PROGRAM_NAME, "--hook-listener", $verbosity_level;
+        hooklistener($verbosity_level);
+        exit 0;
     }
     waitpid($lpid, 0);
     if ($? != 0) {
