@@ -1109,27 +1109,10 @@ sub run_apt_download_progress {
     return @listofdebs;
 }
 
-sub run_chroot {
-    my $cmd     = shift;
+sub setup_mounts {
     my $options = shift;
 
     my @cleanup_tasks = ();
-
-    my $cleanup = sub {
-        my $signal = $_[0];
-        while (my $task = pop @cleanup_tasks) {
-            $task->();
-        }
-        if ($signal) {
-            warning "pid $PID cought signal: $signal";
-            exit 1;
-        }
-    };
-
-    local $SIG{INT}  = $cleanup;
-    local $SIG{HUP}  = $cleanup;
-    local $SIG{PIPE} = $cleanup;
-    local $SIG{TERM} = $cleanup;
 
     eval {
         if (any { $_ eq $options->{mode} } ('root', 'unshare')) {
@@ -1496,6 +1479,12 @@ sub run_chroot {
         if (any { $_ eq 'chroot/policy-rc.d' } @{ $options->{skip} }) {
             info "skipping chroot/policy-rc.d as requested";
         } else {
+            push @cleanup_tasks, sub {
+                if (-f "$options->{root}/usr/sbin/policy-rc.d") {
+                    unlink "$options->{root}/usr/sbin/policy-rc.d"
+                      or error "cannot unlink policy-rc.d: $!";
+                }
+            };
             if (-d "$options->{root}/usr/sbin/") {
                 open my $fh, '>', "$options->{root}/usr/sbin/policy-rc.d"
                   or error "cannot open policy-rc.d: $!";
@@ -1511,6 +1500,14 @@ sub run_chroot {
         if (any { $_ eq 'chroot/start-stop-daemon' } @{ $options->{skip} }) {
             info "skipping chroot/start-stop-daemon as requested";
         } else {
+            push @cleanup_tasks, sub {
+                if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
+                    move(
+                        "$options->{root}/sbin/start-stop-daemon.REAL",
+                        "$options->{root}/sbin/start-stop-daemon"
+                    ) or error "cannot move start-stop-daemon: $!";
+                }
+            };
             if (-f "$options->{root}/sbin/start-stop-daemon") {
                 if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
                     error
@@ -1532,40 +1529,12 @@ sub run_chroot {
                   or error "cannot chmod start-stop-daemon: $!";
             }
         }
-
-        &{$cmd}();
-
-        # cleanup
-        if (any { $_ eq 'chroot/start-stop-daemon' } @{ $options->{skip} }) {
-            info "skipping chroot/start-stop-daemon as requested";
-        } else {
-            if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
-                move(
-                    "$options->{root}/sbin/start-stop-daemon.REAL",
-                    "$options->{root}/sbin/start-stop-daemon"
-                ) or error "cannot move start-stop-daemon: $!";
-            }
-        }
-        if (any { $_ eq 'chroot/policy-rc.d' } @{ $options->{skip} }) {
-            info "skipping chroot/policy-rc.d as requested";
-        } else {
-            if (-f "$options->{root}/usr/sbin/policy-rc.d") {
-                unlink "$options->{root}/usr/sbin/policy-rc.d"
-                  or error "cannot unlink policy-rc.d: $!";
-            }
-        }
-
     };
 
-    my $error = $@;
-
-    # we use the cleanup function to do the unmounting
-    $cleanup->(0);
-
-    if ($error) {
-        error "run_chroot failed: $error";
+    if ($@) {
+        error "setup_mounts failed: $@";
     }
-    return;
+    return @cleanup_tasks;
 }
 
 sub run_hooks {
@@ -1630,7 +1599,14 @@ sub run_hooks {
           ("MMDEBSTRAP_INCLUDE=" . (join ",", @escaped_includes));
     }
 
-    my $runner = sub {
+    # Unset the close-on-exec flag, so that the file descriptor does not
+    # get closed when we exec
+    my $flags = fcntl($options->{hooksock}, F_GETFD, 0)
+      or error "fcntl F_GETFD: $!";
+    fcntl($options->{hooksock}, F_SETFD, $flags & ~FD_CLOEXEC)
+      or error "fcntl F_SETFD: $!";
+
+    {
         foreach my $script (@{ $options->{"${name}_hook"} }) {
             if (
                 $script =~ /^(
@@ -1687,19 +1663,6 @@ sub run_hooks {
         }
     };
 
-    # Unset the close-on-exec flag, so that the file descriptor does not
-    # get closed when we exec
-    my $flags = fcntl($options->{hooksock}, F_GETFD, 0)
-      or error "fcntl F_GETFD: $!";
-    fcntl($options->{hooksock}, F_SETFD, $flags & ~FD_CLOEXEC)
-      or error "fcntl F_SETFD: $!";
-    if ($name eq 'setup') {
-        # execute directly without mounting anything (the mount points do not
-        # exist yet)
-        &{$runner}();
-    } else {
-        run_chroot(\&$runner, $options);
-    }
     # Restore flags
     fcntl($options->{hooksock}, F_SETFD, $flags) or error "fcntl F_SETFD: $!";
     return;
@@ -1755,21 +1718,57 @@ sub setup {
     # FIXME: dpkg could be changed to produce the same results
     run_extract($options, $essential_pkgs);
 
-    run_hooks('extract', $options);
-
-    if ($options->{variant} ne 'extract') {
-        my $chrootcmd = [];
-        if ($options->{mode} ne 'chrootless') {
-            $chrootcmd = run_prepare($options);
+    # setup mounts
+    my @cleanup_tasks = ();
+    my $cleanup       = sub {
+        my $signal = $_[0];
+        while (my $task = pop @cleanup_tasks) {
+            $task->();
         }
+        if ($signal) {
+            warning "pid $PID cought signal: $signal";
+            exit 1;
+        }
+    };
 
-        run_essential($options, $essential_pkgs, $chrootcmd, $cached_debs);
+    # we only need to setup the mounts if there is anything to do
+    if (   $options->{variant} ne 'custom'
+        or scalar @{ $options->{include} } > 0
+        or scalar @{ $options->{"extract_hook"} } > 0
+        or scalar @{ $options->{"essential_hook"} } > 0
+        or scalar @{ $options->{"customize_hook"} } > 0) {
+        local $SIG{INT}  = $cleanup;
+        local $SIG{HUP}  = $cleanup;
+        local $SIG{PIPE} = $cleanup;
+        local $SIG{TERM} = $cleanup;
 
-        run_hooks('essential', $options);
+        @cleanup_tasks = setup_mounts($options);
+    }
 
-        run_install($options, $chrootcmd);
+    eval {
+        run_hooks('extract', $options);
 
-        run_hooks('customize', $options);
+        if ($options->{variant} ne 'extract') {
+            my $chrootcmd = [];
+            if ($options->{mode} ne 'chrootless') {
+                $chrootcmd = run_prepare($options);
+            }
+
+            run_essential($options, $essential_pkgs, $chrootcmd, $cached_debs);
+
+            run_hooks('essential', $options);
+
+            run_install($options);
+
+            run_hooks('customize', $options);
+        }
+    };
+
+    my $msg = $@;
+
+    $cleanup->(0);
+    if ($msg) {
+        error "setup failed: $msg";
     }
 
     if (any { $_ eq 'cleanup' } @{ $options->{skip} }) {
@@ -2769,18 +2768,11 @@ sub run_essential() {
             info "simulate installing essential packages...";
         } else {
             info "installing essential packages...";
-            run_chroot(
-                sub {
-                    run_dpkg_progress({
-                            ARGV => [
-                                @{$chrootcmd}, 'dpkg',
-                                '--install',   '--force-depends'
-                            ],
-                            PKGS => $essential_pkgs,
-                        });
-                },
-                $options
-            );
+            run_dpkg_progress({
+                ARGV =>
+                  [@{$chrootcmd}, 'dpkg', '--install', '--force-depends'],
+                PKGS => $essential_pkgs,
+            });
         }
     } else {
         error "unknown mode: $options->{mode}";
@@ -2807,8 +2799,7 @@ sub run_essential() {
 }
 
 sub run_install() {
-    my $options   = shift;
-    my $chrootcmd = shift;
+    my $options = shift;
 
     my %pkgs_to_install;
     for my $incl (@{ $options->{include} }) {
@@ -2901,35 +2892,26 @@ sub run_install() {
             # --root but this would only make sense in situations where there
             # is no dpkg inside the chroot.
             if (!$options->{dryrun}) {
-                run_chroot(
-                    sub {
-                        info "installing remaining packages inside the"
-                          . " chroot...";
-                        run_apt_progress({
-                                ARGV => [
-                                    'apt-get',
-                                    '-o',
-                                    'Dir::Bin::dpkg=env',
-                                    '-o',
-                                    'DPkg::Options::=--unset=TMPDIR',
-                                    '-o',
-                                    'DPkg::Options::=dpkg',
-                                    $options->{mode} eq 'fakechroot'
-                                    ? (
-                                        '-o',
-                                        'DPkg::Install::Recursive::force=true'
-                                      )
-                                    : (),
-                                    '-o',
-                                    "DPkg::Chroot-Directory=$options->{root}",
-                                    '--yes',
-                                    'install'
-                                ],
-                                PKGS => [@pkgs_to_install],
-                            });
-                    },
-                    $options
-                );
+                info "installing remaining packages inside the chroot...";
+                run_apt_progress({
+                        ARGV => [
+                            'apt-get',
+                            '-o',
+                            'Dir::Bin::dpkg=env',
+                            '-o',
+                            'DPkg::Options::=--unset=TMPDIR',
+                            '-o',
+                            'DPkg::Options::=dpkg',
+                            $options->{mode} eq 'fakechroot'
+                            ? ('-o', 'DPkg::Install::Recursive::force=true')
+                            : (),
+                            '-o',
+                            "DPkg::Chroot-Directory=$options->{root}",
+                            '--yes',
+                            'install'
+                        ],
+                        PKGS => [@pkgs_to_install],
+                    });
             } else {
                 info "simulate installing remaining packages inside the"
                   . " chroot...";
@@ -6822,6 +6804,17 @@ C<apt-get dist-upgrade>. In the remaining variants, all Packages files
 downloaded by the B<update> step are inspected to find the C<Essential:yes>
 package set as well as all packages of the required priority.
 
+=item B<mount>
+
+Mount relevant device nodes, F</proc> and F</sys> into the chroot and unmount
+them afterwards. This can be disabled using B<--skip=chroot/mount> or
+specifically by B<--skip=chroot/mount/dev>, B<--skip=chroot/mount/proc> and
+B<--skip=chroot/mount/sys>, respectively. B<mmdebstrap> will disable running
+services by temporarily moving F</usr/sbin/policy-rc.d> and
+F</sbin/start-stop-daemon> if they exist. This can be disabled with
+B<--skip=chroot/policy-rc.d> and B<--skip=chroot/start-stop-daemon>,
+respectively.
+
 =item B<extract>
 
 Extract the downloaded packages into the rootfs.
@@ -6862,17 +6855,10 @@ out in B<extract> mode.
 Run B<--customize-hook> options and all F<customize*> scripts in B<--hook-dir>.
 This step is not carried out in B<extract> mode.
 
-Whenever B<mmdebstrap> does a chroot call in B<root> or B<unshare> modes, it
-will mount relevant device nodes, F</proc> and F</sys> into the chroot and
-unmount them afterwards. This can be disabled using B<--skip=chroot/mount> or
-specifically by B<--skip=chroot/mount/dev>, B<--skip=chroot/mount/proc> and
-B<--skip=chroot/mount/sys>, respectively.
+=item B<unmount>
 
-For each command that is run inside the chroot, B<mmdebstrap> will disable
-running services by temporarily moving F</usr/sbin/policy-rc.d> and
-F</sbin/start-stop-daemon> if they exist. This can be disabled with
-B<--skip=chroot/policy-rc.d> and B<--skip=chroot/start-stop-daemon>,
-respectively.
+Unmount everything that was mounted during the B<mount> stage and restores
+F</usr/sbin/policy-rc.d> and F</sbin/start-stop-daemon> if necessary.
 
 =item B<cleanup>
 
