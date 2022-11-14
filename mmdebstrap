@@ -36,7 +36,7 @@ use File::Find;
 use Cwd qw(abs_path getcwd);
 require "syscall.ph";      ## no critic (Modules::RequireBarewordIncludes)
 require "sys/ioctl.ph";    ## no critic (Modules::RequireBarewordIncludes)
-use Fcntl qw(S_IFCHR S_IFBLK FD_CLOEXEC F_GETFD F_SETFD);
+use Fcntl      qw(S_IFCHR S_IFBLK FD_CLOEXEC F_GETFD F_SETFD);
 use List::Util qw(any none);
 use POSIX
   qw(SIGINT SIGHUP SIGPIPE SIGTERM SIG_BLOCK SIG_UNBLOCK strftime isatty);
@@ -1153,10 +1153,8 @@ sub setup_mounts {
                     }
                 } elsif ($type == 3 or $type == 4) {
                     # character/block special
-                    if (
-                        any { $_ =~ '^chroot/mount(?:/dev)?$' }
-                        @{ $options->{skip} }
-                    ) {
+                    if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
+                        @{ $options->{skip} }) {
                         info "skipping chroot/mount/dev as requested";
                     } elsif (!$options->{canmount}) {
                         warning "skipping bind-mounting ./dev/$fname";
@@ -1215,10 +1213,8 @@ sub setup_mounts {
                     }
                 } elsif ($type == 5) {
                     # directory
-                    if (
-                        any { $_ =~ '^chroot/mount(?:/dev)?$' }
-                        @{ $options->{skip} }
-                    ) {
+                    if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
+                        @{ $options->{skip} }) {
                         info "skipping chroot/mount/dev as requested";
                     } elsif (!$options->{canmount}) {
                         warning "skipping bind-mounting ./dev/$fname";
@@ -2371,10 +2367,8 @@ sub run_download() {
                 dryrun   => $options->{dryrun},
             },
         );
-    } elsif (
-        any { $_ eq $options->{variant} }
-        ('essential', 'standard', 'important', 'required', 'buildd')
-    ) {
+    } elsif (any { $_ eq $options->{variant} }
+        ('essential', 'standard', 'important', 'required', 'buildd')) {
         # 2021-06-07, #debian-apt on OFTC, times in UTC+2
         # 17:27 < DonKult> (?essential includes 'apt' through)
         # 17:30 < josch> DonKult: no, because pkgCacheGen::ForceEssential ",";
@@ -2890,10 +2884,8 @@ sub run_install() {
     if ($options->{variant} eq 'buildd') {
         $pkgs_to_install{'build-essential'} = ();
     }
-    if (
-        any { $_ eq $options->{variant} }
-        ('required', 'important', 'standard', 'buildd')
-    ) {
+    if (any { $_ eq $options->{variant} }
+        ('required', 'important', 'standard', 'buildd')) {
         # Many of the priority:required packages are also essential:yes. We
         # make sure not to select those here to avoid useless "xxx is already
         # the newest version" messages.
@@ -3267,10 +3259,8 @@ sub hookhelper {
             error "unknown hook: $hook";
         }
 
-        if (
-            any { $_ eq $command }
-            ('copy-in', 'tar-in', 'upload', 'sync-in')
-        ) {
+        if (any { $_ eq $command } ('copy-in', 'tar-in', 'upload', 'sync-in'))
+        {
             if (scalar @args < 2) {
                 error "$command needs at least one path on the"
                   . " outside and the output path inside the chroot";
@@ -3284,17 +3274,13 @@ sub hookhelper {
                 if ($hook eq 'setup') {
                     # tar runs outside, so acquire the correct path
                     $directory = chrooted_realpath $root, $outpath;
-                } elsif (
-                    any { $_ eq $hook }
-                    ('extract', 'essential', 'customize')
-                ) {
+                } elsif (any { $_ eq $hook }
+                    ('extract', 'essential', 'customize')) {
                     if ($mode eq 'fakechroot') {
                         # tar will run inside the chroot
                         $directory = $outpath;
-                    } elsif (
-                        any { $_ eq $mode }
-                        ('root', 'chrootless', 'unshare')
-                    ) {
+                    } elsif (any { $_ eq $mode }
+                        ('root', 'chrootless', 'unshare')) {
                         $directory = chrooted_realpath $root, $outpath;
                     } else {
                         error "unknown mode: $mode";
@@ -3325,10 +3311,8 @@ sub hookhelper {
                     # open the requested file for writing
                     open $fh, '|-', @cmdprefix, 'sh', '-c', 'cat > "$1"',
                       'exec', $directory // error "failed to fork(): $!";
-                } elsif (
-                    any { $_ eq $command }
-                    ('copy-in', 'tar-in', 'sync-in')
-                ) {
+                } elsif (any { $_ eq $command }
+                    ('copy-in', 'tar-in', 'sync-in')) {
                     # open a tar process that extracts the tarfile that we
                     # supply it with on stdin to the output directory inside
                     # the chroot
@@ -3411,10 +3395,8 @@ sub hookhelper {
                     error "tar failed";
                 }
             }
-        } elsif (
-            any { $_ eq $command }
-            ('copy-out', 'tar-out', 'download', 'sync-out')
-        ) {
+        } elsif (any { $_ eq $command }
+            ('copy-out', 'tar-out', 'download', 'sync-out')) {
             if (scalar @args < 2) {
                 error "$command needs at least one path inside the chroot and"
                   . " the output path on the outside";
@@ -3428,17 +3410,13 @@ sub hookhelper {
                 if ($hook eq 'setup') {
                     # tar runs outside, so acquire the correct path
                     $directory = chrooted_realpath $root, $file;
-                } elsif (
-                    any { $_ eq $hook }
-                    ('extract', 'essential', 'customize')
-                ) {
+                } elsif (any { $_ eq $hook }
+                    ('extract', 'essential', 'customize')) {
                     if ($mode eq 'fakechroot') {
                         # tar will run inside the chroot
                         $directory = $file;
-                    } elsif (
-                        any { $_ eq $mode }
-                        ('root', 'chrootless', 'unshare')
-                    ) {
+                    } elsif (any { $_ eq $mode }
+                        ('root', 'chrootless', 'unshare')) {
                         $directory = chrooted_realpath $root, $file;
                     } else {
                         error "unknown mode: $mode";
@@ -4141,10 +4119,8 @@ sub get_sourceslist_by_suite {
         # the security mirror changes, starting with bullseye
         # https://lists.debian.org/87r26wqr2a.fsf@43-1.org
         my $bullseye_or_later = 0;
-        if (
-            any { $_ eq $suite }
-            ('stable', 'bullseye', 'bookworm', 'trixie')
-        ) {
+        if (any { $_ eq $suite } ('stable', 'bullseye', 'bookworm', 'trixie'))
+        {
             $bullseye_or_later = 1;
         }
         my $distro_info = '/usr/share/distro-info/debian.csv';
@@ -5593,10 +5569,8 @@ sub main() {
         );
         waitpid $pid, 0;
         $? == 0 or error "havemknod failed";
-    } elsif (
-        any { $_ eq $options->{mode} }
-        ('root', 'fakechroot', 'chrootless')
-    ) {
+    } elsif (any { $_ eq $options->{mode} }
+        ('root', 'fakechroot', 'chrootless')) {
         $options->{havemknod} = havemknod($options->{root});
     } else {
         error "unknown mode: $options->{mode}";
@@ -5754,10 +5728,8 @@ sub main() {
             },
             \@idmap
         );
-    } elsif (
-        any { $_ eq $options->{mode} }
-        ('root', 'fakechroot', 'chrootless')
-    ) {
+    } elsif (any { $_ eq $options->{mode} }
+        ('root', 'fakechroot', 'chrootless')) {
         $pid = fork() // error "fork() failed: $!";
         if ($pid == 0) {
             local $SIG{'INT'}  = 'DEFAULT';
@@ -5819,10 +5791,8 @@ sub main() {
                     0 == system('chroot', $options->{root}, 'tar',
                         @taropts, '-C', '/', '.')
                       or error "tar failed: $?";
-                } elsif (
-                    any { $_ eq $options->{mode} }
-                    ('root', 'chrootless')
-                ) {
+                } elsif (any { $_ eq $options->{mode} } ('root', 'chrootless'))
+                {
                     # If the chroot directory is not owned by the root user,
                     # then we assume that no measure was taken to fake root
                     # permissions. Since the final tarball should contain
@@ -6051,10 +6021,8 @@ sub main() {
                 rmdir "$options->{root}"
                   or error "cannot rmdir $options->{root}: $!";
             }
-        } elsif (
-            any { $_ eq $options->{mode} }
-            ('root', 'fakechroot', 'chrootless')
-        ) {
+        } elsif (any { $_ eq $options->{mode} }
+            ('root', 'fakechroot', 'chrootless')) {
             # without unshare, we use the system's rm to recursively remove the
             # temporary directory just to make sure that we do not accidentally
             # remove more than we should by using --one-file-system.
