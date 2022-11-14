@@ -346,3 +346,7 @@ Test: error-if-stdout-is-tty
 Test: variant-custom-timeout
 
 Test: include-deb-file
+
+Test: pivot_root
+Modes: root unshare
+Needs-QEMU: true

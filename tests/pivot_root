@@ -1,0 +1,55 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+trap "rm -f /tmp/chroot1.tar /tmp/chroot2.tar /tmp/chroot3.tar /tmp/mmdebstrap" EXIT INT TERM
+
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+
+if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
+	adduser --gecos user --disabled-password user
+fi
+
+prefix=
+[ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && prefix="runuser -u user --"
+
+MMDEBSTRAP=
+[ -e /usr/bin/mmdebstrap ] && MMDEBSTRAP=/usr/bin/mmdebstrap
+[ -e ./mmdebstrap ] && MMDEBSTRAP=./mmdebstrap
+
+$prefix {{ CMD }} --mode={{ MODE }} --variant=apt \
+	--include=mount \
+	{{ DIST }} /tmp/chroot1.tar {{ MIRROR }}
+
+if [ {{ MODE }} = "unshare" ]; then
+	# calling pivot_root in root mode does not work for mysterious reasons:
+	# pivot_root: failed to change root from `.' to `mnt': Invalid argument
+	$prefix {{ CMD }} --mode={{ MODE }} --variant=apt --include=mount \
+		--customize-hook="upload $MMDEBSTRAP /$MMDEBSTRAP" \
+		--customize-hook='chmod +x "$1"/'"$MMDEBSTRAP" \
+		--customize-hook='mount -o rbind "$1" /mnt && cd /mnt && /sbin/pivot_root . mnt' \
+		--customize-hook='unshare -U echo nested unprivileged unshare' \
+		--customize-hook='{{ CMD }} --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
+		--customize-hook='copy-out /tmp/chroot3.tar /tmp' \
+		--customize-hook='rm "$1/'"$MMDEBSTRAP"'"' \
+		--customize-hook='umount -l mnt sys' \
+		{{ DIST }} /tmp/chroot2.tar {{ MIRROR }}
+
+		cmp /tmp/chroot1.tar /tmp/chroot2.tar
+		cmp /tmp/chroot1.tar /tmp/chroot3.tar
+		rm /tmp/chroot2.tar /tmp/chroot3.tar
+fi
+
+$prefix {{ CMD }} --mode={{ MODE }} --variant=apt --include=mount \
+	--customize-hook="upload $MMDEBSTRAP /$MMDEBSTRAP" \
+	--customize-hook='chmod +x "$1"/'"$MMDEBSTRAP" \
+	--chrooted-customize-hook='{{ CMD }} --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
+	--customize-hook='copy-out /tmp/chroot3.tar /tmp' \
+	--customize-hook='rm "$1/'"$MMDEBSTRAP"'"' \
+	{{ DIST }} /tmp/chroot2.tar {{ MIRROR }}
+
+cmp /tmp/chroot1.tar /tmp/chroot2.tar
+cmp /tmp/chroot1.tar /tmp/chroot3.tar

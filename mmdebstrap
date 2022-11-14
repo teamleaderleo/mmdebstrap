@@ -62,12 +62,17 @@ use version;
 *_LINUX_CAPABILITY_VERSION_3 = \0x20080522;
 *CAP_SYS_ADMIN               = \21;
 *PR_CAPBSET_READ             = \23;
+# from sys/mount.h
+*MS_BIND    = \0x1000;
+*MS_REC     = \0x4000;
+*MNT_DETACH = \2;
 our (
     $CLONE_NEWNS,                 $CLONE_NEWUTS,
     $CLONE_NEWIPC,                $CLONE_NEWUSER,
     $CLONE_NEWPID,                $CLONE_NEWNET,
     $_LINUX_CAPABILITY_VERSION_3, $CAP_SYS_ADMIN,
-    $PR_CAPBSET_READ
+    $PR_CAPBSET_READ,             $MS_BIND,
+    $MS_REC,                      $MNT_DETACH
 );
 
 #<<<
@@ -1608,6 +1613,55 @@ sub run_hooks {
 
     {
         foreach my $script (@{ $options->{"${name}_hook"} }) {
+            my $type = $script->[0];
+            $script = $script->[1];
+
+            if ($type eq "pivoted") {
+                info "running --chrooted-$name-hook in shell: sh -c "
+                  . "'$script'";
+                my $pid = fork() // error "fork() failed: $!";
+                if ($pid == 0) {
+                    # child
+                    my @cmdprefix = ();
+                    if ($options->{mode} eq 'fakechroot') {
+                        # we are calling the chroot executable instead of
+                        # chrooting the process so that fakechroot can handle
+                        # it
+                        @cmdprefix = ('chroot', $options->{root});
+                    } elsif ($options->{mode} eq 'root') {
+                        # unsharing the mount namespace is not enough for
+                        # pivot_root to work as root (why?) unsharing the user
+                        # namespace as well (but without remapping) makes
+                        # pivot_root work (why??) but still makes later lazy
+                        # umounts fail (why???). Since pivot_root is mainly
+                        # useful for being able to run unshare mode inside
+                        # unshare mode, we fall back to just calling chroot()
+                        # until somebody has motivation and time to figure out
+                        # what is going on.
+                        chroot $options->{root}
+                          or error "failed to chroot(): $!";
+                        $options->{root} = "/";
+                        chdir "/" or error "failed chdir() to /: $!";
+                    } elsif ($options->{mode} eq 'unshare') {
+                        0 == syscall &SYS_unshare, $CLONE_NEWNS
+                          or error "unshare() failed: $!";
+                        pivot_root($options->{root});
+                    } else {
+                        error "unknown mode: $options->{mode}";
+                    }
+                    0 == system(@cmdprefix, 'env', @env_opts, 'sh', '-c',
+                        $script)
+                      or error "command failed: $script";
+                    exit 0;
+                }
+                waitpid($pid, 0);
+                $? == 0 or error "chrooted hook failed with exit code $?";
+                next;
+            }
+
+            # inode and device number of chroot before
+            my ($dev_before, $ino_before, undef) = stat($options->{root});
+
             if (
                 $script =~ /^(
                 copy-in|copy-out
@@ -1659,6 +1713,26 @@ sub run_hooks {
                 0 == system('env', @env_opts,
                     'sh', '-c', $script, 'exec', $options->{root})
                   or error "command failed: $script";
+            }
+
+            # If the chroot directory vanished, check if pivot_root was
+            # performed.
+            #
+            # Running pivot_root is only really useful in the customize-hooks
+            # because mmdebstrap uses apt from the outside to install packages
+            # and that will fail after pivot_root because the process doesn't
+            # have access to the system on the outside anymore.
+            if (!-e $options->{root}) {
+                my ($dev_root, $ino_root, undef) = stat("/");
+                if ($dev_before == $dev_root and $ino_before == $ino_root) {
+                    info "detected pivot_root, changing chroot directory to /";
+                    # the old chroot directory is now /
+                    # the hook probably executed pivot_root
+                    $options->{root} = "/";
+                    chdir "/" or error "failed chdir() to /: $!";
+                } else {
+                    error "chroot directory $options->{root} vanished";
+                }
             }
         }
     };
@@ -3146,6 +3220,23 @@ sub chrooted_realpath {
     return $result;
 }
 
+sub pivot_root {
+    my $root    = shift;
+    my $target  = "/mnt";
+    my $put_old = "tmp";
+    0 == syscall &SYS_mount, $root, $target, 0, $MS_REC | $MS_BIND, 0
+      or error "mount failed: $!";
+    chdir "/mnt" or error "failed chdir() to /mnt: $!";
+    0 == syscall &SYS_pivot_root, my $new_root = ".", $put_old
+      or error "pivot_root failed: $!";
+    chroot "." or error "failed to chroot() to .: $!";
+    0 == syscall &SYS_umount2, $put_old, $MNT_DETACH
+      or error "umount2 failed: $!";
+    0 == syscall &SYS_umount2, my $sys = "sys", $MNT_DETACH
+      or error "umount2 failed: $!";
+    return;
+}
+
 sub hookhelper {
     my ($root, $mode, $hook, $qemu, $verbosity, $command, @args) = @_;
     $verbosity_level = $verbosity;
@@ -4367,16 +4458,25 @@ sub main() {
         'force-check-gpg' =>
           sub { push @{ $options->{noop} }, 'force-check-gpg'; },
         'setup-hook=s' => sub {
-            push @{ $options->{setup_hook} }, $_[1];
+            push @{ $options->{setup_hook} }, ["normal", $_[1]];
         },
         'extract-hook=s' => sub {
-            push @{ $options->{extract_hook} }, $_[1];
+            push @{ $options->{extract_hook} }, ["normal", $_[1]];
+        },
+        'chrooted-extract-hook=s' => sub {
+            push @{ $options->{extract_hook} }, ["pivoted", $_[1]];
         },
         'essential-hook=s' => sub {
-            push @{ $options->{essential_hook} }, $_[1];
+            push @{ $options->{essential_hook} }, ["normal", $_[1]];
+        },
+        'chrooted-essential-hook=s' => sub {
+            push @{ $options->{essential_hook} }, ["pivoted", $_[1]];
         },
         'customize-hook=s' => sub {
-            push @{ $options->{customize_hook} }, $_[1];
+            push @{ $options->{customize_hook} }, ["normal", $_[1]];
+        },
+        'chrooted-customize-hook=s' => sub {
+            push @{ $options->{customize_hook} }, ["pivoted", $_[1]];
         },
         'hook-directory=s' => sub {
             my ($opt_name, $opt_value) = @_;
@@ -4411,7 +4511,7 @@ sub main() {
             # list of hooks
             foreach my $hook (keys %scripts) {
                 push @{ $options->{"${hook}_hook"} },
-                  (sort @{ $scripts{$hook} });
+                  (map { ["normal", $_] } (sort @{ $scripts{$hook} }));
             }
         },
         # Sometimes --simulate fails even though non-simulate succeeds because
@@ -4451,6 +4551,14 @@ sub main() {
         foreach my $hook ('setup', 'extract', 'essential', 'customize') {
             if (scalar @{ $options->{"${hook}_hook"} } > 0) {
                 warning "In dry-run mode, --$hook-hook options have no effect";
+            }
+            if ($options->{mode} eq 'chrootless') {
+                foreach my $script (@{ $options->{"${hook}_hook"} }) {
+                    if ($script->[0] eq "pivoted") {
+                        error "--chrooted-$hook-hook are illegal in "
+                          . "chrootless mode";
+                    }
+                }
             }
         }
     }
