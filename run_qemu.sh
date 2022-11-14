@@ -54,7 +54,7 @@ qemu-img create -f qcow2 -b "$(realpath $cachedir)/debian-$DEFAULT_DIST.qcow" -F
 # or this (quit with ctrl+q):
 #   socat stdin,raw,echo=0,escape=0x11 unix-connect:/tmp/ttyS0
 ret=0
-timeout --foreground 20m qemu-system-"$QEMUARCH" \
+timeout --foreground 40m qemu-system-"$QEMUARCH" \
 	-cpu host \
 	-no-user-config \
 	-M "$MACHINE" -m 4G -nographic \
