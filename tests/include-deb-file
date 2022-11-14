@@ -3,19 +3,24 @@
 set -eu
 export LC_ALL=C.UTF-8
 
-{{ CMD }} --variant=apt \
-	--customize-hook='mkdir "$1"/tmp/apt' \
-	--customize-hook='chroot "$1" env --chdir=/tmp/apt apt-get download busybox' \
-	--customize-hook='copy-out /tmp/apt /tmp' \
-	{{ DIST }} /dev/null {{ MIRROR }}
-pkg="$(find /tmp/apt -type f)"
-# some sanity checks
-[ -f "$pkg" ]
-case $pkg in
-	/tmp/apt/busybox*_{{ HOSTARCH }}.deb) : ;;
-	*) exit 1;;
-esac
-# now try to install that package
-{{ CMD }} --variant=apt --include="$pkg" \
-	--customize-hook='chroot "$1" dpkg-query -W -f="\${Status}\n" busybox | grep "^install ok installed$"' \
+# instead of obtaining a .deb from our cache, we create a new package because
+# otherwise apt might decide to download the package with the same name and
+# version from the cache instead of using the local .deb
+mkdir -p /tmp/dummypkg/DEBIAN
+cat << END > "/tmp/dummypkg/DEBIAN/control"
+Package: dummypkg
+Priority: optional
+Section: oldlibs
+Maintainer: Johannes Schauer Marin Rodrigues <josch@debian.org>
+Architecture: all
+Multi-Arch: foreign
+Source: dummypkg
+Version: 1
+Description: dummypkg
+END
+dpkg-deb --build "/tmp/dummypkg" "/tmp/dummypkg.deb"
+
+{{ CMD }} --variant=apt --include="/tmp/dummypkg.deb" \
+	--hook-dir=./hooks/file-mirror-automount \
+	--customize-hook='chroot "$1" dpkg-query -W -f="\${Status}\n" dummypkg | grep "^install ok installed$"' \
 	{{ DIST }} /dev/null {{ MIRROR }}
