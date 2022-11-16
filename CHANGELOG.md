@@ -1,3 +1,9 @@
+1.2.3 (2022-11-16)
+------------------
+
+ - use Text::ParseWords::shellwords instead of spawning a new shell
+ - mount and unmount once, instead for each run_chroot() call
+
 1.2.2 (2022-10-27)
 ------------------
 
