@@ -24,7 +24,7 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != root ] && [ "{{ MODE }}" != auto ];
 		sysctl -w kernel.unprivileged_userns_clone=1
 	fi
 	prefix="runuser -u user --"
-	if [ "{{ MODE }}" = extract ] || [ "{{ MODE }}" = custom ]; then
+	if [ "{{ VARIANT }}" = extract ] || [ "{{ VARIANT }}" = custom ]; then
 		include="$(tr '\n' ',' < pkglist.txt)"
 	fi
 fi
