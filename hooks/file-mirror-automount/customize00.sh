@@ -1,4 +1,6 @@
 #!/bin/sh
+#
+# shellcheck disable=SC2086
 
 set -eu
 
@@ -21,17 +23,17 @@ case $MMDEBSTRAP_MODE in
 		echo "removing the following directories:" >&2 ;;
 esac
 
-cat "$rootdir/run/mmdebstrap/file-mirror-automount" \
-	| xargs $xargsopts echo "    $rootdir/{}"
+< "$rootdir/run/mmdebstrap/file-mirror-automount" \
+	xargs $xargsopts echo "    $rootdir/{}"
 
 case $MMDEBSTRAP_MODE in
 	root|unshare)
-		cat "$rootdir/run/mmdebstrap/file-mirror-automount" \
-			| xargs $xargsopts umount "$rootdir/{}"
+		< "$rootdir/run/mmdebstrap/file-mirror-automount" \
+			xargs $xargsopts umount "$rootdir/{}"
 		;;
 	*)
-		cat "$rootdir/run/mmdebstrap/file-mirror-automount" \
-			| xargs $xargsopts rm -r "$rootdir/{}"
+		< "$rootdir/run/mmdebstrap/file-mirror-automount" \
+			xargs $xargsopts rm -r "$rootdir/{}"
 		;;
 esac
 

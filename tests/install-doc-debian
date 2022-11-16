@@ -11,7 +11,7 @@ fi
 prefix=
 [ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
 $prefix {{ CMD }} --mode=chrootless --variant=custom --include=doc-debian {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
-tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/debian-chroot.tar .
+tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/debian-chroot.tar .
 tar tvf /tmp/debian-chroot.tar > doc-debian.tar.list
 rm /tmp/debian-chroot.tar
 # delete contents of doc-debian

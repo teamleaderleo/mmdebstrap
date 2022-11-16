@@ -58,11 +58,9 @@ deletecache() {
 				;;
 		esac
 	done
-	if [ -e $dir/debian-*.qcow ]; then
-		rm --one-file-system "$dir"/debian-*.qcow
-	else
-		echo "does not exist: $dir/debian-*.qcow" >&2
-	fi
+	for f in "$dir/debian-"*.qcow; do
+		rm --one-file-system "$f"
+	done
 	if [ -e "$dir/debian/pool/main" ]; then
 		rm --one-file-system --recursive "$dir/debian/pool/main"
 	else
@@ -103,7 +101,7 @@ get_oldaptnames() {
 	xz -dc "$1/$2" \
 		| grep-dctrl --no-field-names --show-field=Package,Version,Architecture,Filename '' \
 		| paste -sd "    \n" \
-		| while read name ver arch fname; do
+		| while read -r name ver arch fname; do
 			if [ ! -e "$1/$fname" ]; then
 				continue
 			fi
@@ -131,7 +129,7 @@ get_newaptnames() {
 	xz -dc "$1/$2" \
 		| grep-dctrl --no-field-names --show-field=Package,Version,Architecture,Filename,SHA256 '' \
 		| paste -sd "     \n" \
-		| while read name ver arch fname hash; do
+		| while read -r name ver arch fname hash; do
 			# sanity check for the hash because sometimes the
 			# archive switches the hash algorithm
 			if [ "${#hash}" -ne 64 ]; then
@@ -150,7 +148,7 @@ get_newaptnames() {
 				# since we move hardlinks around, the same hardlink might've been
 				# moved already into the same place by another distribution.
 				# mv(1) refuses to copy A to B if both are hardlinks of each other.
-				if [ "$aptname" -ef "$1/$fname" ]; then
+				if [ -e "$aptname" ] && [ -e "$1/$fname" ] && [ "$(stat -c "%d %i" "$aptname")" = "$(stat -c "%d %i" "$1/$fname")" ]; then
 					# both files are already the same so we just need to
 					# delete the source
 					rm "$aptname"
@@ -232,7 +230,7 @@ Acquire::https::Dl-Limit "1000";
 Acquire::Retries "5";
 END
 
-	> "$rootdir/var/lib/dpkg/status"
+	: > "$rootdir/var/lib/dpkg/status"
 
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get update
 
@@ -264,7 +262,7 @@ END
 			--or --field=Priority important --or --field=Priority standard \
 			\))
 
-	pkgs="$(echo $pkgs) build-essential busybox gpg eatmydata"
+	pkgs="$pkgs build-essential busybox gpg eatmydata"
 
 	# we need usr-is-merged to simulate debootstrap behaviour for all dists
 	# starting from Debian 12 (Bullseye)
@@ -273,6 +271,7 @@ END
 		*) pkgs="$pkgs usr-is-merged usrmerge" ;;
 	esac
 
+	# shellcheck disable=SC2086
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --yes install $pkgs
 
 	# to be able to also test gpg verification, we need to create a mirror
@@ -336,7 +335,7 @@ END
 	# new one anymore
 	comm -23 "$rootdir/oldaptnames" "$rootdir/newaptnames" | xargs --delimiter="\n" --no-run-if-empty rm
 	# now the apt cache should be empty
-	if [ ! -z "$(ls -1qA "$rootdir/var/cache/apt/archives/")" ]; then
+	if [ -n "$(ls -1qA "$rootdir/var/cache/apt/archives/")" ]; then
 		echo "$rootdir/var/cache/apt/archives not empty:"
 		ls -la "$rootdir/var/cache/apt/archives/"
 		exit 1
@@ -420,7 +419,7 @@ fi
 for nativearch in $arches; do
 	for dist in oldstable stable testing unstable; do
 		# non-host architectures are only downloaded for $DEFAULT_DIST
-		if [ $nativearch != $HOSTARCH ] && [ $DEFAULT_DIST != $dist ]; then
+		if [ "$nativearch" != "$HOSTARCH" ] && [ "$DEFAULT_DIST" != "$dist" ]; then
 			continue
 		fi
 		# we need a first pass without updates and security patches
@@ -478,7 +477,8 @@ cleanuptmpdir() {
 	rmdir "$tmpdir"
 }
 
-export SOURCE_DATE_EPOCH=$(date --date="$(grep-dctrl -s Date -n '' "$newmirrordir/dists/$DEFAULT_DIST/Release")" +%s)
+SOURCE_DATE_EPOCH="$(date --date="$(grep-dctrl -s Date -n '' "$newmirrordir/dists/$DEFAULT_DIST/Release")" +%s)"
+export SOURCE_DATE_EPOCH
 
 if [ "$HAVE_QEMU" = "yes" ]; then
 	case "$HOSTARCH" in
@@ -532,7 +532,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	else
 		arches=$HOSTARCH
 	fi
-	$CMD --variant=apt --architectures=$arches --include="$pkgs" \
+	$CMD --variant=apt --architectures="$arches" --include="$pkgs" \
 		--aptopt='Acquire::http::Dl-Limit "1000"' \
 		--aptopt='Acquire::https::Dl-Limit "1000"' \
 		--aptopt='Acquire::Retries "5"' \

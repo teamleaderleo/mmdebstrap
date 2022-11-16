@@ -14,7 +14,7 @@ if [ -e ./mmdebstrap ]; then
 	fi
 	rm "$TMPFILE"
 
-	if [ $(sed -e '/^__END__$/,$d' ./mmdebstrap | wc --max-line-length) -gt 79 ]; then
+	if [ "$(sed -e '/^__END__$/,$d' ./mmdebstrap | wc --max-line-length)" -gt 79 ]; then
 		echo "exceeded maximum line length of 79 characters" >&2
 		exit 1
 	fi
@@ -24,6 +24,8 @@ fi
 
 [ -e ./tarfilter ] && black --check ./tarfilter
 [ -e ./coverage.py ] && black --check ./coverage.py
+
+shellcheck --exclude=SC2016 coverage.sh make_mirror.sh run_null.sh run_qemu.sh gpgvnoexpkeysig hooks/*/*.sh
 
 mirrordir="./shared/cache/debian"
 
@@ -75,11 +77,6 @@ export LC_ALL=C.UTF-8
 : "${HAVE_PROOT:=yes}"
 : "${HAVE_BINFMT:=yes}"
 
-defaultmode="auto"
-if [ "$HAVE_UNSHARE" != "yes" ]; then
-	defaultmode="root"
-fi
-
 # by default, use the mmdebstrap executable in the current directory together
 # with perl Devel::Cover but allow to overwrite this
 : "${CMD:=perl -MDevel::Cover=-silent,-nogcov ./mmdebstrap}"
@@ -103,14 +100,14 @@ cover -delete cover_db >&2
 END
 	if [ "$HAVE_QEMU" = "yes" ]; then
 		./run_qemu.sh
-	elif [ "$mode" = "root" ]; then
+	elif [ "$HAVE_UNSHARE" != "yes" ]; then
 		./run_null.sh SUDO
 	else
 		./run_null.sh
 	fi
 
 	echo
-	echo open file://$(pwd)/shared/report/coverage.html in a browser
+	echo "open file://$(pwd)/shared/report/coverage.html in a browser"
 	echo
 fi
 

@@ -1,12 +1,13 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
-setsid --wait {{ CMD }} --mode=root --variant=apt --customize-hook='touch done && sleep 10 && touch fail' {{ DIST }} /tmp/debian-chroot {{ MIRROR }} &
+setsid --wait {{ CMD }} --mode=root --variant=apt --customize-hook='touch hookstarted && sleep 10 && touch fail' {{ DIST }} /tmp/debian-chroot {{ MIRROR }} &
 pid=$!
-while sleep 1; do [ -e done ] && break; done
-rm done
-pgid=$(echo $(ps -p $pid -o pgid=))
-/bin/kill --signal INT -- -$pgid
+while sleep 1; do [ -e hookstarted ] && break; done
+rm hookstarted
+# negative PID values choose the whole process group
+pgid=$((-1*$(ps -p "$pid" -o pgid=)))
+/bin/kill --signal INT -- "$pgid"
 ret=0
 wait $pid || ret=$?
 rm -r /tmp/debian-chroot

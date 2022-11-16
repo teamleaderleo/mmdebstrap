@@ -51,8 +51,10 @@ ARCH=$(dpkg --print-architecture)
 eval "$(APT_CONFIG="$MMDEBSTRAP_APT_CONFIG" apt-config shell ARCH Apt::Architecture)"
 
 if [ -e /usr/share/debootstrap/functions ]; then
+	# shellcheck disable=SC1091
 	. /usr/share/debootstrap/functions
-	doing_variant () { [ $1 != "buildd" ]; }
+	doing_variant () { [ "$1" != "buildd" ]; }
+	# shellcheck disable=SC2034
 	MERGED_USR="yes"
 	setup_merged_usr
 else

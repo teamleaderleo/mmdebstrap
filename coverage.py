@@ -298,6 +298,21 @@ def main():
                 line = line.replace("{{ FORMAT }}", fmt)
                 line = line.replace("{{ HOSTARCH }}", hostarch)
                 fout.write(line)
+        # ignore:
+        # SC2016 Expressions don't expand in single quotes, use double quotes for that.
+        # SC2050 This expression is constant. Did you forget the $ on a variable?
+        # SC2194 This word is constant. Did you forget the $ on a variable?
+        shellcheck = subprocess.run(
+            [
+                "shellcheck",
+                "--exclude=SC2050,SC2194,SC2016",
+                "-f",
+                "gcc",
+                "shared/test.sh",
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+        ).stdout.decode()
         argv = None
         match test:
             case "qemu":
@@ -336,7 +351,9 @@ def main():
             proc.wait()
             break
         print(separator, file=sys.stderr)
-        if proc.returncode != 0:
+        if proc.returncode != 0 or shellcheck != "":
+            if shellcheck != "":
+                print(shellcheck)
             failed.append(
                 format_failed(
                     i + 1, len(tests), name, dist, mode, variant, fmt, config_dict

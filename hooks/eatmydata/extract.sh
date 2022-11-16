@@ -14,8 +14,10 @@ else
 	chrootarch=$(dpkg --print-architecture)
 fi
 
-eval $(apt-config shell trusted Dir::Etc::trusted/f)
-eval $(apt-config shell trustedparts Dir::Etc::trustedparts/d)
+trusted=
+eval "$(apt-config shell trusted Dir::Etc::trusted/f)"
+trustedparts=
+eval "$(apt-config shell trustedparts Dir::Etc::trustedparts/d)"
 tmpfile=$(mktemp --tmpdir="$rootdir/tmp")
 cat << END > "$tmpfile"
 Apt::Architecture "$chrootarch";
@@ -30,7 +32,7 @@ END
 tmpdir=$(mktemp --directory --tmpdir="$rootdir/tmp")
 env --chdir="$tmpdir" APT_CONFIG="$tmpfile" apt-get download --print-uris eatmydata libeatmydata1 \
 	| sed -ne "s/^'\([^']\+\)'\s\+\(\S\+\)\s\+\([0-9]\+\)\s\+\(SHA256:[a-f0-9]\+\)$/\1 \2 \3 \4/p" \
-	| while read uri fname size hash; do
+	| while read -r uri fname size hash; do
 		echo "processing $fname" >&2
 		if [ -e "$tmpdir/$fname" ]; then
 			echo "$tmpdir/$fname already exists" >&2
@@ -45,7 +47,7 @@ env --chdir="$tmpdir" APT_CONFIG="$tmpfile" apt-get download --print-uris eatmyd
 					| tar --directory="$rootdir/usr/bin" --strip-components=3 --extract --verbose ./usr/bin/eatmydata
 				;;
 			libeatmydata1_*_$chrootarch.deb)
-				libdir="/usr/lib/$(dpkg-architecture -a $chrootarch -q DEB_HOST_MULTIARCH)"
+				libdir="/usr/lib/$(dpkg-architecture -a "$chrootarch" -q DEB_HOST_MULTIARCH)"
 				mkdir -p "$rootdir$libdir"
 				dpkg-deb --fsys-tarfile "$tmpdir/$fname" \
 					| tar --directory="$rootdir$libdir" --strip-components=4 --extract --verbose --wildcards ".$libdir/libeatmydata.so*"

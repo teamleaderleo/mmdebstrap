@@ -42,8 +42,8 @@ $prefix {{ CMD }} --mode={{ MODE }} --variant=apt --architectures=arm64 {{ DIST 
 	| sed 's/aarch64-linux-gnu/x86_64-linux-gnu/' \
 	| sed 's/arm64/amd64/';
 } | sort > tar2.txt
-{ cat tar1.txt \
-	| grep -v '^\./usr/bin/i386$' \
+{ < tar1.txt \
+	grep -v '^\./usr/bin/i386$' \
 	| grep -v '^\./usr/bin/x86_64$' \
 	| grep -v '^\./lib32$' \
 	| grep -v '^\./lib64$' \

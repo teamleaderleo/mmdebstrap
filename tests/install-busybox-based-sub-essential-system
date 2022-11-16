@@ -21,13 +21,14 @@ for cmd in echo cat sed grep; do
 	test -L /tmp/debian-chroot/bin/$cmd
 	test "$(readlink /tmp/debian-chroot/bin/$cmd)" = "/bin/busybox"
 done
-for cmd in sort; do
+for cmd in sort tee; do
 	test -L /tmp/debian-chroot/usr/bin/$cmd
 	test "$(readlink /tmp/debian-chroot/usr/bin/$cmd)" = "/bin/busybox"
 done
 chroot /tmp/debian-chroot echo foobar \
 	| chroot /tmp/debian-chroot cat \
 	| chroot /tmp/debian-chroot sort \
+	| chroot /tmp/debian-chroot tee /dev/null \
 	| chroot /tmp/debian-chroot sed 's/foobar/blubber/' \
 	| chroot /tmp/debian-chroot grep blubber >/dev/null
 rm -r /tmp/debian-chroot

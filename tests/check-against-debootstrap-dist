@@ -12,7 +12,7 @@ echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 # we cannot use useradd because passwd is not Essential:yes
 {{ CMD }} --variant={{ VARIANT }} --mode={{ MODE }} \
 	--essential-hook='case {{ DIST }} in oldstable|stable) if [ {{ VARIANT }} = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd; fi;; esac' \
-	$(case {{ DIST }} in oldstable|stable) : ;; *) echo --hook-dir=./hooks/merged-usr ;; esac) \
+	"$(case {{ DIST }} in oldstable|stable) echo --merged-usr ;; *) echo --hook-dir=./hooks/merged-usr ;; esac)" \
 	{{ DIST }} /tmp/debian-{{ DIST }}-mm.tar {{ MIRROR }}
 
 mkdir /tmp/debian-{{ DIST }}-mm
@@ -160,8 +160,8 @@ fi
 for log in faillog lastlog; do
 	if ! cmp /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log >&2;then
 		# if the files differ, make sure they are all zeroes
-		cmp -n $(stat -c %s /tmp/debian-{{ DIST }}-debootstrap/var/log/$log) /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /dev/zero >&2
-		cmp -n $(stat -c %s /tmp/debian-{{ DIST }}-mm/var/log/$log) /tmp/debian-{{ DIST }}-mm/var/log/$log /dev/zero >&2
+		cmp -n "$(stat -c %s "/tmp/debian-{{ DIST }}-debootstrap/var/log/$log")" "/tmp/debian-{{ DIST }}-debootstrap/var/log/$log" /dev/zero >&2
+		cmp -n "$(stat -c %s "/tmp/debian-{{ DIST }}-mm/var/log/$log")" "/tmp/debian-{{ DIST }}-mm/var/log/$log" /dev/zero >&2
 		# then delete them
 		rm /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log
 	fi
@@ -172,7 +172,7 @@ done
 if [ "{{ VARIANT }}" = "-" ]; then
 	case {{ DIST }} in testing|unstable)
 		for f in group group- gshadow gshadow-; do
-			! cmp /tmp/debian-{{ DIST }}-mm/etc/$f /tmp/debian-{{ DIST }}-debootstrap/etc/$f 2>/dev/null
+			cmp /tmp/debian-{{ DIST }}-mm/etc/$f /tmp/debian-{{ DIST }}-debootstrap/etc/$f 2>/dev/null && exit 1
 			for d in mm debootstrap; do
 				sort /tmp/debian-{{ DIST }}-$d/etc/$f > /tmp/debian-{{ DIST }}-$d/etc/$f.bak
 				mv /tmp/debian-{{ DIST }}-$d/etc/$f.bak /tmp/debian-{{ DIST }}-$d/etc/$f
@@ -208,10 +208,10 @@ find /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm -type d -print
 # debootstrap never ran apt -- fixing permissions
 for d in ./var/lib/apt/lists/partial ./var/cache/apt/archives/partial; do
 	chroot /tmp/debian-{{ DIST }}-debootstrap chmod 0700 $d
-	chroot /tmp/debian-{{ DIST }}-debootstrap chown $(id -u _apt):root $d
+	chroot /tmp/debian-{{ DIST }}-debootstrap chown "$(id -u _apt):root" $d
 done
-tar -C /tmp/debian-{{ DIST }}-debootstrap --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/root1.tar .
-tar -C /tmp/debian-{{ DIST }}-mm --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/root2.tar .
+tar -C /tmp/debian-{{ DIST }}-debootstrap --numeric-owner --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/root1.tar .
+tar -C /tmp/debian-{{ DIST }}-mm --numeric-owner --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/root2.tar .
 tar --full-time --verbose -tf /tmp/root1.tar > /tmp/root1.tar.list
 tar --full-time --verbose -tf /tmp/root2.tar > /tmp/root2.tar.list
 diff -u /tmp/root1.tar.list /tmp/root2.tar.list >&2

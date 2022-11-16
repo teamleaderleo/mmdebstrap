@@ -13,7 +13,7 @@ if [ -e "$rootdir/var/lib/dpkg/arch" ]; then
 else
 	chrootarch=$(dpkg --print-architecture)
 fi
-libdir="/usr/lib/$(dpkg-architecture -a $chrootarch -q DEB_HOST_MULTIARCH)"
+libdir="/usr/lib/$(dpkg-architecture -a "$chrootarch" -q DEB_HOST_MULTIARCH)"
 
 # if eatmydata was actually installed properly, then we are not removing
 # anything here

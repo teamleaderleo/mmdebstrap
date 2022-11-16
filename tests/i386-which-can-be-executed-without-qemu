@@ -22,8 +22,8 @@ apt-get remove --yes qemu-user-static binfmt-support qemu-user
 	| sed 's/i386/amd64/' \
 	| sed 's/\/stubs-32.ph$/\/stubs-64.ph/';
 } | sort > tar2.txt
-{ cat tar1.txt \
-	| grep -v '^\./usr/bin/i386$' \
+{ < tar1.txt \
+	grep -v '^\./usr/bin/i386$' \
 	| grep -v '^\./usr/bin/x86_64$' \
 	| grep -v '^\./usr/lib32/$' \
 	| grep -v '^\./lib32$' \

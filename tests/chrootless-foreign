@@ -20,7 +20,7 @@ for INCLUDE in '' 'systemd-sysv'; do
 		--hook-dir=./hooks/merged-usr ${INCLUDE:+--include="$INCLUDE"} \
 		{{ DIST }} "/tmp/root.tar" {{ MIRROR }}
 	echo 0 > /proc/sys/fs/binfmt_misc/qemu-aarch64
-	! arch-test arm64
+	arch-test arm64 && exit 1
 	{{ CMD }} --mode=chrootless --architecture=arm64 --variant={{ VARIANT }} \
 		--hook-dir=./hooks/merged-usr ${INCLUDE:+--include="$INCLUDE"} \
 		{{ DIST }} "/tmp/chrootless.tar" {{ MIRROR }}

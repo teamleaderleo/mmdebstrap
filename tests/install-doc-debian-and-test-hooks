@@ -14,7 +14,7 @@ prefix=
 $prefix {{ CMD }} --mode=chrootless --skip=cleanup/tmp --variant=custom --include=doc-debian --setup-hook='touch "$1/tmp/setup"' --customize-hook='touch "$1/tmp/customize"' {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
 rm /tmp/debian-chroot/tmp/setup
 rm /tmp/debian-chroot/tmp/customize
-tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/debian-chroot.tar .
+tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/debian-chroot.tar .
 tar tvf /tmp/debian-chroot.tar | grep -v ' ./dev' | diff -u doc-debian.tar.list -
 rm /tmp/debian-chroot.tar
 # delete contents of doc-debian

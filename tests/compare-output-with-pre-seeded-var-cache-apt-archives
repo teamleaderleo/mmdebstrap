@@ -11,7 +11,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 tmpdir=$(mktemp -d)
-trap "rm -f \"$tmpdir\"/*.deb /tmp/orig.tar /tmp/test1.tar /tmp/test2.tar; rmdir \"$tmpdir\"" EXIT INT TERM
+trap 'rm -f "$tmpdir"/*.deb /tmp/orig.tar /tmp/test1.tar /tmp/test2.tar; rmdir "$tmpdir"' EXIT INT TERM
 
 include="--include=doc-debian"
 if [ "{{ VARIANT }}" = "custom" ]; then

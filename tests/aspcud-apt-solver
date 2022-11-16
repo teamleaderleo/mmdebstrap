@@ -3,7 +3,7 @@ set -eu
 export LC_ALL=C.UTF-8
 trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
 {{ CMD }} --mode={{ MODE }} --variant=custom \
-    --include $(cat pkglist.txt | tr '\n' ',') \
+    --include "$(tr '\n' ',' < pkglist.txt)" \
     --aptopt='APT::Solver "aspcud"' \
     {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
 tar -tf /tmp/debian-chroot.tar | sort \

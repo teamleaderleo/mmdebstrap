@@ -6,7 +6,7 @@
 set -eu
 export LC_ALL=C.UTF-8
 prefix=
-include=
+include=,
 if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != root ] && [ "{{ MODE }}" != auto ]; then
 	# this must be qemu
 	if ! id -u user >/dev/null 2>&1; then
@@ -25,10 +25,10 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != root ] && [ "{{ MODE }}" != auto ];
 	fi
 	prefix="runuser -u user --"
 	if [ "{{ MODE }}" = extract ] || [ "{{ MODE }}" = custom ]; then
-		include="--include=$(cat pkglist.txt | tr '\n' ',')"
+		include="$(tr '\n' ',' < pkglist.txt)"
 	fi
 fi
-$prefix {{ CMD }} --mode={{ MODE }} $include --dry-run --variant={{ VARIANT }} {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
+$prefix {{ CMD }} --mode={{ MODE }} --include="$include" --dry-run --variant={{ VARIANT }} {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
 if [ -e /tmp/debian-chroot.tar ]; then
 	echo "/tmp/debian-chroot.tar must not be created with --dry-run" >&2
 	exit 1

@@ -74,8 +74,8 @@ for d in ./var/lib/apt/lists/partial ./var/cache/apt/archives/partial; do
 	chroot /tmp/debian-debootstrap chmod 0700 $d
 	chroot /tmp/debian-debootstrap chown _apt:root $d
 done
-tar -C /tmp/debian-debootstrap --numeric-owner --xattrs --xattrs-include='*' --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/root1.tar .
-tar -C /tmp/debian-mm --numeric-owner --xattrs --xattrs-include='*' --sort=name --clamp-mtime --mtime=$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds) -cf /tmp/root2.tar .
+tar -C /tmp/debian-debootstrap --numeric-owner --xattrs --xattrs-include='*' --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/root1.tar .
+tar -C /tmp/debian-mm --numeric-owner --xattrs --xattrs-include='*' --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/root2.tar .
 tar --full-time --verbose -tf /tmp/root1.tar > /tmp/root1.tar.list
 tar --full-time --verbose -tf /tmp/root2.tar > /tmp/root2.tar.list
 # despite SOURCE_DATE_EPOCH and --clamp-mtime, the timestamps in the tarball

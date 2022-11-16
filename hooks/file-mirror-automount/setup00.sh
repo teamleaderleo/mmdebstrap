@@ -9,10 +9,10 @@ fi
 rootdir="$1"
 
 # process all configured apt repositories
-env APT_CONFIG=$MMDEBSTRAP_APT_CONFIG apt-get indextargets --no-release-info --format '$(REPO_URI)' \
+env APT_CONFIG="$MMDEBSTRAP_APT_CONFIG" apt-get indextargets --no-release-info --format '$(REPO_URI)' \
 	| sed -ne 's/^file:\/\+//p' \
 	| sort -u \
-	| while read path; do
+	| while read -r path; do
 		mkdir -p "$rootdir/run/mmdebstrap"
 		case $MMDEBSTRAP_MODE in
 			root|unshare)
@@ -22,8 +22,8 @@ env APT_CONFIG=$MMDEBSTRAP_APT_CONFIG apt-get indextargets --no-release-info --f
 				;;
 			*)
 				echo "copying /$path into the chroot" >&2
-				mkdir -p "$rootdir/$(dirname $path)"
-				cp -av "/$path" "$rootdir/$(dirname $path)"
+				mkdir -p "$rootdir/$(dirname "$path")"
+				cp -av "/$path" "$rootdir/$(dirname "$path")"
 				;;
 		esac
 		printf '/%s\0' "$path" >> "$rootdir/run/mmdebstrap/file-mirror-automount"
