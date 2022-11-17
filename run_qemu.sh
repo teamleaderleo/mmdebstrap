@@ -39,7 +39,7 @@ case $ARCH in
 		;;
 	arm64)
 		MACHINE="type=virt,gic-version=host,accel=kvm"
-		CODE="/usr/share/AAVMF/AAVMF_CODE.fd,readonly"
+		CODE="/usr/share/AAVMF/AAVMF_CODE.fd"
 		QEMUARCH="aarch64"
 		;;
 	*) echo "qemu kvm not supported on $ARCH" >&2;;
