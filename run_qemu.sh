@@ -63,7 +63,7 @@ timeout --foreground 40m qemu-system-"$QEMUARCH" \
 	-serial unix:/tmp/ttyS0,server,nowait \
 	-serial unix:/tmp/ttyS1,server,nowait \
 	-net nic,model=virtio -net user \
-	-drive if=pflash,format=raw,unit=0,read-only,file="$CODE" \
+	-drive if=pflash,format=raw,unit=0,read-only=on,file="$CODE" \
 	-virtfs local,id=mmdebstrap,path="$(pwd)/shared",security_model=none,mount_tag=mmdebstrap \
 	-drive file="$tmpdir/debian-$DEFAULT_DIST-overlay.qcow",cache=unsafe,index=0,if=virtio \
 	>"$tmpdir/log" 2>&1 || ret=$?
