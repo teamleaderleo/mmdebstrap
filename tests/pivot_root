@@ -32,7 +32,7 @@ if [ {{ MODE }} = "unshare" ]; then
 		--customize-hook='chmod +x "$1"/'"$MMDEBSTRAP" \
 		--customize-hook='mount -o rbind "$1" /mnt && cd /mnt && /sbin/pivot_root . mnt' \
 		--customize-hook='unshare -U echo nested unprivileged unshare' \
-		--customize-hook='{{ CMD }} --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
+		--customize-hook="/$MMDEBSTRAP"' --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
 		--customize-hook='copy-out /tmp/chroot3.tar /tmp' \
 		--customize-hook='rm "$1/'"$MMDEBSTRAP"'"' \
 		--customize-hook='umount -l mnt sys' \
@@ -46,7 +46,7 @@ fi
 $prefix {{ CMD }} --mode={{ MODE }} --variant=apt --include=mount \
 	--customize-hook="upload $MMDEBSTRAP /$MMDEBSTRAP" \
 	--customize-hook='chmod +x "$1"/'"$MMDEBSTRAP" \
-	--chrooted-customize-hook='{{ CMD }} --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
+	--chrooted-customize-hook="/$MMDEBSTRAP"' --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
 	--customize-hook='copy-out /tmp/chroot3.tar /tmp' \
 	--customize-hook='rm "$1/'"$MMDEBSTRAP"'"' \
 	{{ DIST }} /tmp/chroot2.tar {{ MIRROR }}
