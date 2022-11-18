@@ -421,8 +421,6 @@ sub read_subuid_subgid() {
         return;
     }
 
-    my $groupname = getgrgid $REAL_GROUP_ID;
-
     if (!-e "/etc/subgid") {
         warning "/etc/subgid doesn't exist";
         return;
@@ -436,25 +434,25 @@ sub read_subuid_subgid() {
       or error "cannot open /etc/subgid for reading: $!";
     while (my $line = <$fh>) {
         ($n, $subid, $num_subid) = split(/:/, $line, 3);
-        last if ($n eq $groupname);
+        last if ($n eq $username);
     }
     close $fh;
     if (!length $subid) {
         warning "/etc/subgid is empty";
         return;
     }
-    if ($n ne $groupname) {
-        warning "no entry in /etc/subgid for $groupname";
+    if ($n ne $username) {
+        warning "no entry in /etc/subgid for $username";
         return;
     }
     push @result, ["g", 0, $subid, $num_subid];
 
     if (scalar(@result) < 2) {
-        warning "/etc/subgid does not contain an entry for $groupname";
+        warning "/etc/subgid does not contain an entry for $username";
         return;
     }
     if (scalar(@result) > 2) {
-        warning "/etc/subgid contains multiple entries for $groupname";
+        warning "/etc/subgid contains multiple entries for $username";
         return;
     }
 
