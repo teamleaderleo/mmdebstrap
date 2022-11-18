@@ -152,11 +152,16 @@ Contributors
 ============
 
  - Johannes Schauer Marin Rodrigues (main author)
+ - Gioele Barabucci
  - Helmut Grohne
  - Benjamin Drung
- - Steve Dodd
  - Josh Triplett
  - Konstantin Demin
+ - David Kalnischkies
+ - Jochen Sprickerhof
+ - Joe Groocock
+ - Nicolas Vigier
+ - Raul Tambre
+ - Steve Dodd
  - Trent W. Buck
  - Vagrant Cascadian
- - Gioele Barabucci
