@@ -207,6 +207,14 @@ def main():
     # parse coverage.txt
     config_order, config_dict = parse_config("coverage.txt")
 
+    if set(os.listdir("tests")) - set(config_order):
+        print(
+            "test(s) missing from coverage.txt: %s"
+            % (", ".join(sorted(set(os.listdir("tests")) - set(config_order)))),
+            file=sys.stderr,
+        )
+        exit(1)
+
     # produce the list of tests using the cartesian product of all allowed
     # dists, modes, variants and formats of a given test
     tests = []
