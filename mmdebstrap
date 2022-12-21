@@ -5426,6 +5426,16 @@ sub main() {
         info "ignoring target $options->{target} with null format";
     }
 
+    if ($format eq 'ext2') {
+        if (!can_execute 'genext2fs') {
+            error "need genext2fs for ext2 format";
+        }
+    } elsif ($format eq 'squashfs') {
+        if (!can_execute 'tar2sqfs') {
+            error "need tar2sqfs binary from the squashfs-tools-ng package";
+        }
+    }
+
     if (any { $_ eq $format } ('tar', 'squashfs', 'ext2', 'null')) {
         if ($format ne 'null') {
             if (any { $_ eq $options->{variant} } ('extract', 'custom')
