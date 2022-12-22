@@ -6852,7 +6852,7 @@ retained.
 This section gives an overview of the different steps to create a chroot. At
 its core, what B<mmdebstrap> does can be put into a 14 line shell script:
 
-    mkdir -p "$2/etc/apt" "$2/var/cache"
+    mkdir -p "$2/etc/apt" "$2/var/cache" "$2/var/lib"
     cat << END > "$2/apt.conf"
     Apt::Architecture "$(dpkg --print-architecture)";
     Apt::Architectures "$(dpkg --print-architecture)";
