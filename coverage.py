@@ -207,12 +207,26 @@ def main():
     # parse coverage.txt
     config_order, config_dict = parse_config("coverage.txt")
 
-    if set(os.listdir("tests")) - set(config_order):
+    indirbutnotcovered = set(
+        [d for d in os.listdir("tests") if not d.startswith(".")]
+    ) - set(config_order)
+    if indirbutnotcovered:
         print(
             "test(s) missing from coverage.txt: %s"
-            % (", ".join(sorted(set(os.listdir("tests")) - set(config_order)))),
+            % (", ".join(sorted(indirbutnotcovered))),
             file=sys.stderr,
         )
+        exit(1)
+    coveredbutnotindir = set(config_order) - set(
+        [d for d in os.listdir("tests") if not d.startswith(".")]
+    )
+    if coveredbutnotindir:
+        print(
+            "test(s) missing from ./tests: %s"
+            % (", ".join(sorted(coveredbutnotindir))),
+            file=sys.stderr,
+        )
+
         exit(1)
 
     # produce the list of tests using the cartesian product of all allowed
