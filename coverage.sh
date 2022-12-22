@@ -74,7 +74,6 @@ SOURCE_DATE_EPOCH=$(date --date="$(grep-dctrl -s Date -n '' "$mirrordir/dists/$D
 export LC_ALL=C.UTF-8
 
 : "${HAVE_UNSHARE:=yes}"
-: "${HAVE_PROOT:=yes}"
 : "${HAVE_BINFMT:=yes}"
 
 # by default, use the mmdebstrap executable in the current directory together

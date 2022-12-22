@@ -391,7 +391,6 @@ components=main
 : "${DEFAULT_DIST:=unstable}"
 : "${HAVE_QEMU:=yes}"
 : "${RUN_MA_SAME_TESTS:=yes}"
-: "${HAVE_PROOT:=yes}"
 # by default, use the mmdebstrap executable in the current directory
 : "${CMD:=./mmdebstrap}"
 
@@ -504,9 +503,6 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,grub-efi
 	if [ "$DEFAULT_DIST" != "oldstable" ]; then
 		pkgs="$pkgs,squashfs-tools-ng,genext2fs"
-	fi
-	if [ "$HAVE_PROOT" = "yes" ]; then
-		pkgs="$pkgs,proot"
 	fi
 	if [ ! -e ./mmdebstrap ]; then
 		pkgs="$pkgs,mmdebstrap"
