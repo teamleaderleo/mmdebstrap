@@ -5576,6 +5576,36 @@ sub main() {
         $? == 0 or error "chown failed";
     }
 
+    # check if .deb files given by --include are readable by the unshared user
+    if ($options->{mode} eq 'unshare'
+        and scalar(grep { /^\// } @{ $options->{include} }) > 0) {
+        my $pid = get_unshare_cmd(
+            sub {
+                my $ret = 0;
+                foreach my $f (grep { /^\// } @{ $options->{include} }) {
+                    # open the file for real because -r will report the file as
+                    # readable even though open will fail (in contrast to the
+                    # coreutils test utility, perl doesn't use faccessat)
+                    my $res = open(my $fh, '<', $f);
+                    if (!$res) {
+                        warning "unshared user cannot access $f for reading";
+                        $ret = 1;
+                    } else {
+                        close $fh;
+                    }
+                }
+                exit $ret;
+            },
+            \@idmap
+        );
+        waitpid $pid, 0;
+        if ($? != 0) {
+            warning "no read access for some packages for the unshared user";
+            warning "maybe try running mmdebstrap with "
+              . "--hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount";
+        }
+    }
+
     # figure out whether we have mknod
     $options->{havemknod} = 0;
     if ($options->{mode} eq 'unshare') {
