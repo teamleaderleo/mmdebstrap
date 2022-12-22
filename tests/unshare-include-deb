@@ -1,0 +1,45 @@
+#!/bin/sh
+
+set -eu
+export LC_ALL=C.UTF-8
+
+[ "{{ MODE }}" = unshare ]
+
+if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
+	if [ ! -e /mmdebstrap-testenv ]; then
+		echo "this test modifies the system and should only be run inside a container" >&2
+		exit 1
+	fi
+	adduser --gecos user --disabled-password user
+fi
+[ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
+
+# instead of obtaining a .deb from our cache, we create a new package because
+# otherwise apt might decide to download the package with the same name and
+# version from the cache instead of using the local .deb
+mkdir -p /tmp/dummypkg/DEBIAN
+cat << END > "/tmp/dummypkg/DEBIAN/control"
+Package: dummypkg
+Priority: optional
+Section: oldlibs
+Maintainer: Johannes Schauer Marin Rodrigues <josch@debian.org>
+Architecture: all
+Multi-Arch: foreign
+Source: dummypkg
+Version: 1
+Description: dummypkg
+END
+dpkg-deb --build "/tmp/dummypkg" "/tmp/dummypkg.deb"
+
+# make the .deb only redable by user which will exclude the unshared user
+chmod 600 /tmp/dummypkg.deb
+chown user /tmp/dummypkg.deb
+
+ret=0
+$prefix {{ CMD }} --variant=apt --mode={{ MODE }} --include="/tmp/dummypkg.deb" \
+	{{ DIST }} /dev/null {{ MIRROR }} || ret=$?
+
+if [ "$ret" -eq 0 ]; then
+	echo "expected failure but got exit $ret" >&2
+	exit 1
+fi
