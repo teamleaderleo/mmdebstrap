@@ -4363,8 +4363,14 @@ sub main() {
                 if (!defined $pkg) {
                     error "cannot resolve absolute path of $pkg: $!";
                 }
+                if ($pkg !~ /^\//) {
+                    error "absolute path of $pkg doesn't start with a slash";
+                }
                 if (!-f $pkg) {
                     error "$pkg is not an existing file";
+                }
+                if (!-r $pkg) {
+                    error "$pkg is not readable";
                 }
                 return $pkg;
             };
