@@ -27,7 +27,8 @@ apt-get remove --yes qemu-user-static binfmt-support qemu-user
 	| grep -v '^\./usr/bin/x86_64$' \
 	| grep -v '^\./usr/lib32/$' \
 	| grep -v '^\./lib32$' \
-	| grep -v '^\./lib64/$' \
+	| grep -v '^\./lib64$' \
+	| grep -v '^\./usr/lib64/$' \
 	| grep -v '^\./usr/lib64/ld-linux-x86-64\.so\.2$' \
 	| grep -v '^\./usr/lib/gcc/x86_64-linux-gnu/$' \
 	| grep -v '^\./usr/lib/gcc/x86_64-linux-gnu/[0-9]\+/$' \
