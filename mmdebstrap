@@ -950,7 +950,11 @@ sub run_dpkg_progress {
             }
             $num += 1;
         }
-        return $num / $total * 100, $status;
+        if ($total == 0) {
+            return 0, $status;
+        } else {
+            return $num / $total * 100, $status;
+        }
     };
     run_progress $get_exec, $line_handler, $line_has_error;
     return;
