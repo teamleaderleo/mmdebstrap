@@ -1818,14 +1818,16 @@ sub setup {
     }
 
     eval {
-        run_hooks('extract', $options);
-
+        my $chrootcmd = [];
         if ($options->{variant} ne 'extract') {
-            my $chrootcmd = [];
             if ($options->{mode} ne 'chrootless') {
                 $chrootcmd = run_prepare($options);
             }
+        }
 
+        run_hooks('extract', $options, $essential_pkgs);
+
+        if ($options->{variant} ne 'extract') {
             run_essential($options, $essential_pkgs, $chrootcmd, $cached_debs);
 
             run_hooks('essential', $options);
@@ -6948,10 +6950,6 @@ respectively.
 
 Extract the downloaded packages into the rootfs.
 
-=item B<extract-hook>
-
-Run B<--extract-hook> options and all F<extract*> scripts in B<--hook-dir>.
-
 =item B<prepare>
 
 In B<fakechroot> mode, environment variables C<LD_LIBRARY_PATH> will be set up
@@ -6959,6 +6957,10 @@ correctly. If the chroot requires the qemu-user-static binary it will be copied
 in. For foreign B<fakechroot> environments, C<LD_LIBRARY_PATH> and
 C<QEMU_LD_PREFIX> are set up accordingly. This step is not carried out in
 B<extract> mode and neither for the B<chrootless> variant.
+
+=item B<extract-hook>
+
+Run B<--extract-hook> options and all F<extract*> scripts in B<--hook-dir>.
 
 =item B<essential>
 
