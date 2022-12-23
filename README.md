@@ -155,10 +155,10 @@ Contributors
  - Gioele Barabucci
  - Helmut Grohne
  - Benjamin Drung
+ - Jochen Sprickerhof
  - Josh Triplett
  - Konstantin Demin
  - David Kalnischkies
- - Jochen Sprickerhof
  - Joe Groocock
  - Nicolas Vigier
  - Raul Tambre
