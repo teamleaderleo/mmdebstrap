@@ -354,3 +354,7 @@ Needs-QEMU: true
 Test: pivot_root
 Modes: root unshare
 Needs-QEMU: true
+
+Test: jessie-or-older
+Needs-QEMU: true
+Variants: essential apt minbase

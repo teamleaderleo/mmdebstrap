@@ -1541,8 +1541,9 @@ sub setup_mounts {
 }
 
 sub run_hooks {
-    my $name    = shift;
-    my $options = shift;
+    my $name           = shift;
+    my $options        = shift;
+    my $essential_pkgs = shift;
 
     if (scalar @{ $options->{"${name}_hook"} } == 0) {
         return;
@@ -1600,6 +1601,12 @@ sub run_hooks {
         }
         push @env_opts,
           ("MMDEBSTRAP_INCLUDE=" . (join ",", @escaped_includes));
+    }
+    # Give the extract hook access to the essential packages that are about to
+    # be installed
+    if ($name eq "extract" and scalar @{$essential_pkgs} > 0) {
+        push @env_opts,
+          ("MMDEBSTRAP_ESSENTIAL=" . (join " ", @{$essential_pkgs}));
     }
 
     # Unset the close-on-exec flag, so that the file descriptor does not

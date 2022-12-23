@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+if [ ! -e /mmdebstrap-testenv ]; then
+	echo "this test modifies the system and should only be run inside a container" >&2
+	exit 1
+fi
+adduser --gecos user --disabled-password user
+sysctl -w kernel.unprivileged_userns_clone=1
+export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+
+filter() {
+	./tarfilter \
+		--path-exclude=/usr/bin/uncompress \
+		--path-exclude=/var/cache/debconf/config.dat-old \
+		--path-exclude=/var/cache/debconf/templates.dat-old \
+		--path-exclude=/var/lib/dpkg/available \
+		--path-exclude=/var/lib/dpkg/cmethopt \
+		--path-exclude=/var/lib/dpkg/status-old \
+		--path-exclude=/var/lib/shells.state
+}
+
+# base for comparison without jessie-or-older hook
+{{ CMD }} --mode=root --variant={{ VARIANT }} {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-root-normal.tar
+
+# root
+{{ CMD }} --mode=root --variant={{ VARIANT }} --hook-dir=./hooks/jessie-or-older {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-root.tar
+cmp /tmp/debian-chroot-root-normal.tar /tmp/debian-chroot-root.tar
+rm /tmp/debian-chroot-root.tar
+# unshare
+runuser -u user -- {{ CMD }} --mode=unshare --variant={{ VARIANT }} --hook-dir=./hooks/jessie-or-older {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-unshare.tar
+cmp /tmp/debian-chroot-root-normal.tar /tmp/debian-chroot-unshare.tar
+rm /tmp/debian-chroot-unshare.tar
+# fakechroot
+runuser -u user -- {{ CMD }} --mode=fakechroot --variant={{ VARIANT }} --hook-dir=./hooks/jessie-or-older {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-fakechroot.tar
+cmp /tmp/debian-chroot-root-normal.tar /tmp/debian-chroot-fakechroot.tar
+rm /tmp/debian-chroot-fakechroot.tar
+
+rm /tmp/debian-chroot-root-normal.tar
