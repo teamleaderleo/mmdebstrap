@@ -532,7 +532,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 		--aptopt='Acquire::http::Dl-Limit "1000"' \
 		--aptopt='Acquire::https::Dl-Limit "1000"' \
 		--aptopt='Acquire::Retries "5"' \
-		$DEFAULT_DIST - "$mirror" > "$tmpdir/debian-chroot.tar"
+		"$DEFAULT_DIST" - "$mirror" > "$tmpdir/debian-chroot.tar"
 
 	cat << END > "$tmpdir/mmdebstrap.service"
 [Unit]
