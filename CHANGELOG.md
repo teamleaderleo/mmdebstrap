@@ -1,3 +1,9 @@
+1.2.4 (2022-12-23)
+------------------
+
+ - bugfix release
+ - add jessie-or-older extract hook
+
 1.2.3 (2022-11-16)
 ------------------
 
