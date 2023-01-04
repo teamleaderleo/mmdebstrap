@@ -4489,6 +4489,7 @@ sub main() {
             # gather all files starting with special prefixes into the
             # respective keys of a hash
             my %scripts;
+            my $count = 0;
             opendir(my $dh, $opt_value)
               or error "Can't opendir($opt_value): $!";
             while (my $entry = readdir $dh) {
@@ -4496,10 +4497,15 @@ sub main() {
                   my $hook ('setup', 'extract', 'essential', 'customize') {
                     if ($entry =~ m/^\Q$hook\E/ and -x "$opt_value/$entry") {
                         push @{ $scripts{$hook} }, "$opt_value/$entry";
+                        $count += 1;
                     }
                 }
             }
             closedir($dh);
+            if ($count == 0) {
+                warning "No executable hook scripts found in $opt_value";
+                return;
+            }
             # add the sorted list associated with each key to the respective
             # list of hooks
             foreach my $hook (keys %scripts) {
