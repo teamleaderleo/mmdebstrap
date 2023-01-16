@@ -417,10 +417,11 @@ mkdir -p "$newcachedir"
 touch "$newcachedir/mmdebstrapcache"
 
 HOSTARCH=$(dpkg --print-architecture)
+arches="$HOSTARCH"
 if [ "$HOSTARCH" = amd64 ]; then
-	arches="amd64 arm64 i386"
-else
-	arches="$HOSTARCH"
+	arches="$arches arm64 i386"
+elif [ "$HOSTARCH" = arm64 ]; then
+	arches="$arches amd64 armhf"
 fi
 
 for nativearch in $arches; do
@@ -533,6 +534,9 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	if [ "$HOSTARCH" = amd64 ] && [ "$RUN_MA_SAME_TESTS" = "yes" ]; then
 		arches=amd64,arm64
 		pkgs="$pkgs,libfakechroot:arm64,libfakeroot:arm64"
+	elif [ "$HOSTARCH" = arm64 ] && [ "$RUN_MA_SAME_TESTS" = "yes" ]; then
+		arches=arm64,amd64
+		pkgs="$pkgs,libfakechroot:amd64,libfakeroot:amd64"
 	else
 		arches=$HOSTARCH
 	fi
