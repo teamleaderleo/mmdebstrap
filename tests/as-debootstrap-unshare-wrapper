@@ -69,7 +69,7 @@ if [ -e /tmp/debian-debootstrap/etc/apparmor.d/local/sbin.dhclient ] && [ ! -s /
 fi
 
 # check if the file content differs
-diff --no-dereference --recursive /tmp/debian-debootstrap /tmp/debian-mm >&2
+diff --unified --no-dereference --recursive /tmp/debian-debootstrap /tmp/debian-mm >&2
 
 # check permissions, ownership, symlink targets, modification times using tar
 # mtimes of directories created by mmdebstrap will differ, thus we equalize them first
