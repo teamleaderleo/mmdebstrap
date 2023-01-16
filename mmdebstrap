@@ -2072,7 +2072,7 @@ sub run_setup() {
     }
 
     # write /etc/apt/sources.list and files in /etc/apt/sources.list.d/
-    {
+    if (scalar @{ $options->{sourceslists} } > 0) {
         my $firstentry = $options->{sourceslists}->[0];
         # if the first sources.list entry is of one-line type and without
         # explicit filename, then write out an actual /etc/apt/sources.list
@@ -2299,6 +2299,9 @@ sub run_update() {
         close $fh;
         if ($indextargets eq '') {
             warning("apt-get indextargets output is empty");
+            if (scalar @{ $options->{sourceslists} } == 0) {
+                warning "no known apt sources.list entry";
+            }
             for my $list (@{ $options->{sourceslists} }) {
                 if (defined $list->{fname}) {
                     info("Filename: $list->{fname}");
@@ -5082,17 +5085,21 @@ sub main() {
                 ## no critic (InputOutput::ProhibitExplicitStdin)
                 <STDIN>;
             };
-            my $type = guess_sources_format($content);
-            if (!defined $type
-                || ($type ne "deb822" and $type ne "one-line")) {
-                error "cannot determine sources.list format";
+            if ($content eq "") {
+                warning "sources.list from standard input is empty";
+            } else {
+                my $type = guess_sources_format($content);
+                if (!defined $type
+                    || ($type ne "deb822" and $type ne "one-line")) {
+                    error "cannot determine sources.list format";
+                }
+                push @{$sourceslists},
+                  {
+                    type    => $type,
+                    fname   => undef,
+                    content => $content,
+                  };
             }
-            push @{$sourceslists},
-              {
-                type    => $type,
-                fname   => undef,
-                content => $content,
-              };
         } else {
             my @components = ();
             foreach my $comp (@{ $options->{components} }) {
@@ -5112,9 +5119,11 @@ sub main() {
                 }
             }
             my $compstr = join " ", @components;
-            # if the currently selected apt keyrings do not contain the
-            # necessary key material for the chosen suite, then attempt adding
-            # a signed-by option
+            # From the suite name we can maybe infer which key we need. If we
+            # can infer this information, then we need to check whether the
+            # currently running apt actually trusts this key or not. If it
+            # doesn't, then we need to add a signed-by line to the sources.list
+            # entry.
             my $signedby        = '';
             my %suite_by_vendor = get_suite_by_vendor();
             my $gpgproc         = sub {
@@ -5251,26 +5260,32 @@ sub main() {
                             ## no critic (InputOutput::ProhibitExplicitStdin)
                             <STDIN>;
                         };
-                        my $type = guess_sources_format($content);
-                        if (!defined $type
-                            || ($type ne 'deb822' and $type ne 'one-line')) {
-                            error "cannot determine sources.list format";
-                        }
-                        # if last entry is of same type and without filename,
-                        # then append
-                        if (   scalar @{$sourceslists} > 0
-                            && $sourceslists->[-1]{type} eq $type
-                            && !defined $sourceslists->[-1]{fname}) {
-                            $sourceslists->[-1]{content}
-                              .= ($type eq 'one-line' ? "\n" : "\n\n")
-                              . $content;
+                        if ($content eq "") {
+                            warning
+                              "sources.list from standard input is empty";
                         } else {
-                            push @{$sourceslists},
-                              {
-                                type    => $type,
-                                fname   => undef,
-                                content => $content,
-                              };
+                            my $type = guess_sources_format($content);
+                            if (!defined $type
+                                || ($type ne 'deb822' and $type ne 'one-line'))
+                            {
+                                error "cannot determine sources.list format";
+                            }
+                          # if last entry is of same type and without filename,
+                          # then append
+                            if (   scalar @{$sourceslists} > 0
+                                && $sourceslists->[-1]{type} eq $type
+                                && !defined $sourceslists->[-1]{fname}) {
+                                $sourceslists->[-1]{content}
+                                  .= ($type eq 'one-line' ? "\n" : "\n\n")
+                                  . $content;
+                            } else {
+                                push @{$sourceslists},
+                                  {
+                                    type    => $type,
+                                    fname   => undef,
+                                    content => $content,
+                                  };
+                            }
                         }
                     } elsif ($arg =~ /^deb(-src)? /) {
                         my $content = "$arg\n";
@@ -5315,24 +5330,31 @@ sub main() {
                             $content .= $line;
                         }
                         close $fh;
-                        my $type = undef;
-                        if ($arg =~ /\.list$/) {
-                            $type = 'one-line';
-                        } elsif ($arg =~ /\.sources$/) {
-                            $type = 'deb822';
+                        if ($content eq "") {
+                            warning "$arg is empty";
                         } else {
-                            $type = guess_sources_format($content);
+                            my $type = undef;
+                            if ($arg =~ /\.list$/) {
+                                $type = 'one-line';
+                            } elsif ($arg =~ /\.sources$/) {
+                                $type = 'deb822';
+                            } else {
+                                $type = guess_sources_format($content);
+                            }
+                            if (!defined $type
+                                || ($type ne 'deb822' and $type ne 'one-line'))
+                            {
+                                error "cannot determine sources.list format";
+                            }
+                            push @{$sourceslists},
+                              {
+                                type    => $type,
+                                fname   => basename($arg),
+                                content => $content,
+                              };
                         }
-                        if (!defined $type
-                            || ($type ne 'deb822' and $type ne 'one-line')) {
-                            error "cannot determine sources.list format";
-                        }
-                        push @{$sourceslists},
-                          {
-                            type    => $type,
-                            fname   => basename($arg),
-                            content => $content,
-                          };
+                    } elsif ($arg eq '') {
+                        # empty
                     } else {
                         error "invalid mirror: $arg";
                     }
@@ -5351,7 +5373,7 @@ sub main() {
             }
         }
         if (scalar @{$sourceslists} == 0) {
-            error "empty apt sources.list";
+            warning "empty apt sources.list";
         }
         debug("sources list entries:");
         for my $list (@{$sourceslists}) {

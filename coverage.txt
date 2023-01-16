@@ -362,3 +362,5 @@ Variants: essential apt minbase
 Test: apt-patterns
 
 Test: apt-patterns-custom
+
+Test: empty-sources.list
