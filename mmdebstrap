@@ -2275,8 +2275,19 @@ sub run_update() {
         CHDIR => $options->{root},
     };
 
-    info "running apt-get update...";
-    run_apt_progress($aptopts);
+    # Maybe "apt-get update" was already run in the setup hook? If yes, skip
+    # running it here. We are overly strict on purpose because better to run it
+    # twice on accident than not at all.
+    if (   !-d "$options->{root}/var/lib/apt/lists/auxfiles"
+        || !-d "$options->{root}/var/lib/apt/lists/partial"
+        || !-e "$options->{root}/var/lib/apt/lists/lock"
+        || !-e "$options->{root}/var/cache/apt/pkgcache.bin"
+        || !-e "$options->{root}/var/cache/apt/srcpkgcache.bin") {
+        info "running apt-get update...";
+        run_apt_progress($aptopts);
+    } else {
+        info "skipping apt-get update because it was already run";
+    }
 
     # check if anything was downloaded at all
     {
