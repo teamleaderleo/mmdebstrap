@@ -6239,7 +6239,12 @@ I<TARGET> is C<-> or if no I<TARGET> was specified.
 =head1 OPTIONS
 
 Options are case insensitive. Short options may be bundled. Long options
-require a double dash and may be abbreviated to uniqueness.
+require a double dash and may be abbreviated to uniqueness. Options can be
+placed anywhere on the command line, even before or mixed with the I<SUITE>,
+I<TARGET>, and I<MIRROR> arguments. A double dash C<--> can be used to stop
+interpreting command line arguments as options to allow I<SUITE>, I<TARGET> and
+I<MIRROR> arguments that start with a single or double dash. Option order only
+matters for options that can be passed multiple times as documented below.
 
 =over 8
 
