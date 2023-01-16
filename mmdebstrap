@@ -4526,12 +4526,26 @@ sub main() {
             opendir(my $dh, $opt_value)
               or error "Can't opendir($opt_value): $!";
             while (my $entry = readdir $dh) {
+                # skip the "." and ".." entries
+                next if $entry eq ".";
+                next if $entry eq "..";
+                my $found = 0;
                 foreach
                   my $hook ('setup', 'extract', 'essential', 'customize') {
-                    if ($entry =~ m/^\Q$hook\E/ and -x "$opt_value/$entry") {
-                        push @{ $scripts{$hook} }, "$opt_value/$entry";
-                        $count += 1;
+                    if ($entry =~ m/^\Q$hook\E/) {
+                        if (-x "$opt_value/$entry") {
+                            push @{ $scripts{$hook} }, "$opt_value/$entry";
+                            $count += 1;
+                            $found = 1;
+                        } else {
+                            warning("$opt_value/$entry is named like a "
+                                  . "hook but not executable");
+                        }
                     }
+                }
+                if (!$found && -x "$opt_value/$entry") {
+                    warning("$opt_value/$entry: is executable "
+                          . "but not prefixed with a hook name");
                 }
             }
             closedir($dh);
