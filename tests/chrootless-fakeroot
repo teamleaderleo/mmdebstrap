@@ -16,7 +16,7 @@ prefix=
 # DPKG_ROOT
 # permissions drwxr-sr-x and extended attributes of ./var/log/journal/ cannot
 # be preserved under fakeroot
-for INCLUDE in '' 'systemd-sysv'; do
+for INCLUDE in '' 'apt' 'apt,build-essential' 'systemd-sysv'; do
 	{{ CMD }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
 		--customize-hook='if [ -d "$1"/var/log/journal ]; then rmdir "$1"/var/log/journal; mkdir --mode=2755 "$1"/var/log/journal; chroot "$1" chown root:systemd-journal /var/log/journal; fi' \
 		${INCLUDE:+--include="$INCLUDE"} \

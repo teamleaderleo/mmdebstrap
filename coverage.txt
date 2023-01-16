@@ -307,7 +307,7 @@ Variants: essential
 Modes: chrootless
 Skip-If:
  dist in ["oldstable", "stable"]
- hostarch != "amd64"
+ hostarch not in ["amd64", "arm64"]
  not run_ma_same_tests
 Needs-QEMU: true
 
