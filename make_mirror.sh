@@ -594,12 +594,12 @@ handler () {
 	    } 2>&1;
 	  } | { read xs; exit $xs; };
 	} 3>&1 || ret=$?
+	echo $ret > /mnt/exitstatus.txt
 	if [ -e cover_db.img ]; then
 		df -h cover_db
 		umount cover_db
 	fi
-	echo $ret
-) > /mnt/result.txt 2>&1
+) > /mnt/output.txt 2>&1
 umount /mnt
 systemctl poweroff
 END

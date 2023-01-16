@@ -11,10 +11,8 @@ cleanup() {
 	rm -f "$tmpdir/debian-$DEFAULT_DIST-overlay.qcow"
 	rm -f "$tmpdir/log"
 	[ -e "$tmpdir" ] && rmdir "$tmpdir"
-	if [ -e shared/result.txt ]; then
-		head --lines=-1 shared/result.txt
-		res="$(tail --lines=1 shared/result.txt)"
-		rm shared/result.txt
+	if [ -e shared/output.txt ]; then
+		res="$(cat shared/exitstatus.txt)"
 		if [ "$res" != "0" ]; then
 			# this might possibly overwrite another non-zero rv
 			rv=1
@@ -44,6 +42,12 @@ case $ARCH in
 		;;
 	*) echo "qemu kvm not supported on $ARCH" >&2;;
 esac
+
+echo 1 > shared/exitstatus.txt
+if [ -e shared/output.txt ]; then
+	rm shared/output.txt
+fi
+touch shared/output.txt
 
 # the path to debian-$DEFAULT_DIST.qcow must be absolute or otherwise qemu will
 # look for the path relative to debian-$DEFAULT_DIST-overlay.qcow

@@ -23,8 +23,8 @@ done
 	cd ./shared;
 	$SUDO sh -x ./test.sh;
 	echo $?;
-) 2>&1 | tee shared/result.txt | head --lines=-1
-if [ "$(tail --lines=1 shared/result.txt)" -ne 0 ]; then
+) 2>&1 | tee shared/output.txt
+if [ "$(cat shared/exitstatus.txt)" -ne 0 ]; then
 	echo "test.sh failed"
 	exit 1
 fi
