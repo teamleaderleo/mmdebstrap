@@ -2298,11 +2298,33 @@ sub run_update() {
         );
         close $fh;
         if ($indextargets eq '') {
-            if ($verbosity_level >= 1) {
-                0 == system('apt-cache', 'policy')
-                  or error "apt-cache failed: $?";
+            warning("apt-get indextargets output is empty");
+            for my $list (@{ $options->{sourceslists} }) {
+                if (defined $list->{fname}) {
+                    info("Filename: $list->{fname}");
+                }
+                info("Type: $list->{type}");
+                info("Content:");
+                for my $line (split "\n", $list->{content}) {
+                    info("  $line");
+                }
             }
-            error "apt-get update didn't download anything";
+            open(my $fh, '-|', 'apt-cache', 'policy')
+              // error "failed to fork(): $!";
+            while (my $line = <$fh>) {
+                chomp $line;
+                info $line;
+            }
+            close $fh;
+            my $msg
+              = "apt-get update did not find any indices "
+              . "for architecture '$options->{nativearch}' in ";
+            if (length $options->{suite}) {
+                $msg .= "suite '$options->{suite}'";
+            } else {
+                $msg .= "the configured apt sources";
+            }
+            error $msg;
         }
     }
 
