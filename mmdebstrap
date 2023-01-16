@@ -5190,7 +5190,7 @@ sub main() {
                 if (scalar @keyrings == 0) {
                     return " [signed-by=\"$keyring\"]";
                 }
-                info "Finding correct signed-by value...";
+                info "finding correct signed-by value...";
                 my $progress = 0.0;
                 print_progress($progress);
                 for (my $i = 0 ; $i < scalar @keyrings ; $i++) {
