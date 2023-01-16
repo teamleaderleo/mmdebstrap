@@ -119,7 +119,7 @@ def parse_config(confname):
     return config_order, config_dict
 
 
-def format_failed(num, total, name, dist, mode, variant, fmt, config_dict):
+def format_test(num, total, name, dist, mode, variant, fmt, config_dict):
     ret = f"({num}/{total}) {name}"
     if len(config_dict[name].get("Dists", [])) > 1:
         ret += f" --dist={dist}"
@@ -287,6 +287,7 @@ def main():
     failed = []
     num_success = 0
     num_finished = 0
+    time_per_test = {}
     for i, (test, name, dist, mode, variant, fmt) in enumerate(tests):
         if torun and i not in torun:
             continue
@@ -365,6 +366,7 @@ def main():
         if args.format and args.format != fmt:
             print(f"skipping because of --format={args.format}", file=sys.stderr)
             continue
+        before = time.time()
         proc = subprocess.Popen(argv)
         try:
             proc.wait()
@@ -372,21 +374,25 @@ def main():
             proc.terminate()
             proc.wait()
             break
+        after = time.time()
+        walltime = timedelta(seconds=int(after - before))
+        formated_test_name = format_test(
+            i + 1, len(tests), name, dist, mode, variant, fmt, config_dict
+        )
+        time_per_test[formated_test_name] = walltime
         print(separator, file=sys.stderr)
+        print(f"duration: {walltime}", file=sys.stderr)
         if proc.returncode != 0 or shellcheck != "":
             if shellcheck != "":
                 print(shellcheck)
-            failed.append(
-                format_failed(
-                    i + 1, len(tests), name, dist, mode, variant, fmt, config_dict
-                )
-            )
+            failed.append(formated_test_name)
             print("result: FAILURE", file=sys.stderr)
         else:
             print("result: SUCCESS", file=sys.stderr)
             num_success += 1
         if args.maxfail and len(failed) >= args.maxfail:
             break
+    print(separator, file=sys.stderr)
     print(
         "successfully ran %d tests" % num_success,
         file=sys.stderr,
@@ -402,6 +408,28 @@ def main():
         for f in failed:
             print(f, file=sys.stderr)
         exit(1)
+    if len(time_per_test) > 1:
+        print(
+            "average time per test:",
+            sum(time_per_test.values(), start=timedelta()) / len(time_per_test),
+            file=sys.stderr,
+        )
+        print(
+            "median time per test:",
+            sorted(time_per_test.values())[len(time_per_test) // 2],
+            file=sys.stderr,
+        )
+        head_tail_num = 10
+        print(f"{head_tail_num} fastests tests:", file=sys.stderr)
+        for k, v in sorted(time_per_test.items(), key=lambda i: i[1])[
+            : min(head_tail_num, len(time_per_test))
+        ]:
+            print(f"    {k}: {v}", file=sys.stderr)
+        print(f"{head_tail_num} slowest tests:", file=sys.stderr)
+        for k, v in sorted(time_per_test.items(), key=lambda i: i[1], reverse=True)[
+            : min(head_tail_num, len(time_per_test))
+        ]:
+            print(f"    {k}: {v}", file=sys.stderr)
 
 
 if __name__ == "__main__":
