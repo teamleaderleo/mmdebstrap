@@ -5213,9 +5213,13 @@ sub main() {
                     $signedby = " [signed-by=\"$keyring\"]";
                     last;
                 }
-                {
-                    open(my $fh, '-|', @gpgcmd, '--with-colons', '--show-keys',
-                        @keyrings) // error "failed to fork(): $!";
+                info "Finding correct signed-by value...";
+                my $progress = 0.0;
+                print_progress($progress);
+                for (my $i = 0 ; $i < scalar @keyrings ; $i++) {
+                    my $k = $keyrings[$i];
+                    open(my $fh, '-|', @gpgcmd, '--with-colons',
+                        '--show-keys', $k) // error "failed to fork(): $!";
                     while (my $line = <$fh>) {
                         if ($line !~ /^fpr:::::::::([^:]+):/) {
                             next;
@@ -5223,10 +5227,12 @@ sub main() {
                         push @aptfingerprints, $1;
                     }
                     close $fh;
+                    if ($? != 0) {
+                        warning("gpg failed to read $k");
+                    }
+                    print_progress($i / (scalar @keyrings) * 100.0, undef);
                 }
-                if ($? != 0) {
-                    error "gpg failed";
-                }
+                print_progress("done");
                 if (scalar @aptfingerprints == 0) {
                     $signedby = " [signed-by=\"$keyring\"]";
                     last;
