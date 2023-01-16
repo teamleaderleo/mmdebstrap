@@ -1,3 +1,18 @@
+1.3.0 (2023-01-16)
+------------------
+
+ - add hooks/maybe-jessie-or-older and hooks/maybe-merged-usr
+ - add --skip=check/signed-by
+ - hooks/jessie-or-older: split into two individual hook files
+ - skip running apt-get update if we are very sure that it was already run
+ - be more verbose when 'apt-get update' failed
+ - warn if a hook is named like one but not executable and if a hook is
+   executable but not named like one
+ - to find signed-by value, run gpg on the individual keys to print better
+   error messages in case it fails (gpg doesn't give an indication which file
+   it was unable to read) and print progress bar
+ - allow empty sources.list entries
+
 1.2.5 (2023-01-04)
 ------------------
 
