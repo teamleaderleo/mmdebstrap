@@ -358,16 +358,22 @@ if [ -e "./shared/cache.A" ] && [ -e "./shared/cache.B" ]; then
 		echo "cache symlink points to $(readlink ./shared/cache)" >&2
 		case "$(readlink ./shared/cache)" in
 			cache.A)
-				echo "maybe rm -r ./shared/cache.B" >&2
+				echo "removing ./shared/cache.B" >&2
+				rm -r ./shared/cache.B
 				;;
 			cache.B)
-				echo "maybe rm -r ./shared/cache.A" >&2
+				echo "removing ./shared/cache.A" >&2
+				rm -r ./shared/cache.A
 				;;
 			*)
 				echo "unexpected" >&2
+				exit 1
+				;;
 		esac
+	else
+		echo "./shared/cache doesn't exist" >&2
+		exit 1
 	fi
-	exit 1
 fi
 
 if [ -e "./shared/cache.A" ]; then
