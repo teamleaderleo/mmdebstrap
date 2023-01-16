@@ -11,6 +11,9 @@ cleanup() {
 	rm -f "$tmpdir/debian-$DEFAULT_DIST-overlay.qcow"
 	rm -f "$tmpdir/log"
 	[ -e "$tmpdir" ] && rmdir "$tmpdir"
+	if [ -n "${TAIL_PID:-}" ]; then
+		kill "$TAIL_PID"
+	fi
 	if [ -e shared/output.txt ]; then
 		res="$(cat shared/exitstatus.txt)"
 		if [ "$res" != "0" ]; then
@@ -48,6 +51,8 @@ if [ -e shared/output.txt ]; then
 	rm shared/output.txt
 fi
 touch shared/output.txt
+tail -f shared/output.txt &
+TAIL_PID=$!
 
 # the path to debian-$DEFAULT_DIST.qcow must be absolute or otherwise qemu will
 # look for the path relative to debian-$DEFAULT_DIST-overlay.qcow
