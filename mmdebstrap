@@ -2374,18 +2374,7 @@ sub run_download() {
             info "nothing to download -- skipping...";
             return ([], \@cached_debs);
         }
-        my @apt_argv = ('install');
-        for my $incl (@{ $options->{include} }) {
-            for my $pkg (split /[,\s]+/, $incl) {
-                # strip leading and trailing whitespace
-                $pkg =~ s/^\s+|\s+$//g;
-                # skip if the remainder is an empty string
-                if ($pkg eq '') {
-                    next;
-                }
-                push @apt_argv, $pkg;
-            }
-        }
+        my @apt_argv = ('install', @{ $options->{include} });
 
         @dl_debs = run_apt_download_progress({
                 APT_ARGV => [@apt_argv],
@@ -2913,20 +2902,9 @@ sub run_essential() {
 sub run_install() {
     my $options = shift;
 
-    my %pkgs_to_install;
-    for my $incl (@{ $options->{include} }) {
-        for my $pkg (split /[,\s]+/, $incl) {
-            # strip leading and trailing whitespace
-            $pkg =~ s/^\s+|\s+$//g;
-            # skip if the remainder is an empty string
-            if ($pkg eq '') {
-                next;
-            }
-            $pkgs_to_install{$pkg} = ();
-        }
-    }
+    my @pkgs_to_install = (@{ $options->{include} });
     if ($options->{variant} eq 'buildd') {
-        $pkgs_to_install{'build-essential'} = ();
+        push @pkgs_to_install, 'build-essential';
     }
     if (any { $_ eq $options->{variant} }
         ('required', 'important', 'standard', 'buildd')) {
@@ -2943,7 +2921,8 @@ sub run_install() {
             $priority = '?and(?or(~prequired,~pimportant,~pstandard),'
               . '?not(?essential))';
         }
-        $pkgs_to_install{
+        push @pkgs_to_install,
+          (
             "?narrow("
               . (
                 length($options->{suite})
@@ -2955,9 +2934,8 @@ sub run_install() {
               )
               . "?architecture($options->{nativearch}),"
               . "$priority)"
-        } = ();
+          );
     }
-    my @pkgs_to_install = keys %pkgs_to_install;
 
     if ($options->{mode} eq 'chrootless') {
         if (scalar @pkgs_to_install > 0) {

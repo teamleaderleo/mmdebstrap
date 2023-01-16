@@ -358,3 +358,7 @@ Needs-QEMU: true
 Test: jessie-or-older
 Needs-QEMU: true
 Variants: essential apt minbase
+
+Test: apt-patterns
+
+Test: apt-patterns-custom
