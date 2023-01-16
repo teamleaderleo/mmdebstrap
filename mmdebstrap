@@ -6982,7 +6982,10 @@ variant uses the fact that libapt treats the C<apt> packages as implicitly
 essential to download only all C<Essential:yes> packages plus apt using
 C<apt-get dist-upgrade>. In the remaining variants, all Packages files
 downloaded by the B<update> step are inspected to find the C<Essential:yes>
-package set as well as all packages of the required priority.
+package set as well as all packages of the required priority. If I<SUITE> is a
+non-empty string, then only packages from the archive with suite or codename
+matching I<SUITE> will be considered for selection of C<Essential:yes>
+packages.
 
 =item B<mount>
 
