@@ -59,7 +59,9 @@ deletecache() {
 		esac
 	done
 	for f in "$dir/debian-"*.qcow; do
-		rm --one-file-system "$f"
+		if [ -e "$f" ]; then
+			rm --one-file-system "$f"
+		fi
 	done
 	if [ -e "$dir/debian/pool/main" ]; then
 		rm --one-file-system --recursive "$dir/debian/pool/main"
