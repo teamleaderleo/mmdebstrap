@@ -61,6 +61,13 @@ for f in shadow shadow-; do
 	fi
 done
 
+# isc-dhcp-client postinst doesn't create this file in debootstrap run with
+# unshared wrapper. The responsible postinst snippet was automatically added
+# by dh_apparmor since isc-dhcp-client 4.4.3-P1-1.1
+if [ -e /tmp/debian-debootstrap/etc/apparmor.d/local/sbin.dhclient ] && [ ! -s /tmp/debian-debootstrap/etc/apparmor.d/local/sbin.dhclient ]; then
+	echo /sbin/setcap > /tmp/debian-debootstrap/etc/apparmor.d/local/sbin.dhclient
+fi
+
 # check if the file content differs
 diff --no-dereference --recursive /tmp/debian-debootstrap /tmp/debian-mm >&2
 
