@@ -2,13 +2,24 @@
 
 set -eu
 
-# if the usr-is-merged package cannot be installed with apt, do nothing
-if ! env --chdir="$1" APT_CONFIG="$MMDEBSTRAP_APT_CONFIG" apt-cache show --no-all-versions usr-is-merged > /dev/null 2>&1; then
-	echo "no package called usr-is-merged found -- not running merged-usr essential hook" >&2
-	exit 0
-else
-	echo "package usr-is-merged found -- running merged-usr essential hook" >&2
-fi
+ver=$(dpkg-query --root="$1" -f '${db:Status-Status} ${Source} ${Version}' --show usr-is-merged 2>/dev/null || printf '')
+case "$ver" in
+	'')
+		echo "no package called usr-is-merged is installed -- not running merged-usr essential hook" >&2
+		exit 0
+		;;
+	'installed mmdebstrap-dummy-usr-is-merged 1')
+		echo "dummy usr-is-merged package installed -- running merged-usr essential hook" >&2
+		;;
+	'installed usrmerge '*)
+		echo "usr-is-merged package from src:usrmerge installed -- not running merged-usr essential hook" >&2
+		exit 0
+		;;
+	*)
+		echo "unexpected situation for package usr-is-merged: $ver" >&2
+		exit 1
+		;;
+esac
 
 # resolve the script path using several methods in order:
 #  1. using dirname -- "$0"
