@@ -6704,7 +6704,14 @@ C<Essential:yes> packages.
 
 =item B<apt>
 
-The B<essential> set plus apt.
+The B<essential> set plus apt. This variant uses the fact that B<apt> treats
+itself as essential and thus running C<apt-get dist-upgrade> without any
+packages installed will install the B<essential> set plus B<apt>. If you just
+want B<essential> and B<apt>, then this variant is faster than using the
+B<essential> variant and adding B<apt> via C<--include> because all packages
+get installed at once. The downside of this variant is, that if it should
+happen that an B<essential> package is not installable, then it will just get
+ignored without throwing an error.
 
 =item B<required>, B<minbase>
 
