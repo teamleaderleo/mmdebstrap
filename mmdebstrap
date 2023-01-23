@@ -2602,20 +2602,23 @@ sub run_prepare {
                 $subst{ldconfig}
                   = '/usr/libexec/mmdebstrap/ldconfig.fakechroot';
             }
-            my @fakechrootsubst = ();
+            my %fakechrootsubst;
             foreach my $d (split ':', $ENV{PATH}) {
-                foreach my $k (sort keys %subst) {
+                foreach my $k (sort %subst) {
                     if (-e "$d/$k") {
-                        push @fakechrootsubst, "$d/$k=$subst{$k}";
+                        $fakechrootsubst{"$d/$k=$subst{$k}"} = 1;
                     }
                 }
             }
             if (defined $ENV{FAKECHROOT_CMD_SUBST}
                 && $ENV{FAKECHROOT_CMD_SUBST} ne "") {
-                push @fakechrootsubst, split /:/, $ENV{FAKECHROOT_CMD_SUBST};
+                foreach my $e (split /:/, $ENV{FAKECHROOT_CMD_SUBST}) {
+                    $fakechrootsubst{$e} = 1;
+                }
             }
             ## no critic (Variables::RequireLocalizedPunctuationVars)
-            $ENV{FAKECHROOT_CMD_SUBST} = join ':', @fakechrootsubst;
+            $ENV{FAKECHROOT_CMD_SUBST} = join ':',
+              (sort keys %fakechrootsubst);
         }
         if (defined $ENV{FAKECHROOT_EXCLUDE_PATH}
             && $ENV{FAKECHROOT_EXCLUDE_PATH} ne "") {
