@@ -106,10 +106,24 @@ def main():
     for d in get_libdirs(chroot, [chroot / "etc" / "ld.so.conf"]):
         make_relative(d)
 
+    rootarg = chroot
+    argv = sys.argv[1:]
+    for arg in sys.argv[1:]:
+        if arg == "-r":
+            rootarg = None
+        elif rootarg is None:
+            argpath = Path(arg)
+            if argpath.is_absolute():
+                rootarg = chroot / argpath.relative_to("/")
+            else:
+                rootarg = Path.cwd() / argpath
+    if rootarg is None:
+        rootarg = chroot
+
     # we add any additional arguments before "-r" such that any other "-r"
     # option will be overwritten by the one we set
     subprocess.check_call(
-        [chroot / "sbin" / "ldconfig"] + sys.argv[1:] + ["-r", chroot]
+        [chroot / "sbin" / "ldconfig"] + sys.argv[1:] + ["-r", rootarg]
     )
 
 
