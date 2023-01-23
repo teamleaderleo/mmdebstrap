@@ -364,3 +364,6 @@ Test: apt-patterns
 Test: apt-patterns-custom
 
 Test: empty-sources.list
+
+Test: merged-fakechroot-inside-unmerged-chroot
+Needs-Root: true

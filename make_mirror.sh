@@ -264,7 +264,7 @@ END
 			--or --field=Priority important --or --field=Priority standard \
 			\))
 
-	pkgs="$pkgs build-essential busybox gpg eatmydata"
+	pkgs="$pkgs build-essential busybox gpg eatmydata fakechroot fakeroot"
 
 	# we need usr-is-merged to simulate debootstrap behaviour for all dists
 	# starting from Debian 12 (Bullseye)

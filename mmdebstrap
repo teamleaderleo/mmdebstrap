@@ -2602,12 +2602,19 @@ sub run_prepare {
                 $subst{ldconfig}
                   = '/usr/libexec/mmdebstrap/ldconfig.fakechroot';
             }
+            my %mergedusrmap = (
+                "/bin"      => "/usr/bin",
+                "/sbin"     => "/usr/sbin",
+                "/usr/bin/" => "/bin",
+                "/usr/sbin" => "/sbin"
+            );
             my %fakechrootsubst;
             foreach my $d (split ':', $ENV{PATH}) {
                 foreach my $k (sort %subst) {
-                    if (-e "$d/$k") {
-                        $fakechrootsubst{"$d/$k=$subst{$k}"} = 1;
-                    }
+                    my $mapped_path = $mergedusrmap{$d} // $d;
+                    next if !-e "$d/$k" && !-e "$mapped_path/$k";
+                    $fakechrootsubst{"$d/$k=$subst{$k}"}           = 1;
+                    $fakechrootsubst{"$mapped_path/$k=$subst{$k}"} = 1;
                 }
             }
             if (defined $ENV{FAKECHROOT_CMD_SUBST}
