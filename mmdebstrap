@@ -7480,6 +7480,15 @@ F</etc/unsupported-skip-usrmerge-conversion> inside the chroot and install the
 B<usr-is-merged> package to avoid the installation of the B<usrmerge> package
 and its dependencies.
 
+If you are using B<mmdebstrap> in a setup where you do not know upfront whether
+the chroot you are creating should be merged-/usr or not and you want to avoid
+installation of the B<usrmerge> package and it's dependencies, you can use:
+
+    --hook-dir=/usr/share/mmdebstrap/hooks/maybe-merged-usr
+
+That hook will use the availability of the B<usr-is-merged> package to decide
+whether to call the B<merged-usr> hook or not.
+
 =head1 COMPRESSION
 
 B<mmdebstrap> will choose a suitable compressor for the output tarball
