@@ -2251,10 +2251,21 @@ sub run_setup() {
         # root mode when the path of the chroot is not in a world-readable
         # location.
         my $partial = '/var/lib/apt/lists/partial';
-        if (
-            system('/usr/lib/apt/apt-helper', 'drop-privs', '--', 'test',
-                '-r', "$options->{root}$partial") != 0
-        ) {
+        my @testcmd = (
+            '/usr/lib/apt/apt-helper', 'drop-privs', '--', 'test',
+            '-r', "$options->{root}$partial"
+        );
+        my $pid = fork() // error "fork() failed: $!";
+        if ($pid == 0) {
+            open(STDOUT, '>', '/dev/null')
+              or error "cannot open /dev/null for writing: $!";
+            open(STDERR, '>', '/dev/null')
+              or error "cannot open /dev/null for writing: $!";
+            exec { $testcmd[0] } @testcmd
+              or error("cannot exec " . (join " ", @testcmd) . ": $!");
+        }
+        waitpid $pid, 0;
+        if ($? != 0) {
             warning "Download is performed unsandboxed as root as file"
               . " $options->{root}$partial couldn't be accessed by user _apt";
             open my $fh, '>>', $tmpfile
