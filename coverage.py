@@ -132,6 +132,30 @@ def format_test(num, total, name, dist, mode, variant, fmt, config_dict):
     return ret
 
 
+def print_time_per_test(time_per_test, name="test"):
+    print(
+        f"average time per {name}:",
+        sum(time_per_test.values(), start=timedelta()) / len(time_per_test),
+        file=sys.stderr,
+    )
+    print(
+        f"median time per {name}:",
+        sorted(time_per_test.values())[len(time_per_test) // 2],
+        file=sys.stderr,
+    )
+    head_tail_num = 10
+    print(f"{head_tail_num} fastests {name}s:", file=sys.stderr)
+    for k, v in sorted(time_per_test.items(), key=lambda i: i[1])[
+        : min(head_tail_num, len(time_per_test))
+    ]:
+        print(f"    {k}: {v}", file=sys.stderr)
+    print(f"{head_tail_num} slowest {name}s:", file=sys.stderr)
+    for k, v in sorted(time_per_test.items(), key=lambda i: i[1], reverse=True)[
+        : min(head_tail_num, len(time_per_test))
+    ]:
+        print(f"    {k}: {v}", file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("test", nargs="*", help="only run these tests")
@@ -288,6 +312,7 @@ def main():
     num_success = 0
     num_finished = 0
     time_per_test = {}
+    acc_time_per_test = defaultdict(list)
     for i, (test, name, dist, mode, variant, fmt) in enumerate(tests):
         if torun and i not in torun:
             continue
@@ -380,6 +405,7 @@ def main():
             i + 1, len(tests), name, dist, mode, variant, fmt, config_dict
         )
         time_per_test[formated_test_name] = walltime
+        acc_time_per_test[name].append(walltime)
         print(separator, file=sys.stderr)
         print(f"duration: {walltime}", file=sys.stderr)
         if proc.returncode != 0 or shellcheck != "":
@@ -409,27 +435,15 @@ def main():
             print(f, file=sys.stderr)
         exit(1)
     if len(time_per_test) > 1:
-        print(
-            "average time per test:",
-            sum(time_per_test.values(), start=timedelta()) / len(time_per_test),
-            file=sys.stderr,
+        print_time_per_test(time_per_test)
+    if len(acc_time_per_test) > 1:
+        print_time_per_test(
+            {
+                f"{len(v)}x {k}": sum(v, start=timedelta())
+                for k, v in acc_time_per_test.items()
+            },
+            "accumulated test",
         )
-        print(
-            "median time per test:",
-            sorted(time_per_test.values())[len(time_per_test) // 2],
-            file=sys.stderr,
-        )
-        head_tail_num = 10
-        print(f"{head_tail_num} fastests tests:", file=sys.stderr)
-        for k, v in sorted(time_per_test.items(), key=lambda i: i[1])[
-            : min(head_tail_num, len(time_per_test))
-        ]:
-            print(f"    {k}: {v}", file=sys.stderr)
-        print(f"{head_tail_num} slowest tests:", file=sys.stderr)
-        for k, v in sorted(time_per_test.items(), key=lambda i: i[1], reverse=True)[
-            : min(head_tail_num, len(time_per_test))
-        ]:
-            print(f"    {k}: {v}", file=sys.stderr)
 
 
 if __name__ == "__main__":
