@@ -961,8 +961,18 @@ sub run_dpkg_progress {
 }
 
 sub run_apt_progress {
-    my $options  = shift;
-    my @debs     = @{ $options->{PKGS} // [] };
+    my $options = shift;
+    my @debs    = @{ $options->{PKGS} // [] };
+
+    if ($verbosity_level >= 3) {
+        my @apt_debug_opts = qw(
+          -oDebug::pkgProblemResolver=true
+          -oDebug::pkgDepCache::Marker=1
+          -oDebug::pkgDepCache::AutoInstall=1
+        );
+        push @{ $options->{ARGV} }, @apt_debug_opts;
+    }
+
     my $get_exec = sub {
         my @prefix = ();
         my @opts   = ();
@@ -1029,15 +1039,6 @@ sub run_apt_download_progress {
         info "simulate downloading packages with apt...";
     } else {
         info "downloading packages with apt...";
-    }
-
-    if ($verbosity_level >= 3) {
-        my @apt_debug_opts = qw(
-          -oDebug::pkgProblemResolver=true
-          -oDebug::pkgDepCache::Marker=1
-          -oDebug::pkgDepCache::AutoInstall=1
-        );
-        push @{ $options->{APT_ARGV} }, @apt_debug_opts;
     }
 
     pipe my $rfh, my $wfh;
