@@ -14,7 +14,7 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != root ] && [ "{{ MODE }}" != auto ];
 			echo "this test modifies the system and should only be run inside a container" >&2
 			exit 1
 		fi
-		adduser --gecos user --disabled-password user
+		useradd --home-dir /home/user --create-home user
 	fi
 	if [ "{{ MODE }}" = unshare ]; then
 		if [ ! -e /mmdebstrap-testenv ]; then

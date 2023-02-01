@@ -5,7 +5,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	echo "this test modifies the system and should only be run inside a container" >&2
 	exit 1
 fi
-adduser --gecos user --disabled-password user
+useradd --home-dir /home/user --create-home user
 sysctl -w kernel.unprivileged_userns_clone=1
 awk -F: '$1!="user"' /etc/subuid > /etc/subuid.tmp
 mv /etc/subuid.tmp /etc/subuid

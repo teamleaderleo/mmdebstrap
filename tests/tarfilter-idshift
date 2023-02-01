@@ -6,7 +6,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 trap "rm -f /tmp/debian-chroot.tar /tmp/debian-chroot-shifted.tar /tmp/debian-chroot.txt /tmp/debian-chroot-shiftedback.tar /tmp/expected; rm -rf /tmp/debian-chroot" EXIT INT TERM
-adduser --gecos user --disabled-password user
+useradd --home-dir /home/user --create-home user
 echo user:100000:65536 | cmp /etc/subuid -
 echo user:100000:65536 | cmp /etc/subgid -
 sysctl -w kernel.unprivileged_userns_clone=1

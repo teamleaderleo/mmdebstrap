@@ -6,7 +6,7 @@ if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
 		echo "this test modifies the system and should only be run inside a container" >&2
 		exit 1
 	fi
-	adduser --gecos user --disabled-password user
+	useradd --home-dir /home/user --create-home user
 fi
 prefix=
 [ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"

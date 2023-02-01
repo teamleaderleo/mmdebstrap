@@ -7,7 +7,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 sysctl -w kernel.unprivileged_userns_clone=1
-adduser --gecos user --disabled-password user
+useradd --home-dir /home/user --create-home user
 runuser -u user -- {{ CMD }} --variant=custom --mode=unshare --setup-hook='env container=lxc debootstrap unstable "$1" {{ MIRROR }}' - /tmp/debian-mm.tar {{ MIRROR }}
 
 mkdir /tmp/debian-mm

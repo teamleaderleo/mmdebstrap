@@ -6,7 +6,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	adduser --gecos user --disabled-password user
+	useradd --home-dir /home/user --create-home user
 fi
 prefix=
 [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && prefix="runuser -u user --"

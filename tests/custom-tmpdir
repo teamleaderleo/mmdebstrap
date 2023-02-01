@@ -7,7 +7,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 fi
 # https://www.etalabs.net/sh_tricks.html
 quote () { printf %s\\n "$1" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/'/" ; }
-adduser --gecos user --disabled-password user
+useradd --home-dir /home/user --create-home user
 sysctl -w kernel.unprivileged_userns_clone=1
 homedir=$(runuser -u user -- sh -c 'cd && pwd')
 # apt:test/integration/test-apt-key

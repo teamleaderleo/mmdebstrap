@@ -12,7 +12,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	adduser --gecos user --disabled-password user
+	useradd --home-dir /home/user --create-home user
 fi
 prefix=
 [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && prefix="runuser -u user --"
@@ -117,8 +117,8 @@ END
 # use script to create a fake tty
 # run all tests as root and as a normal user (the latter requires ptmxmode=666)
 script -qfec "$prefix {{ CMD }} --mode={{ MODE }} --variant=apt \
-	--include=gcc,libc6-dev,python3,adduser \
-	--customize-hook='chroot \"\$1\" adduser --gecos user --disabled-password user' \
+	--include=gcc,libc6-dev,python3,passwd \
+	--customize-hook='chroot \"\$1\" useradd --home-dir /home/user --create-home user' \
 	--customize-hook='chroot \"\$1\" python3 -c \"import pty; print(pty.openpty())\"' \
 	--customize-hook='chroot \"\$1\" runuser -u user -- python3 -c \"import pty; print(pty.openpty())\"' \
 	--customize-hook='chroot \"\$1\" script -c \"echo foobar\"' \
