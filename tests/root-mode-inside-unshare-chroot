@@ -11,7 +11,6 @@ if [ ! -e /mmdebstrap-testenv ]; then
 fi
 [ "$(whoami)" = "root" ]
 useradd --home-dir /home/user --create-home user
-sysctl -w kernel.unprivileged_userns_clone=1
 cat << 'SCRIPT' > script.sh
 #!/bin/sh
 set -eu

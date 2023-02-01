@@ -9,7 +9,6 @@ trap "rm -f /tmp/debian-chroot.tar /tmp/debian-chroot-shifted.tar /tmp/debian-ch
 useradd --home-dir /home/user --create-home user
 echo user:100000:65536 | cmp /etc/subuid -
 echo user:100000:65536 | cmp /etc/subgid -
-sysctl -w kernel.unprivileged_userns_clone=1
 # include iputils-ping so that we can verify that tarfilter does not remove
 # extended attributes
 # run through tarshift no-op to create a tarball that should be bit-by-bit

@@ -6,7 +6,6 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	echo "this test modifies the system and should only be run inside a container" >&2
 	exit 1
 fi
-sysctl -w kernel.unprivileged_userns_clone=1
 useradd --home-dir /home/user --create-home user
 runuser -u user -- {{ CMD }} --variant=custom --mode=unshare --setup-hook='env container=lxc debootstrap unstable "$1" {{ MIRROR }}' - /tmp/debian-mm.tar {{ MIRROR }}
 

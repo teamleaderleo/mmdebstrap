@@ -6,5 +6,4 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 useradd --home-dir /home/user --create-home user
-sysctl -w kernel.unprivileged_userns_clone=1
 runuser -u user -- {{ CMD }} --mode=unshare --variant=custom --include=dpkg,dash,diffutils,coreutils,libc-bin,sed {{ DIST }} /dev/null {{ MIRROR }}

@@ -8,7 +8,6 @@ fi
 # https://www.etalabs.net/sh_tricks.html
 quote () { printf %s\\n "$1" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/'/" ; }
 useradd --home-dir /home/user --create-home user
-sysctl -w kernel.unprivileged_userns_clone=1
 homedir=$(runuser -u user -- sh -c 'cd && pwd')
 # apt:test/integration/test-apt-key
 TMPDIR_ADD="This is fü\$\$ing cràzy, \$(apt -v)\$!"

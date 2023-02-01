@@ -16,13 +16,6 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != root ] && [ "{{ MODE }}" != auto ];
 		fi
 		useradd --home-dir /home/user --create-home user
 	fi
-	if [ "{{ MODE }}" = unshare ]; then
-		if [ ! -e /mmdebstrap-testenv ]; then
-			echo "this test modifies the system and should only be run inside a container" >&2
-			exit 1
-		fi
-		sysctl -w kernel.unprivileged_userns_clone=1
-	fi
 	prefix="runuser -u user --"
 	if [ "{{ VARIANT }}" = extract ] || [ "{{ VARIANT }}" = custom ]; then
 		include="$(tr '\n' ',' < pkglist.txt)"

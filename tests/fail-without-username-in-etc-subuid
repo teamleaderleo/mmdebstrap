@@ -6,7 +6,6 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 useradd --home-dir /home/user --create-home user
-sysctl -w kernel.unprivileged_userns_clone=1
 awk -F: '$1!="user"' /etc/subuid > /etc/subuid.tmp
 mv /etc/subuid.tmp /etc/subuid
 ret=0

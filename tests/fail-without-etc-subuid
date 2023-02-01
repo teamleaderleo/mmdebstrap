@@ -6,7 +6,6 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 useradd --home-dir /home/user --create-home user
-sysctl -w kernel.unprivileged_userns_clone=1
 rm /etc/subuid
 ret=0
 runuser -u user -- {{ CMD }} --mode=unshare --variant=apt {{ DIST }} /tmp/debian-chroot {{ MIRROR }} || ret=$?
