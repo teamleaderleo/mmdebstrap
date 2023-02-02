@@ -7,16 +7,22 @@
 
 set -eu
 export LC_ALL=C.UTF-8
-[ "{{ MODE }}" = "fakechroot" ]
+
 trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
-if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	if [ ! -e /mmdebstrap-testenv ]; then
-		echo "this test modifies the system and should only be run inside a container" >&2
-		exit 1
-	fi
-	useradd --home-dir /home/user --create-home user
-fi
+
+[ "{{ MODE }}" = "fakechroot" ]
+
 prefix=
-[ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
-$prefix env PATH=/usr/bin:/bin fakechroot fakeroot {{ CMD }} --mode=fakechroot --variant=apt {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
+if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
+	if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+		if [ ! -e /mmdebstrap-testenv ]; then
+			echo "this test modifies the system and should only be run inside a container" >&2
+			exit 1
+		fi
+		useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
+	fi
+	prefix="runuser -u ${SUDO_USER:-user} --"
+fi
+
+$prefix env PATH=/usr/bin:/bin fakechroot fakeroot {{ CMD }} --mode={{ MODE }} --variant=apt {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
 tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -

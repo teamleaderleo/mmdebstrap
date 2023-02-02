@@ -1,12 +1,21 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
-if [ ! -e /mmdebstrap-testenv ]; then
-	echo "this test modifies the system and should only be run inside a container" >&2
-	exit 1
-fi
-useradd --home-dir /home/user --create-home user
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+
+trap "rm -f /tmp/debian-chroot-{{ MODE }}.{{ FORMAT }} /tmp/debian-chroot-root.{{ FORMAT }}" EXIT INT TERM
+
+[ "$(id -u)" -eq 0 ]
+
+if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+	if [ ! -e /mmdebstrap-testenv ]; then
+		echo "this test modifies the system and should only be run inside a container" >&2
+		exit 1
+	fi
+	useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
+fi
+prefix="runuser -u ${SUDO_USER:-user} --"
+
 {{ CMD }} --mode=root --variant={{ VARIANT }} {{ DIST }} /tmp/debian-chroot-root.{{ FORMAT }} {{ MIRROR }}
 if [ "{{ FORMAT }}" = tar ]; then
 	printf 'ustar ' | cmp --bytes=6 --ignore-initial=257:0 /tmp/debian-chroot-root.tar -
@@ -18,19 +27,11 @@ else
 	echo "unknown format: {{ FORMAT }}" >&2
 	exit 1
 fi
-runuser -u user -- {{ CMD }} --mode=unshare --variant={{ VARIANT }} {{ DIST }} /tmp/debian-chroot-unshare.{{ FORMAT }} {{ MIRROR }}
-cmp /tmp/debian-chroot-root.{{ FORMAT }} /tmp/debian-chroot-unshare.{{ FORMAT }}
-rm /tmp/debian-chroot-unshare.{{ FORMAT }}
-case {{ VARIANT }} in essential|apt|minbase|buildd)
-	# variants important and standard differ because permissions drwxr-sr-x
-	# and extended attributes of ./var/log/journal/ cannot be preserved
-	# in fakechroot mode
-	runuser -u user -- {{ CMD }} --mode=fakechroot --variant={{ VARIANT }} {{ DIST }} /tmp/debian-chroot-fakechroot.{{ FORMAT }} {{ MIRROR }}
-	cmp /tmp/debian-chroot-root.{{ FORMAT }} /tmp/debian-chroot-fakechroot.{{ FORMAT }}
-	rm /tmp/debian-chroot-fakechroot.{{ FORMAT }}
-	;;
-esac
+
+$prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} {{ DIST }} /tmp/debian-chroot-{{ MODE }}.{{ FORMAT }} {{ MIRROR }}
+cmp /tmp/debian-chroot-root.{{ FORMAT }} /tmp/debian-chroot-{{ MODE }}.{{ FORMAT }} \
+	|| diffoscope /tmp/debian-chroot-root.{{ FORMAT }} /tmp/debian-chroot-{{ MODE }}.{{ FORMAT }}
+
 # we cannot test chrootless mode here, because mmdebstrap relies on the
 # usrmerge package to set up merged-/usr and that doesn't work in chrootless
 # mode
-rm /tmp/debian-chroot-root.{{ FORMAT }}

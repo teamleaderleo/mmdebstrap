@@ -271,14 +271,14 @@ def main():
                 tt = "qemu"
             elif test.get("Needs-QEMU", "false") == "true":
                 tt = ("skip", "test needs QEMU")
+            elif mode == "unshare" and not have_unshare:
+                tt = ("skip", "test needs unshare")
             elif test.get("Needs-Root", "false") == "true":
                 tt = "sudo"
             elif mode == "auto" and not have_unshare:
                 tt = "sudo"
             elif mode == "root":
                 tt = "sudo"
-            elif mode == "unshare" and not have_unshare:
-                tt = ("skip", "test needs unshare")
             else:
                 tt = "null"
             tests.append((tt, name, dist, mode, variant, fmt))

@@ -2,12 +2,20 @@
 set -eu
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
-if [ ! -e /mmdebstrap-testenv ]; then
-	echo "this test modifies the system and should only be run inside a container" >&2
-	exit 1
+
+prefix=
+if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
+	if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+		if [ ! -e /mmdebstrap-testenv ]; then
+			echo "this test modifies the system and should only be run inside a container" >&2
+			exit 1
+		fi
+		useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
+	fi
+	prefix="runuser -u ${SUDO_USER:-user} --"
 fi
-useradd --home-dir /home/user --create-home user
-runuser -u user -- {{ CMD }} --variant=custom --mode=unshare --setup-hook='env container=lxc debootstrap unstable "$1" {{ MIRROR }}' - /tmp/debian-mm.tar {{ MIRROR }}
+
+$prefix {{ CMD }} --variant=custom --mode={{ MODE }} --setup-hook='env container=lxc debootstrap unstable "$1" {{ MIRROR }}' - /tmp/debian-mm.tar {{ MIRROR }}
 
 mkdir /tmp/debian-mm
 tar --xattrs --xattrs-include='*' -C /tmp/debian-mm -xf /tmp/debian-mm.tar

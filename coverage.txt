@@ -4,7 +4,7 @@ Variants: minbase buildd -
 Needs-Root: true
 
 Test: as-debootstrap-unshare-wrapper
-Needs-QEMU: true
+Modes: unshare
 
 Test: help
 
@@ -34,7 +34,7 @@ Test: root-mode-inside-chroot
 Needs-Root: true
 
 Test: root-mode-inside-unshare-chroot
-Needs-QEMU: true
+Modes: unshare
 
 Test: root-without-cap-sys-admin
 Needs-Root: true
@@ -43,7 +43,8 @@ Test: mount-is-missing
 Needs-QEMU: true
 
 Test: check-for-bit-by-bit-identical-format-output
-Needs-QEMU: true
+Needs-Root: true
+Modes: unshare fakechroot
 Formats: tar squashfs ext2
 Variants: essential apt minbase buildd - standard
 Skip-If:
@@ -51,6 +52,7 @@ Skip-If:
  variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
  fmt == "squashfs" and dist == "oldstable" # squashfs-tools-ng is not available
  fmt == "ext2" and dist == "oldstable" # genext2fs does not support SOURCE_DATE_EPOCH
+ mode == "fakechroot" and variant in ["-", "standard"] # no extended attributes
 
 Test: tarfilter-idshift
 Needs-QEMU: true
@@ -74,19 +76,21 @@ Test: missing-device-nodes-outside-the-chroot
 Needs-QEMU: true
 
 Test: missing-dev-sys-proc-inside-the-chroot
-Needs-QEMU: true
+Modes: unshare
+Variants: custom
 
 Test: chroot-directory-not-accessible-by-apt-user
 Needs-Root: true
 
 Test: cwd-directory-not-accessible-by-unshared-user
-Needs-QEMU: true
+Needs-Root: true
+Modes: unshare
 
 Test: create-gzip-compressed-tarball
-Needs-QEMU: true
 
 Test: custom-tmpdir
-Needs-QEMU: true
+Needs-Root: true
+Modes: unshare
 
 Test: xz-compressed-tarball
 
@@ -233,7 +237,6 @@ Needs-Root: true
 
 Test: special-hooks-with-mode-mode
 Modes: root unshare fakechroot
-Needs-QEMU: true
 
 Test: debootstrap-no-op-options
 Needs-Root: true
@@ -280,7 +283,6 @@ Variants: any
 Modes: any
 
 Test: unpack-doc-debian
-Needs-QEMU: true
 Modes: any
 Variants: extract
 
@@ -298,7 +300,6 @@ Skip-If:
 Test: chrootless-fakeroot
 Variants: essential
 Modes: chrootless
-Needs-QEMU: true
 Skip-If:
  dist in ["oldstable", "stable"]
 
@@ -320,6 +321,8 @@ Variants: custom
 Modes: chrootless
 
 Test: install-libmagic-mgc-on-arm64
+Variants: custom
+Modes: chrootless
 Skip-If:
  hostarch != "amd64"
  not have_binfmt
@@ -339,7 +342,6 @@ Modes: fakechroot
 
 Test: dev-ptmx
 Modes: root unshare
-Needs-QEMU: true
 
 Test: error-if-stdout-is-tty
 
@@ -349,14 +351,14 @@ Test: include-deb-file
 
 Test: unshare-include-deb
 Modes: unshare
-Needs-QEMU: true
 
 Test: pivot_root
 Modes: root unshare
-Needs-QEMU: true
+Skip-If: not have_unshare
 
 Test: jessie-or-older
-Needs-QEMU: true
+Needs-Root: true
+Modes: root unshare fakechroot
 Variants: essential apt minbase
 
 Test: apt-patterns

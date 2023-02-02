@@ -2,16 +2,23 @@
 set -eu
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
-if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	if [ ! -e /mmdebstrap-testenv ]; then
-		echo "this test modifies the system and should only be run inside a container" >&2
-		exit 1
-	fi
-	useradd --home-dir /home/user --create-home user
-fi
+
+[ {{ VARIANT }} = "custom" ]
+[ {{ MODE }} = "chrootless" ]
+
 prefix=
-[ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
-$prefix {{ CMD }} --mode=chrootless --skip=cleanup/tmp --variant=custom --include=doc-debian --setup-hook='touch "$1/tmp/setup"' --customize-hook='touch "$1/tmp/customize"' {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
+if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
+	if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+		if [ ! -e /mmdebstrap-testenv ]; then
+			echo "this test modifies the system and should only be run inside a container" >&2
+			exit 1
+		fi
+		useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
+	fi
+	prefix="runuser -u ${SUDO_USER:-user} --"
+fi
+
+$prefix {{ CMD }} --mode={{ MODE }} --skip=cleanup/tmp --variant={{ VARIANT }} --include=doc-debian --setup-hook='touch "$1/tmp/setup"' --customize-hook='touch "$1/tmp/customize"' {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
 rm /tmp/debian-chroot/tmp/setup
 rm /tmp/debian-chroot/tmp/customize
 tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/debian-chroot.tar .

@@ -4,17 +4,17 @@ export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
 trap "rm -f /tmp/chroot1.tar /tmp/chroot2.tar /tmp/chroot3.tar /tmp/mmdebstrap" EXIT INT TERM
 
-if [ ! -e /mmdebstrap-testenv ]; then
-	echo "this test modifies the system and should only be run inside a container" >&2
-	exit 1
-fi
-
-if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	useradd --home-dir /home/user --create-home user
-fi
-
 prefix=
-[ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && prefix="runuser -u user --"
+if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
+	if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+		if [ ! -e /mmdebstrap-testenv ]; then
+			echo "this test modifies the system and should only be run inside a container" >&2
+			exit 1
+		fi
+		useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
+	fi
+	prefix="runuser -u ${SUDO_USER:-user} --"
+fi
 
 MMDEBSTRAP=
 [ -e /usr/bin/mmdebstrap ] && MMDEBSTRAP=/usr/bin/mmdebstrap

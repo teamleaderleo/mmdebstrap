@@ -1,15 +1,30 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
-if [ ! -e /mmdebstrap-testenv ]; then
-	echo "this test modifies the system and should only be run inside a container" >&2
-	exit 1
-fi
-useradd --home-dir /home/user --create-home user
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
 
+trap "rm -f /tmp/debian-chroot-{{ MODE }}.tar /tmp/debian-chroot-root-normal.tar" EXIT INT TERM
+
+[ "$(id -u)" -eq 0 ]
+
+prefix=
+if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
+	if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+		if [ ! -e /mmdebstrap-testenv ]; then
+			echo "this test modifies the system and should only be run inside a container" >&2
+			exit 1
+		fi
+		useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
+	fi
+	prefix="runuser -u ${SUDO_USER:-user} --"
+fi
+
+MMTARFILTER=
+[ -x /usr/bin/mmtarfilter ] && MMTARFILTER=/usr/bin/mmtarfilter
+[ -x ./tarfilter ] && MMTARFILTER=./tarfilter
+
 filter() {
-	./tarfilter \
+	"$MMTARFILTER" \
 		--path-exclude=/usr/bin/uncompress \
 		--path-exclude=/var/cache/debconf/config.dat-old \
 		--path-exclude=/var/cache/debconf/templates.dat-old \
@@ -20,19 +35,7 @@ filter() {
 }
 
 # base for comparison without jessie-or-older hook
-{{ CMD }} --mode=root --variant={{ VARIANT }} {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-root-normal.tar
+{{ CMD }} --mode=root --variant={{ VARIANT }} {{ DIST }} - {{ MIRROR }} > /tmp/debian-chroot-root-normal.tar
 
-# root
-{{ CMD }} --mode=root --variant={{ VARIANT }} --hook-dir=./hooks/jessie-or-older {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-root.tar
-cmp /tmp/debian-chroot-root-normal.tar /tmp/debian-chroot-root.tar
-rm /tmp/debian-chroot-root.tar
-# unshare
-runuser -u user -- {{ CMD }} --mode=unshare --variant={{ VARIANT }} --hook-dir=./hooks/jessie-or-older {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-unshare.tar
-cmp /tmp/debian-chroot-root-normal.tar /tmp/debian-chroot-unshare.tar
-rm /tmp/debian-chroot-unshare.tar
-# fakechroot
-runuser -u user -- {{ CMD }} --mode=fakechroot --variant={{ VARIANT }} --hook-dir=./hooks/jessie-or-older {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-fakechroot.tar
-cmp /tmp/debian-chroot-root-normal.tar /tmp/debian-chroot-fakechroot.tar
-rm /tmp/debian-chroot-fakechroot.tar
-
-rm /tmp/debian-chroot-root-normal.tar
+$prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --hook-dir=./hooks/jessie-or-older {{ DIST }} - {{ MIRROR }} | filter > /tmp/debian-chroot-{{ MODE }}.tar
+filter < /tmp/debian-chroot-root-normal.tar | cmp - /tmp/debian-chroot-{{ MODE }}.tar

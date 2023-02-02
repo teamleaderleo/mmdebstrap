@@ -5,14 +5,17 @@ export LC_ALL=C.UTF-8
 
 [ "{{ MODE }}" = unshare ]
 
-if [ "$(id -u)" -eq 0 ] && ! id -u user > /dev/null 2>&1; then
-	if [ ! -e /mmdebstrap-testenv ]; then
-		echo "this test modifies the system and should only be run inside a container" >&2
-		exit 1
+prefix=
+if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
+	if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+		if [ ! -e /mmdebstrap-testenv ]; then
+			echo "this test modifies the system and should only be run inside a container" >&2
+			exit 1
+		fi
+		useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
 	fi
-	useradd --home-dir /home/user --create-home user
+	prefix="runuser -u ${SUDO_USER:-user} --"
 fi
-[ "$(id -u)" -eq 0 ] && prefix="runuser -u user --"
 
 # instead of obtaining a .deb from our cache, we create a new package because
 # otherwise apt might decide to download the package with the same name and
