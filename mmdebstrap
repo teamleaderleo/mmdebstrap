@@ -1417,12 +1417,13 @@ sub setup_mounts {
             && !-d "/proc") {
             warning("skipping bind-mounting /proc because"
                   . " /proc on the outside is not a directory");
-        } elsif ($options->{mode} eq 'root') {
+        } elsif (any { $_ eq $options->{mode} } ('root', 'unshare')) {
             # we don't know whether we run in root mode inside an unshared
             # user namespace or as real root so we first try the real mount and
             # then fall back to mounting in a way that works in unshared
             if (
-                0 == system(
+                $options->{mode} eq 'root'
+                && 0 == system(
                     'mount', '-t', 'proc', '-o', 'ro', 'proc',
                     "$options->{root}/proc"
                 )
@@ -1451,22 +1452,23 @@ sub setup_mounts {
                     0 == system('umount', '--no-mtab', "$options->{root}/proc")
                       or warning("umount /proc failed: $?");
                 };
+            } elsif (
+                # if mounting proc failed, try bind-mounting it read-only as a
+                # last resort
+                0 == system(
+                    'mount',   '-o',
+                    'rbind', '/proc',
+                    "$options->{root}/proc"
+                )
+            ) {
+                push @cleanup_tasks, sub {
+                    # since we cannot write to /etc/mtab we need --no-mtab
+                    0 == system('umount', '--no-mtab', "$options->{root}/proc")
+                      or warning("umount /proc failed: $?");
+                };
             } else {
                 error "mount /proc failed: $?";
             }
-        } elsif ($options->{mode} eq 'unshare') {
-            # naturally we have to clean up after ourselves in sudo mode where
-            # we do a real mount. But we also need to unmount in unshare mode
-            # because otherwise, even with the --one-file-system tar option,
-            # the permissions of the mount source will be stored and not the
-            # mount target (the directory)
-            push @cleanup_tasks, sub {
-                # since we cannot write to /etc/mtab we need --no-mtab
-                0 == system('umount', '--no-mtab', "$options->{root}/proc")
-                  or warning("umount /proc failed: $?");
-            };
-            0 == system('mount', '-t', 'proc', 'proc', "$options->{root}/proc")
-              or error "mount /proc failed: $?";
         } elsif (any { $_ eq $options->{mode} } ('fakechroot', 'chrootless')) {
             # we cannot mount in fakechroot mode
         } else {
