@@ -369,3 +369,6 @@ Test: empty-sources.list
 
 Test: merged-fakechroot-inside-unmerged-chroot
 Needs-Root: true
+
+Test: auto-mode-as-normal-user
+Modes: auto
