@@ -8,7 +8,7 @@ trap "rm -f /tmp/chrootless.tar /tmp/root.tar" EXIT INT TERM
 
 prefix=
 if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
-	if ! id "${SUDO_USER:-user}" 2>/dev/null; then
+	if ! id "${SUDO_USER:-user}" >/dev/null 2>&1; then
 		if [ ! -e /mmdebstrap-testenv ]; then
 			echo "this test modifies the system and should only be run inside a container" >&2
 			exit 1
