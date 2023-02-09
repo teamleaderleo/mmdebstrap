@@ -4713,7 +4713,7 @@ sub main() {
         );
         close $fh;
         if (    $? == 0
-            and $content =~ /^apt (\d+\.\d+\.\d+)\w* \(\S+\)$/am) {
+            and $content =~ /^apt (\d+\.\d+\.\d+)\S* \(\S+\)$/am) {
             $aptversion = version->new($1);
         }
         if ($aptversion < "2.3.14") {
