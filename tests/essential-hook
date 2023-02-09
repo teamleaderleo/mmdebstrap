@@ -8,7 +8,7 @@ echo tzdata tzdata/Zones/Europe select Berlin | chroot "$1" debconf-set-selectio
 SCRIPT
 chmod +x /tmp/essential.sh
 {{ CMD }} --mode=root --variant=apt --include=tzdata --essential-hook='echo tzdata tzdata/Areas select Europe | chroot "$1" debconf-set-selections' --essential-hook=/tmp/essential.sh {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
-echo Europe/Berlin | cmp /tmp/debian-chroot/etc/timezone
+[ "$(readlink /tmp/debian-chroot/etc/localtime)" = "/usr/share/zoneinfo/Europe/Berlin" ]
 tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort \
 	| grep -v '^./etc/localtime' \
 	| grep -v '^./etc/timezone' \
