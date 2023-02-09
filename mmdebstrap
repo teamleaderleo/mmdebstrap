@@ -1336,11 +1336,11 @@ sub setup_mounts {
                   . " /sys directory is missing in the target");
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !-e "/sys") {
-            warning("skipping bind-mounting /sys because"
+            warning("skipping mounting /sys because"
                   . " /sys does not exist on the outside");
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !-d "/sys") {
-            warning("skipping bind-mounting /sys because"
+            warning("skipping mounting /sys because"
                   . " /sys on the outside is not a directory");
         } elsif ($options->{mode} eq 'root') {
             # we don't know whether we run in root mode inside an unshared
@@ -1411,11 +1411,11 @@ sub setup_mounts {
                   . " /proc directory is missing in the target");
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !-e "/proc") {
-            warning("skipping bind-mounting /proc because"
+            warning("skipping mounting /proc because"
                   . " /proc does not exist on the outside");
         } elsif ((any { $_ eq $options->{mode} } ('root', 'unshare'))
             && !-d "/proc") {
-            warning("skipping bind-mounting /proc because"
+            warning("skipping mounting /proc because"
                   . " /proc on the outside is not a directory");
         } elsif (any { $_ eq $options->{mode} } ('root', 'unshare')) {
             # we don't know whether we run in root mode inside an unshared
