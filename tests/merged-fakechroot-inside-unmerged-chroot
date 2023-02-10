@@ -46,4 +46,4 @@ chmod +x script.sh
 	--customize-hook=./script.sh \
 	--customize-hook="copy-out /tmp/chroot-fakechroot.tar /tmp" \
 	{{ DIST }} /dev/null {{ MIRROR }}
-cmp /tmp/chroot-fakechroot.tar /tmp/chroot-root.tar
+cmp /tmp/chroot-fakechroot.tar /tmp/chroot-root.tar || diffoscope /tmp/chroot-fakechroot.tar /tmp/chroot-root.tar

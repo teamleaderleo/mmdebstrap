@@ -38,8 +38,8 @@ if [ {{ MODE }} = "unshare" ]; then
 		--customize-hook='umount -l mnt sys' \
 		{{ DIST }} /tmp/chroot2.tar {{ MIRROR }}
 
-		cmp /tmp/chroot1.tar /tmp/chroot2.tar
-		cmp /tmp/chroot1.tar /tmp/chroot3.tar
+		cmp /tmp/chroot1.tar /tmp/chroot2.tar || diffoscope /tmp/chroot1.tar /tmp/chroot2.tar
+		cmp /tmp/chroot1.tar /tmp/chroot3.tar || diffoscope /tmp/chroot1.tar /tmp/chroot3.tar
 		rm /tmp/chroot2.tar /tmp/chroot3.tar
 fi
 
@@ -51,5 +51,5 @@ $prefix {{ CMD }} --mode={{ MODE }} --variant=apt --include=mount \
 	--customize-hook='rm "$1/'"$MMDEBSTRAP"'"' \
 	{{ DIST }} /tmp/chroot2.tar {{ MIRROR }}
 
-cmp /tmp/chroot1.tar /tmp/chroot2.tar
-cmp /tmp/chroot1.tar /tmp/chroot3.tar
+cmp /tmp/chroot1.tar /tmp/chroot2.tar || diffoscope /tmp/chroot1.tar /tmp/chroot2.tar
+cmp /tmp/chroot1.tar /tmp/chroot3.tar || diffoscope /tmp/chroot1.tar /tmp/chroot3.tar

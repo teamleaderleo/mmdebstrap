@@ -30,6 +30,6 @@ for INCLUDE in '' 'apt' 'apt,build-essential' 'systemd-sysv'; do
 	$prefix fakeroot {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
 		${INCLUDE:+--include="$INCLUDE"} \
 		{{ DIST }} /tmp/chrootless.tar {{ MIRROR }}
-	cmp /tmp/root.tar /tmp/chrootless.tar
+	cmp /tmp/root.tar /tmp/chrootless.tar || diffoscope /tmp/root.tar /tmp/chrootless.tar
 	rm /tmp/chrootless.tar /tmp/root.tar
 done

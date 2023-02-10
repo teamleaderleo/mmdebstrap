@@ -63,6 +63,6 @@ for INCLUDE in '' 'apt' 'systemd-sysv'; do
 			> "/tmp/$tar.tar.tmp"
 		mv "/tmp/$tar.tar.tmp" "/tmp/$tar.tar"
 	done
-	cmp /tmp/root.tar /tmp/chrootless.tar
+	cmp /tmp/root.tar /tmp/chrootless.tar || diffoscope /tmp/root.tar /tmp/chrootless.tar
 	rm /tmp/chrootless.tar /tmp/root.tar
 done
