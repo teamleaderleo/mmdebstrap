@@ -371,7 +371,9 @@ def main():
                 argv = ["./run_null.sh"]
             case ("skip", reason):
                 skipped[reason].append(
-                    ("(%d/%d) %s" % (i + 1, len(tests), name), dist, mode, variant, fmt)
+                    format_test(
+                        i + 1, len(tests), name, dist, mode, variant, fmt, config_dict
+                    )
                 )
                 print(f"skipped because of {reason}", file=sys.stderr)
                 continue
