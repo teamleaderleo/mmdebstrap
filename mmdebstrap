@@ -1456,15 +1456,27 @@ sub setup_mounts {
                 # if mounting proc failed, try bind-mounting it read-only as a
                 # last resort
                 0 == system(
-                    'mount',   '-o',
+                    'mount', '-o',
                     'rbind', '/proc',
                     "$options->{root}/proc"
                 )
             ) {
+                warning("since mounting /proc normally failed, /proc is now "
+                      . "bind-mounted instead");
+                # to make sure that changes (like unmounting) to the
+                # bind-mounted /proc do not affect the outside /proc, change
+                # all the bind-mounts under /proc to be a slave mount.
+                if (
+                    0 != system('mount', '--make-rslave',
+                        "$options->{root}/proc")) {
+                    warning("mount --make-rslave /proc failed");
+                }
                 push @cleanup_tasks, sub {
                     # since we cannot write to /etc/mtab we need --no-mtab
-                    0 == system('umount', '--no-mtab', "$options->{root}/proc")
-                      or warning("umount /proc failed: $?");
+                    0 == system(
+                        'umount', '--no-mtab',
+                        '--lazy', "$options->{root}/proc"
+                    ) or warning("umount /proc failed: $?");
                 };
             } else {
                 error "mount /proc failed: $?";
