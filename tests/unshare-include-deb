@@ -34,9 +34,8 @@ Description: dummypkg
 END
 dpkg-deb --build "/tmp/dummypkg" "/tmp/dummypkg.deb"
 
-# make the .deb only redable by user which will exclude the unshared user
+# make the .deb only redable by its owner which will exclude the unshared user
 chmod 600 /tmp/dummypkg.deb
-chown user /tmp/dummypkg.deb
 
 ret=0
 $prefix {{ CMD }} --variant=apt --mode={{ MODE }} --include="/tmp/dummypkg.deb" \

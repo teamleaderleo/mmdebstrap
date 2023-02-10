@@ -13,14 +13,13 @@ from collections import defaultdict
 from itertools import product
 
 have_qemu = os.getenv("HAVE_QEMU", "yes") == "yes"
-have_unshare = os.getenv("HAVE_UNSHARE", "yes") == "yes"
 have_binfmt = os.getenv("HAVE_BINFMT", "yes") == "yes"
 run_ma_same_tests = os.getenv("RUN_MA_SAME_TESTS", "yes") == "yes"
 cmd = os.getenv("CMD", "./mmdebstrap")
 
 default_dist = os.getenv("DEFAULT_DIST", "unstable")
 all_dists = ["oldstable", "stable", "testing", "unstable"]
-default_mode = "auto" if have_unshare else "root"
+default_mode = "auto"
 all_modes = ["auto", "root", "unshare", "fakechroot", "chrootless"]
 default_variant = "apt"
 all_variants = [
@@ -271,11 +270,7 @@ def main():
                 tt = "qemu"
             elif test.get("Needs-QEMU", "false") == "true":
                 tt = ("skip", "test needs QEMU")
-            elif mode == "unshare" and not have_unshare:
-                tt = ("skip", "test needs unshare")
             elif test.get("Needs-Root", "false") == "true":
-                tt = "sudo"
-            elif mode == "auto" and not have_unshare:
                 tt = "sudo"
             elif mode == "root":
                 tt = "sudo"

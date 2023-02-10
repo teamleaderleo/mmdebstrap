@@ -5,6 +5,7 @@ Needs-Root: true
 
 Test: as-debootstrap-unshare-wrapper
 Modes: unshare
+Needs-Root: true
 
 Test: help
 
@@ -277,13 +278,14 @@ Skip-If:
  variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
 
 Test: create-directory-dry-run
+Modes: root
 
 Test: create-tarball-dry-run
 Variants: any
 Modes: any
 
 Test: unpack-doc-debian
-Modes: any
+Modes: root fakechroot
 Variants: extract
 
 Test: install-doc-debian
@@ -354,7 +356,6 @@ Modes: unshare
 
 Test: pivot_root
 Modes: root unshare
-Skip-If: not have_unshare
 
 Test: jessie-or-older
 Needs-Root: true

@@ -73,7 +73,6 @@ SOURCE_DATE_EPOCH=$(date --date="$(grep-dctrl -s Date -n '' "$mirrordir/dists/$D
 # for traditional sort order that uses native byte values
 export LC_ALL=C.UTF-8
 
-: "${HAVE_UNSHARE:=yes}"
 : "${HAVE_BINFMT:=yes}"
 
 # by default, use the mmdebstrap executable in the current directory together
@@ -81,7 +80,7 @@ export LC_ALL=C.UTF-8
 : "${CMD:=perl -MDevel::Cover=-silent,-nogcov ./mmdebstrap}"
 mirror="http://127.0.0.1/debian"
 
-export HAVE_QEMU HAVE_UNSHARE HAVE_BINFMT RUN_MA_SAME_TESTS DEFAULT_DIST SOURCE_DATE_EPOCH CMD mirror
+export HAVE_QEMU HAVE_BINFMT RUN_MA_SAME_TESTS DEFAULT_DIST SOURCE_DATE_EPOCH CMD mirror
 
 ./coverage.py
 
@@ -99,8 +98,6 @@ cover -delete cover_db >&2
 END
 	if [ "$HAVE_QEMU" = "yes" ]; then
 		./run_qemu.sh
-	elif [ "$HAVE_UNSHARE" != "yes" ]; then
-		./run_null.sh SUDO
 	else
 		./run_null.sh
 	fi

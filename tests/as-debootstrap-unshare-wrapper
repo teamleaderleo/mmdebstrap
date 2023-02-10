@@ -15,7 +15,32 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto
 	prefix="runuser -u ${SUDO_USER:-user} --"
 fi
 
-$prefix {{ CMD }} --variant=custom --mode={{ MODE }} --setup-hook='env container=lxc debootstrap unstable "$1" {{ MIRROR }}' - /tmp/debian-mm.tar {{ MIRROR }}
+# debootstrap uses apt-config to figure out whether the system running it has
+# any proxies configured and then runs the binary to set the http_proxy
+# environment variable. This will fail if debootstrap is run in a linux user
+# namespace because auto-apt-proxy will see /tmp/.auto-apt-proxy-0 as being
+# owned by the user "nobody" and group "nogroup" and fail with:
+#   insecure cache dir /tmp/.auto-apt-proxy-0. Must be owned by UID 0 and have permissions 700
+# We cannot overwrite a configuration item using the APT_CONFIG environment
+# variable, so instead we use it to set the Dir configuration option
+# to /dev/null to force all apt settings to their defaults.
+# There is currently no better way to disable this behavior. See also:
+# https://bugs.debian.org/1031105
+# https://salsa.debian.org/installer-team/debootstrap/-/merge_requests/90
+AUTOPROXY=
+eval "$(apt-config shell AUTOPROXY Acquire::http::Proxy-Auto-Detect)"
+if [ -n "$AUTOPROXY" ] && [ -x "$AUTOPROXY" ] && [ -e /tmp/.auto-apt-proxy-0 ]; then
+	TMP_APT_CONFIG=$(mktemp)
+	echo "Dir \"/dev/null\";" > "$TMP_APT_CONFIG"
+	chmod 644 "$TMP_APT_CONFIG"
+fi
+
+$prefix {{ CMD }} --variant=custom --mode={{ MODE }} \
+	--setup-hook='env '"${AUTOPROXY:+APT_CONFIG='$TMP_APT_CONFIG'}"' container=lxc debootstrap unstable "$1" {{ MIRROR }}' \
+	- /tmp/debian-mm.tar {{ MIRROR }}
+if [ -n "$AUTOPROXY" ] && [ -x "$AUTOPROXY" ] && [ -e /tmp/.auto-apt-proxy-0 ]; then
+	rm "$TMP_APT_CONFIG"
+fi
 
 mkdir /tmp/debian-mm
 tar --xattrs --xattrs-include='*' -C /tmp/debian-mm -xf /tmp/debian-mm.tar

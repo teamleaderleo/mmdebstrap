@@ -16,10 +16,6 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto
 	prefix="runuser -u ${SUDO_USER:-user} --"
 fi
 
-MMDEBSTRAP=
-[ -e /usr/bin/mmdebstrap ] && MMDEBSTRAP=/usr/bin/mmdebstrap
-[ -e ./mmdebstrap ] && MMDEBSTRAP=./mmdebstrap
-
 $prefix {{ CMD }} --mode={{ MODE }} --variant=apt \
 	--include=mount \
 	{{ DIST }} /tmp/chroot1.tar {{ MIRROR }}
@@ -28,14 +24,16 @@ if [ {{ MODE }} = "unshare" ]; then
 	# calling pivot_root in root mode does not work for mysterious reasons:
 	# pivot_root: failed to change root from `.' to `mnt': Invalid argument
 	$prefix {{ CMD }} --mode={{ MODE }} --variant=apt --include=mount \
-		--customize-hook="upload $MMDEBSTRAP /$MMDEBSTRAP" \
-		--customize-hook='chmod +x "$1"/'"$MMDEBSTRAP" \
-		--customize-hook='mount -o rbind "$1" /mnt && cd /mnt && /sbin/pivot_root . mnt' \
+		--customize-hook='mkdir -p "$1/mnt" "$1/oldroot"' \
+		--customize-hook='[ ! -e /usr/bin/mmdebstrap ] || cp -aT /usr/bin/mmdebstrap "$1/usr/bin/mmdebstrap"' \
+		--customize-hook='[ ! -e ./mmdebstrap ] || cp -aT ./mmdebstrap "$1/mnt/mmdebstrap"' \
+		--customize-hook='mount -o rbind "$1" /mnt && cd /mnt && /sbin/pivot_root . oldroot' \
 		--customize-hook='unshare -U echo nested unprivileged unshare' \
-		--customize-hook="/$MMDEBSTRAP"' --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
+		--customize-hook='env --chdir=/mnt {{ CMD }} --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
 		--customize-hook='copy-out /tmp/chroot3.tar /tmp' \
-		--customize-hook='rm "$1/'"$MMDEBSTRAP"'"' \
-		--customize-hook='umount -l mnt sys' \
+		--customize-hook='rm -f "/usr/bin/mmdebstrap" "/mnt/mmdebstrap"' \
+		--customize-hook='umount -l oldroot sys' \
+		--customize-hook='rmdir /oldroot' \
 		{{ DIST }} /tmp/chroot2.tar {{ MIRROR }}
 
 		cmp /tmp/chroot1.tar /tmp/chroot2.tar || diffoscope /tmp/chroot1.tar /tmp/chroot2.tar
@@ -44,11 +42,12 @@ if [ {{ MODE }} = "unshare" ]; then
 fi
 
 $prefix {{ CMD }} --mode={{ MODE }} --variant=apt --include=mount \
-	--customize-hook="upload $MMDEBSTRAP /$MMDEBSTRAP" \
-	--customize-hook='chmod +x "$1"/'"$MMDEBSTRAP" \
-	--chrooted-customize-hook="/$MMDEBSTRAP"' --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
+	--customize-hook='mkdir -p "$1/mnt"' \
+	--customize-hook='[ ! -e /usr/bin/mmdebstrap ] || cp -aT /usr/bin/mmdebstrap "$1/usr/bin/mmdebstrap"' \
+	--customize-hook='[ ! -e ./mmdebstrap ] || cp -aT ./mmdebstrap "$1/mnt/mmdebstrap"' \
+	--chrooted-customize-hook='env --chdir=/mnt {{ CMD }} --mode=unshare --variant=apt --include=mount {{ DIST }} /tmp/chroot3.tar {{ MIRROR }}' \
 	--customize-hook='copy-out /tmp/chroot3.tar /tmp' \
-	--customize-hook='rm "$1/'"$MMDEBSTRAP"'"' \
+	--customize-hook='rm -f "$1/usr/bin/mmdebstrap" "$1/mnt/mmdebstrap"' \
 	{{ DIST }} /tmp/chroot2.tar {{ MIRROR }}
 
 cmp /tmp/chroot1.tar /tmp/chroot2.tar || diffoscope /tmp/chroot1.tar /tmp/chroot2.tar

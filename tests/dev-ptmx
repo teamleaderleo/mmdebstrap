@@ -125,12 +125,13 @@ script -qfec "$prefix {{ CMD }} --mode={{ MODE }} --variant=apt \
 	--customize-hook='chroot \"\$1\" runuser -u user -- python3 -c \"import pty; print(pty.openpty())\"' \
 	--customize-hook='chroot \"\$1\" script -c \"echo foobar\"' \
 	--customize-hook='chroot \"\$1\" runuser -u user -- env --chdir=/home/user script -c \"echo foobar\"' \
-	--customize-hook='chroot \"\$1\" apt-get install --yes doc-debian 2>&1 | tee /tmp/log' \
+	--customize-hook='chroot \"\$1\" apt-get install --yes doc-debian 2>&1 | tee \"\$1\"/tmp/log' \
 	--customize-hook=\"copy-in /tmp/test.c /tmp\" \
 	--customize-hook='chroot \"\$1\" gcc /tmp/test.c -o /tmp/test' \
 	--customize-hook='chroot \"\$1\" /tmp/test' \
 	--customize-hook='chroot \"\$1\" runuser -u user -- /tmp/test' \
 	--customize-hook='rm \"\$1\"/tmp/test \"\$1\"/tmp/test.c' \
+	--customize-hook=\"copy-out /tmp/log /tmp\" \
 	{{ DIST }} /dev/null {{ MIRROR }}" /dev/null
 
 fail=0
