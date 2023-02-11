@@ -673,37 +673,6 @@ END
 	trap "cleanup_newcachedir" EXIT INT TERM
 fi
 
-mirror="http://127.0.0.1/debian"
-for dist in oldstable stable testing unstable; do
-	for variant in minbase buildd -; do
-		echo "running debootstrap --variant=$variant $dist \${TEMPDIR} $mirror"
-		cat << END > shared/test.sh
-#!/bin/sh
-set -eu
-export LC_ALL=C.UTF-8
-export SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
-echo "SOURCE_DATE_EPOCH=\$SOURCE_DATE_EPOCH"
-tmpdir="\$(mktemp -d)"
-chmod 755 "\$tmpdir"
-case "$dist" in
-	oldstable|stable)
-		debootstrap --no-merged-usr --variant=$variant $dist "\$tmpdir" $mirror
-		;;
-	*)
-		debootstrap --merged-usr --variant=$variant $dist "\$tmpdir" $mirror
-		;;
-esac
-tar --sort=name --mtime=@$SOURCE_DATE_EPOCH --clamp-mtime --numeric-owner --one-file-system --xattrs -C "\$tmpdir" -c . > "$newcache/debian-$dist-$variant.tar"
-rm -r "\$tmpdir"
-END
-		if [ "$HAVE_QEMU" = "yes" ]; then
-			cachedir=$newcachedir ./run_qemu.sh
-		else
-			./run_null.sh SUDO
-		fi
-	done
-done
-
 if [ "$HAVE_QEMU" = "yes" ]; then
 	# now replace the minihttpd config with one that serves the new repository
 	guestfish -a "$newcachedir/debian-$DEFAULT_DIST.qcow" -i <<EOF

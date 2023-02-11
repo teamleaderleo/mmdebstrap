@@ -51,21 +51,6 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	fi
 fi
 
-# check if all required debootstrap tarballs exist
-notfound=0
-for dist in oldstable stable testing unstable; do
-	for variant in minbase buildd -; do
-		if [ ! -e "shared/cache/debian-$dist-$variant.tar" ]; then
-			echo "shared/cache/debian-$dist-$variant.tar does not exist" >&2
-			notfound=1
-		fi
-	done
-done
-if [ "$notfound" -ne 0 ]; then
-	echo "not all required debootstrap tarballs are present" >&2
-	exit 1
-fi
-
 # choose the timestamp of the unstable Release file, so that we get
 # reproducible results for the same mirror timestamp
 SOURCE_DATE_EPOCH=$(date --date="$(grep-dctrl -s Date -n '' "$mirrordir/dists/$DEFAULT_DIST/Release")" +%s)

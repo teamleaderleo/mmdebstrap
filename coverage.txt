@@ -1,3 +1,8 @@
+Test: debootstrap
+Dists: any
+Variants: minbase buildd -
+Needs-Root: true
+
 Test: check-against-debootstrap-dist
 Dists: any
 Variants: minbase buildd -
