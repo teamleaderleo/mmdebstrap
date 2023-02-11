@@ -178,14 +178,14 @@ Lastly, shift user id and group id of each entry by the value given by the
         skip = False
         if not hasattr(args, "pathfilter"):
             return False
-        for (t, r) in args.pathfilter:
+        for t, r in args.pathfilter:
             if r.match(member.name[1:]) is not None:
                 if t == "path_include":
                     skip = False
                 else:
                     skip = True
         if skip and (member.isdir() or member.issym()):
-            for (t, r) in args.pathfilter:
+            for t, r in args.pathfilter:
                 if t != "path_include":
                     continue
                 prefix = prefix_prog.sub(r"\1", r.pattern)
@@ -198,7 +198,7 @@ Lastly, shift user id and group id of each entry by the value given by the
         if not hasattr(args, "paxfilter"):
             return False
         skip = False
-        for (t, r) in args.paxfilter:
+        for t, r in args.paxfilter:
             if r.match(header) is None:
                 continue
             if t == "pax_include":

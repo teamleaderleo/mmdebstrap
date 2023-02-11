@@ -201,7 +201,7 @@ def main():
     args = parser.parse_args()
 
     # copy over files from git or as distributed
-    for (git, dist, target) in [
+    for git, dist, target in [
         ("./mmdebstrap", "/usr/bin/mmdebstrap", "mmdebstrap"),
         ("./tarfilter", "/usr/bin/mmtarfilter", "tarfilter"),
         (
