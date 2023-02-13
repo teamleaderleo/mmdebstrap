@@ -36,7 +36,7 @@ if [ -n "$AUTOPROXY" ] && [ -x "$AUTOPROXY" ] && [ -e /tmp/.auto-apt-proxy-0 ]; 
 fi
 
 $prefix {{ CMD }} --variant=custom --mode={{ MODE }} \
-	--setup-hook='env '"${AUTOPROXY:+APT_CONFIG='$TMP_APT_CONFIG'}"' container=lxc debootstrap unstable "$1" {{ MIRROR }}' \
+	--setup-hook='env '"${AUTOPROXY:+APT_CONFIG='$TMP_APT_CONFIG'}"' container=lxc debootstrap --variant={{ VARIANT }} unstable "$1" {{ MIRROR }}' \
 	- /tmp/debian-mm.tar {{ MIRROR }}
 if [ -n "$AUTOPROXY" ] && [ -x "$AUTOPROXY" ] && [ -e /tmp/.auto-apt-proxy-0 ]; then
 	rm "$TMP_APT_CONFIG"
@@ -46,7 +46,7 @@ mkdir /tmp/debian-mm
 tar --xattrs --xattrs-include='*' -C /tmp/debian-mm -xf /tmp/debian-mm.tar
 
 mkdir /tmp/debian-debootstrap
-tar --xattrs --xattrs-include='*' -C /tmp/debian-debootstrap -xf "cache/debian-unstable--.tar"
+tar --xattrs --xattrs-include='*' -C /tmp/debian-debootstrap -xf "cache/debian-unstable-{{ VARIANT }}.tar"
 
 # diff cannot compare device nodes, so we use tar to do that for us and then
 # delete the directory
@@ -74,7 +74,9 @@ rm /tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_mai
 	/tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_Release \
 	/tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_Release.gpg
 
-rm /tmp/debian-debootstrap/etc/machine-id /tmp/debian-mm/etc/machine-id
+if [ -e /tmp/debian-debootstrap/etc/machine-id ]; then
+	rm /tmp/debian-debootstrap/etc/machine-id /tmp/debian-mm/etc/machine-id
+fi
 rm /tmp/debian-mm/var/cache/apt/archives/lock
 rm /tmp/debian-mm/var/lib/apt/lists/lock
 rm /tmp/debian-mm/var/lib/dpkg/arch
@@ -83,6 +85,9 @@ rm /tmp/debian-mm/var/lib/dpkg/arch
 # also needed for users that are created by systemd-sysusers before systemd 252
 # https://github.com/systemd/systemd/pull/24534
 for f in shadow shadow-; do
+	if [ ! -e /tmp/debian-debootstrap/etc/$f ]; then
+		continue
+	fi
 	if ! cmp /tmp/debian-debootstrap/etc/$f /tmp/debian-mm/etc/$f >&2; then
 		echo patching /etc/$f >&2
 		awk -v FS=: -v OFS=: -v SDE={{ SOURCE_DATE_EPOCH }} '{ print $1,$2,int(SDE/60/60/24),$4,$5,$6,$7,$8,$9 }' < /tmp/debian-mm/etc/$f > /tmp/debian-mm/etc/$f.bak

@@ -11,6 +11,7 @@ Needs-Root: true
 Test: as-debootstrap-unshare-wrapper
 Modes: unshare
 Needs-Root: true
+Variants: minbase -
 
 Test: help
 
