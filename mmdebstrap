@@ -6649,14 +6649,30 @@ needs to be able to mount and thus requires C<SYS_CAP_ADMIN>.
 
 =item B<unshare>
 
-This mode uses Linux user namespaces to allow unprivileged use of chroot and
-creation of files that appear to be owned by the superuser inside the unshared
-namespace. A tarball created in this mode should be bit-by-bit identical to a
-tarball created with the B<root> mode.
+When used as a normal (not root) user, this mode uses Linux user namespaces to
+allow unprivileged use of chroot and creation of files that appear to be owned
+by the superuser inside the unshared namespace. A tarball created in this mode
+will be bit-by-bit identical to a tarball created with the B<root> mode. With
+this mode, the only binaries that will run as the root user will be
+B<newuidmap(1)> and B<newgidmap(1)> via their setuid bit. Running those
+successfully requires F</etc/subuid> and F</etc/subgid> to have an entry for
+your username. This entry was usually created by B<adduser(8)> already.
+
+The unshared user will not automatically have access to the same files as you
+do. This is intentional and an additional security against unintended changes
+to your files that could theoretically result from running B<mmdebstrap> and
+package maintainer scripts. To copy files in and out of the chroot, either use
+globally readable or writable directories or use special hooks like B<copy-in>
+and B<copy-out>.
+
+Besides the user namespace, the mount, pid (process ids), uts (hostname) and
+ipc namespaces will be unshared as well. See the man pages of B<namespaces(7)>
+and B<unshare(2)> as well as the manual pages they are linking to.
 
 A directory chroot created with this mode will end up with wrong ownership
-information. For correct ownership information, the directory must be accessed
-from a user namespace with the right subuid/subgid offset, like so:
+information (seen from outside the unshared user namespace). For correct
+ownership information, the directory must be accessed from a user namespace
+with the right subuid/subgid offset, like so:
 
     $ lxc-usernsexec -- lxc-unshare -s 'MOUNT|PID|UTSNAME|IPC' -- \
     > /usr/sbin/chroot ./debian-rootfs /bin/bash
