@@ -1,3 +1,8 @@
+1.3.2 (2023-02-16)
+------------------
+
+ - unshare mode works in privileged docker containers
+
 1.3.1 (2023-01-20)
 ------------------
 
