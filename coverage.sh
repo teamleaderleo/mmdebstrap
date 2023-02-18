@@ -92,4 +92,4 @@ END
 	echo
 fi
 
-rm shared/test.sh shared/tar1.txt shared/tar2.txt shared/pkglist.txt shared/doc-debian.tar.list shared/mmdebstrap shared/tarfilter shared/proxysolver
+rm -f shared/test.sh shared/tar1.txt shared/tar2.txt shared/pkglist.txt shared/doc-debian.tar.list shared/mmdebstrap shared/tarfilter shared/proxysolver
