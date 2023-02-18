@@ -331,6 +331,7 @@ Variants: essential
 Modes: chrootless
 Skip-If:
  dist in ["oldstable", "stable"]
+ hostarch in ["i386", "armel", "armhf", "mipsel"] # #1023286
 
 Test: chrootless-foreign
 Variants: essential
@@ -392,6 +393,7 @@ Test: jessie-or-older
 Needs-Root: true
 Modes: root unshare fakechroot
 Variants: essential apt minbase
+Skip-If: mode == "fakechroot" and hostarch in ["i386", "armel", "armhf", "mipsel"] # #1023286
 
 Test: apt-patterns
 
@@ -402,6 +404,7 @@ Test: empty-sources.list
 Test: merged-fakechroot-inside-unmerged-chroot
 Needs-Root: true
 Needs-APT-Config: true
+Skip-If: hostarch in ["i386", "armel", "armhf", "mipsel"] # #1023286
 
 Test: auto-mode-as-normal-user
 Modes: auto
