@@ -3,6 +3,8 @@
 set -eu
 export LC_ALL=C.UTF-8
 
+trap "rm -rf /tmp/dummypkg.deb /tmp/dummypkg" EXIT INT TERM
+
 # instead of obtaining a .deb from our cache, we create a new package because
 # otherwise apt might decide to download the package with the same name and
 # version from the cache instead of using the local .deb

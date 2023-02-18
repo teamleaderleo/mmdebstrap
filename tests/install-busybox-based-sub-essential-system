@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
+
+trap "rm -rf /tmp/debian-chroot" EXIT INT TERM
+
 pkgs=base-files,base-passwd,busybox,debianutils,dpkg,libc-bin,mawk,tar
 # busybox --install -s will install symbolic links into the rootfs, leaving
 # existing files untouched. It has to run after extraction (otherwise there is
@@ -31,4 +34,3 @@ chroot /tmp/debian-chroot echo foobar \
 	| chroot /tmp/debian-chroot tee /dev/null \
 	| chroot /tmp/debian-chroot sed 's/foobar/blubber/' \
 	| chroot /tmp/debian-chroot grep blubber >/dev/null
-rm -r /tmp/debian-chroot

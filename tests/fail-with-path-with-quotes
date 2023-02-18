@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
+
+trap 'rm -rf /tmp/quoted\"path' EXIT INT TERM
+
 ret=0
 {{ CMD }} --mode={{ MODE }} --variant=apt {{ DIST }} /tmp/quoted\"path {{ MIRROR }} || ret=$?
 if [ "$ret" = 0 ]; then

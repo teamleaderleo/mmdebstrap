@@ -6,6 +6,8 @@ export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
 [ {{ VARIANT }} = "custom" ]
 [ {{ MODE }} = "chrootless" ]
 
+trap "rm -rf /tmp/debian-chroot" EXIT INT TERM
+
 prefix=
 if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
 	if ! id "${SUDO_USER:-user}" >/dev/null 2>&1; then
