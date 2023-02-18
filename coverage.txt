@@ -2,16 +2,19 @@ Test: debootstrap
 Dists: any
 Variants: minbase buildd -
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: check-against-debootstrap-dist
 Dists: any
 Variants: minbase buildd -
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: as-debootstrap-unshare-wrapper
 Modes: unshare
 Needs-Root: true
 Variants: minbase -
+Needs-APT-Config: true
 
 Test: help
 
@@ -27,6 +30,7 @@ Needs-Root: true
 
 Test: dist-using-codename
 Dists: any
+Needs-APT-Config: true
 
 Test: fail-without-etc-subuid
 Needs-QEMU: true
@@ -36,12 +40,15 @@ Needs-QEMU: true
 
 Test: unshare-as-root-user-inside-chroot
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: root-mode-inside-chroot
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: root-mode-inside-unshare-chroot
 Modes: unshare
+Needs-APT-Config: true
 
 Test: root-without-cap-sys-admin
 Needs-Root: true
@@ -122,6 +129,7 @@ Test: read-from-stdin-write-to-stdout
 Test: supply-components-manually
 Modes: root
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: stable-default-mirror
 Needs-QEMU: true
@@ -146,19 +154,23 @@ Needs-QEMU: true
 Test: mirror-is-deb
 
 Test: mirror-is-real-file
+Needs-APT-Config: true
 
 Test: deb822-1-2
 Modes: root
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: deb822-2-2
 Modes: root
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: automatic-mirror-from-suite
 Needs-QEMU: true
 
 Test: invalid-mirror
+Needs-APT-Config: true
 
 Test: fail-installing-to-root
 Modes: root
@@ -198,6 +210,7 @@ Needs-QEMU: true
 
 Test: keyring-overwrites
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: signed-by-without-host-keys
 Needs-QEMU: true
@@ -207,6 +220,7 @@ Needs-QEMU: true
 
 Test: signed-by-with-host-keys
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: dpkgopt
 Needs-Root: true
@@ -240,9 +254,11 @@ Needs-Root: true
 
 Test: special-hooks-using-helpers
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: special-hooks-using-helpers-and-env-vars
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: special-hooks-with-mode-mode
 Modes: root unshare fakechroot
@@ -261,6 +277,7 @@ Needs-Root: true
 
 Test: logfile
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: without-etc-resolv-conf-and-etc-hostname
 Needs-QEMU: true
@@ -295,10 +312,12 @@ Modes: any
 Test: unpack-doc-debian
 Modes: root fakechroot
 Variants: extract
+Needs-APT-Config: true
 
 Test: install-doc-debian
 Modes: chrootless
 Variants: custom
+Needs-APT-Config: true
 
 Test: chrootless
 Variants: essential
@@ -325,10 +344,12 @@ Needs-QEMU: true
 Test: install-doc-debian-and-output-tarball
 Variants: custom
 Modes: chrootless
+Needs-APT-Config: true
 
 Test: install-doc-debian-and-test-hooks
 Variants: custom
 Modes: chrootless
+Needs-APT-Config: true
 
 Test: install-libmagic-mgc-on-arm64
 Variants: custom
@@ -358,12 +379,14 @@ Test: error-if-stdout-is-tty
 Test: variant-custom-timeout
 
 Test: include-deb-file
+Needs-APT-Config: true
 
 Test: unshare-include-deb
 Modes: unshare
 
 Test: pivot_root
 Modes: root unshare
+Needs-APT-Config: true
 
 Test: jessie-or-older
 Needs-Root: true
@@ -378,6 +401,7 @@ Test: empty-sources.list
 
 Test: merged-fakechroot-inside-unmerged-chroot
 Needs-Root: true
+Needs-APT-Config: true
 
 Test: auto-mode-as-normal-user
 Modes: auto

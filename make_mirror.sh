@@ -176,6 +176,8 @@ cleanupapt() {
 		"$rootdir/var/lib/dpkg/lock-frontend" \
 		"$rootdir/var/lib/dpkg/lock" \
 		"$rootdir/etc/apt/apt.conf" \
+		"$rootdir/etc/apt/sources.list.d/"* \
+		"$rootdir/etc/apt/preferences.d/"* \
 		"$rootdir/etc/apt/sources.list" \
 		"$rootdir/oldaptnames" \
 		"$rootdir/newaptnames" \
@@ -233,6 +235,24 @@ Acquire::Retries "5";
 END
 
 	: > "$rootdir/var/lib/dpkg/status"
+
+	if [ "$dist" = "$DEFAULT_DIST" ] && [ "$nativearch" = "$HOSTARCH" ] && [ "$USE_HOST_APT_CONFIG" = "yes" ]; then
+		# we append sources and settings instead of overwriting after
+		# an empty line
+		for f in /etc/apt/sources.list /etc/apt/sources.list.d/*; do
+			[ -e "$f" ] || continue
+			[ -e "$rootdir/$f" ] && echo >> "$rootdir/$f"
+			# we do not add entries from deb.debian.org or
+			# otherwise tests will fail if mirror pushes happen
+			# while the script is running
+			grep -v deb.debian.org/debian "$f" >> "$rootdir/$f" || :
+		done
+		for f in /etc/apt/preferences.d/*; do
+			[ -e "$f" ] || continue
+			[ -e "$rootdir/$f" ] && echo >> "$rootdir/$f"
+			cat "$f" >> "$rootdir/$f"
+		done
+	fi
 
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get update
 
@@ -401,6 +421,7 @@ components=main
 : "${RUN_MA_SAME_TESTS:=yes}"
 # by default, use the mmdebstrap executable in the current directory
 : "${CMD:=./mmdebstrap}"
+: "${USE_HOST_APT_CONFIG:=no}"
 
 if [ -e "$oldmirrordir/dists/$DEFAULT_DIST/Release" ]; then
 	http_code=$(curl --output /dev/null --silent --location --head --time-cond "$oldmirrordir/dists/$DEFAULT_DIST/Release" --write-out '%{http_code}' "$mirror/dists/$DEFAULT_DIST/Release")

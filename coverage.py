@@ -15,6 +15,7 @@ from itertools import product
 have_qemu = os.getenv("HAVE_QEMU", "yes") == "yes"
 have_binfmt = os.getenv("HAVE_BINFMT", "yes") == "yes"
 run_ma_same_tests = os.getenv("RUN_MA_SAME_TESTS", "yes") == "yes"
+use_host_apt_config = os.getenv("USE_HOST_APT_CONFIG", "no") == "yes"
 cmd = os.getenv("CMD", "./mmdebstrap")
 
 default_dist = os.getenv("DEFAULT_DIST", "unstable")
@@ -93,6 +94,7 @@ def parse_config(confname):
                     "Skip-If",
                     "Needs-QEMU",
                     "Needs-Root",
+                    "Needs-APT-Config",
                 ]:
                     print(f"Unknown field name {k} in test {name}")
                     exit(1)
@@ -266,6 +268,10 @@ def main():
             skipreason = skip(test.get("Skip-If"), dist, mode, variant, fmt)
             if skipreason:
                 tt = ("skip", skipreason)
+            elif (
+                test.get("Needs-APT-Config", "false") == "true" and use_host_apt_config
+            ):
+                tt = ("skip", "test cannot use host apt config")
             elif have_qemu:
                 tt = "qemu"
             elif test.get("Needs-QEMU", "false") == "true":
