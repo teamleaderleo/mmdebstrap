@@ -8,6 +8,7 @@ rm -r /tmp/debian-chroot/usr/share/doc/debian
 rm -r /tmp/debian-chroot/usr/share/doc/doc-debian
 rm /tmp/debian-chroot/usr/share/lintian/overrides/tzdata
 rm /tmp/debian-chroot/etc/localtime
+rm /tmp/debian-chroot/etc/timezone
 rm -r /tmp/debian-chroot/usr/share/doc/tzdata
 rm -r /tmp/debian-chroot/usr/share/zoneinfo
 rm /tmp/debian-chroot/var/lib/apt/extended_states
