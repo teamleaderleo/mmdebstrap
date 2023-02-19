@@ -11,7 +11,7 @@ trap "rm -f /tmp/debian-chroot.tar script.sh" EXIT INT TERM
 
 cat << 'SCRIPT' > script.sh
 #!/bin/sh
-set -eu
+set -exu
 rootfs="$1"
 mkdir -p "$rootfs/mnt"
 [ -e /usr/bin/mmdebstrap ] && cp -aT /usr/bin/mmdebstrap "$rootfs/usr/bin/mmdebstrap"
