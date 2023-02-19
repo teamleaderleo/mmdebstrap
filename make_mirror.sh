@@ -417,6 +417,8 @@ security_mirror="http://security.debian.org/debian-security"
 components=main
 
 : "${DEFAULT_DIST:=unstable}"
+: "${ONLY_DEFAULT_DIST:=no}"
+: "${ONLY_HOSTARCH:=no}"
 : "${HAVE_QEMU:=yes}"
 : "${RUN_MA_SAME_TESTS:=yes}"
 # by default, use the mmdebstrap executable in the current directory
@@ -449,6 +451,13 @@ for nativearch in $arches; do
 	for dist in oldstable stable testing unstable; do
 		# non-host architectures are only downloaded for $DEFAULT_DIST
 		if [ "$nativearch" != "$HOSTARCH" ] && [ "$DEFAULT_DIST" != "$dist" ]; then
+			continue
+		fi
+		# if ONLY_DEFAULT_DIST is set, only download DEFAULT_DIST
+		if [ "$ONLY_DEFAULT_DIST" = "yes" ] && [ "$DEFAULT_DIST" != "$dist" ]; then
+			continue
+		fi
+		if [ "$ONLY_HOSTARCH" = "yes" ] && [ "$nativearch" != "$HOSTARCH" ]; then
 			continue
 		fi
 		# we need a first pass without updates and security patches
