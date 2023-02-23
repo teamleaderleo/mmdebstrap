@@ -6028,12 +6028,16 @@ sub main() {
     close $nblkwriter;
     if (!$options->{dryrun} && $format eq 'ext2') {
         $numblocks = <$nblkreader>;
-        if (!defined $numblocks) {
+        if (defined $numblocks) {
+            chomp $numblocks;
+        } else {
             # This can happen if the setup process died early and thus closes
             # the pipe from the other and. The EOF is turned into undef.
-            error "failed to read required number of blocks";
+            # we cannot die here because that would skip the cleanup task
+            warning "failed to read required number of blocks";
+            $exitstatus = 1;
+            $numblocks  = -1;
         }
-        chomp $numblocks;
     }
     close $nblkreader;
 
