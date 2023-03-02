@@ -67,7 +67,6 @@ Skip-If:
  fmt == "squashfs" and dist == "oldstable" # squashfs-tools-ng is not available
  fmt == "ext2" and dist == "oldstable" # genext2fs does not support SOURCE_DATE_EPOCH
  mode == "fakechroot" and variant in ["-", "standard"] # no extended attributes
- mode == "fakechroot" and hostarch in ["i386", "armel", "armhf", "mipsel"] # #1030638
  variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
 
 Test: tarfilter-idshift
