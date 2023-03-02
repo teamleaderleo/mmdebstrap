@@ -22,8 +22,10 @@ if [ -e ./mmdebstrap ]; then
 	perlcritic --severity 4 --verbose 8 ./mmdebstrap
 fi
 
-[ -e ./tarfilter ] && black --check ./tarfilter
-[ -e ./coverage.py ] && black --check ./coverage.py
+for f in tarfilter coverage.py caching_proxy.py; do
+	[ -e "./$f" ] || continue
+	black --check "./$f"
+done
 
 shellcheck --exclude=SC2016 coverage.sh make_mirror.sh run_null.sh run_qemu.sh gpgvnoexpkeysig hooks/*/*.sh
 

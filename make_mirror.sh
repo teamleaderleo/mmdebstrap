@@ -92,74 +92,9 @@ deletecache() {
 }
 
 cleanup_newcachedir() {
+	kill "$PROXYPID" || :
 	echo "running cleanup_newcachedir"
 	deletecache "$newcachedir"
-}
-
-get_oldaptnames() {
-	if [ ! -e "$1/$2" ]; then
-		return
-	fi
-	xz -dc "$1/$2" \
-		| grep-dctrl --no-field-names --show-field=Package,Version,Architecture,Filename '' \
-		| paste -sd "    \n" \
-		| while read -r name ver arch fname; do
-			if [ ! -e "$1/$fname" ]; then
-				continue
-			fi
-			# apt stores deb files with the colon encoded as %3a while
-			# mirrors do not contain the epoch at all #645895
-			case "$ver" in *:*) ver="${ver%%:*}%3a${ver#*:}";; esac
-			aptname="$rootdir/var/cache/apt/archives/${name}_${ver}_${arch}.deb"
-			# we have to cp and not mv because other
-			# distributions might still need this file
-			# we have to cp and not symlink because apt
-			# doesn't recognize symlinks
-			cp --link "$1/$fname" "$aptname"
-			echo "$aptname"
-		done
-}
-
-get_newaptnames() {
-	if [ ! -e "$1/$2" ]; then
-		return
-	fi
-	# skip empty files by trying to uncompress the first byte of the payload
-	if [ "$(xz -dc "$1/$2" | head -c1 | wc -c)" -eq 0 ]; then
-		return
-	fi
-	xz -dc "$1/$2" \
-		| grep-dctrl --no-field-names --show-field=Package,Version,Architecture,Filename,SHA256 '' \
-		| paste -sd "     \n" \
-		| while read -r name ver arch fname hash; do
-			# sanity check for the hash because sometimes the
-			# archive switches the hash algorithm
-			if [ "${#hash}" -ne 64 ]; then
-				echo "expected hash length of 64 but got ${#hash} for: $hash" >&2
-				exit 1
-			fi
-			dir="${fname%/*}"
-			# apt stores deb files with the colon encoded as %3a while
-			# mirrors do not contain the epoch at all #645895
-			case "$ver" in *:*) ver="${ver%%:*}%3a${ver#*:}";; esac
-			aptname="$rootdir/var/cache/apt/archives/${name}_${ver}_${arch}.deb"
-			if [ -e "$aptname" ]; then
-				# make sure that we found the right file by checking its hash
-				echo "$hash  $aptname" | sha256sum --check >&2
-				mkdir -p "$1/$dir"
-				# since we move hardlinks around, the same hardlink might've been
-				# moved already into the same place by another distribution.
-				# mv(1) refuses to copy A to B if both are hardlinks of each other.
-				if [ -e "$aptname" ] && [ -e "$1/$fname" ] && [ "$(stat -c "%d %i" "$aptname")" = "$(stat -c "%d %i" "$1/$fname")" ]; then
-					# both files are already the same so we just need to
-					# delete the source
-					rm "$aptname"
-				else
-					mv "$aptname" "$1/$fname"
-				fi
-				echo "$aptname"
-			fi
-		done
 }
 
 cleanupapt() {
@@ -175,12 +110,11 @@ cleanupapt() {
 		"$rootdir/var/lib/dpkg/status" \
 		"$rootdir/var/lib/dpkg/lock-frontend" \
 		"$rootdir/var/lib/dpkg/lock" \
+		"$rootdir/var/lib/apt/lists/lock" \
 		"$rootdir/etc/apt/apt.conf" \
 		"$rootdir/etc/apt/sources.list.d/"* \
 		"$rootdir/etc/apt/preferences.d/"* \
 		"$rootdir/etc/apt/sources.list" \
-		"$rootdir/oldaptnames" \
-		"$rootdir/newaptnames" \
 		"$rootdir/var/cache/apt/archives/lock"; do
 		if [ ! -e "$f" ]; then
 			echo "does not exist: $f" >&2
@@ -229,9 +163,7 @@ Apt::Get::Download-Only true;
 Acquire::Languages "none";
 Dir::Etc::Trusted "/etc/apt/trusted.gpg";
 Dir::Etc::TrustedParts "/etc/apt/trusted.gpg.d";
-Acquire::http::Dl-Limit "1000";
-Acquire::https::Dl-Limit "1000";
-Acquire::Retries "5";
+Acquire::http::Proxy "http://127.0.0.1:8080/";
 END
 
 	: > "$rootdir/var/lib/dpkg/status"
@@ -256,26 +188,6 @@ END
 
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get update
 
-	# before downloading packages and before replacing the old Packages
-	# file, copy all old *.deb packages from the mirror to
-	# /var/cache/apt/archives so that apt will not re-download *.deb
-	# packages that we already have
-	{
-		get_oldaptnames "$oldmirrordir" "dists/$dist/main/binary-$nativearch/Packages.xz"
-		case "$dist" in oldstable|stable)
-			get_oldaptnames "$oldmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.xz"
-			;;
-		esac
-		case "$dist" in
-			oldstable)
-				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.xz"
-				;;
-			stable)
-				get_oldaptnames "$oldcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.xz"
-				;;
-		esac
-	} | sort -u > "$rootdir/oldaptnames"
-
 	pkgs=$(APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get indextargets \
 		--format '$(FILENAME)' 'Created-By: Packages' "Architecture: $nativearch" \
 		| xargs --delimiter='\n' /usr/lib/apt/apt-helper cat-file \
@@ -296,73 +208,8 @@ END
 	# shellcheck disable=SC2086
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --yes install $pkgs
 
-	# to be able to also test gpg verification, we need to create a mirror
-	mkdir -p "$newmirrordir/dists/$dist/main/binary-$nativearch/"
-	curl --location "$mirror/dists/$dist/Release" > "$newmirrordir/dists/$dist/Release"
-	curl --location "$mirror/dists/$dist/Release.gpg" > "$newmirrordir/dists/$dist/Release.gpg"
-	curl --location "$mirror/dists/$dist/main/binary-$nativearch/Packages.xz" > "$newmirrordir/dists/$dist/main/binary-$nativearch/Packages.xz"
-	codename=$(awk '/^Codename: / { print $2; }' < "$newmirrordir/dists/$dist/Release")
-	[ -L "$newmirrordir/dists/$codename" ] || ln -s "$dist" "$newmirrordir/dists/$codename"
-	case "$dist" in oldstable|stable)
-		mkdir -p "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/"
-		curl --location "$mirror/dists/$dist-updates/Release" > "$newmirrordir/dists/$dist-updates/Release"
-		curl --location "$mirror/dists/$dist-updates/Release.gpg" > "$newmirrordir/dists/$dist-updates/Release.gpg"
-		curl --location "$mirror/dists/$dist-updates/main/binary-$nativearch/Packages.xz" > "$newmirrordir/dists/$dist-updates/main/binary-$nativearch/Packages.xz"
-		[ -L "$newmirrordir/dists/$codename-updates" ] || ln -s "$dist-updates" "$newmirrordir/dists/$codename-updates"
-		;;
-	esac
-	case "$dist" in
-		oldstable)
-			mkdir -p "$newcachedir/debian-security/dists/$dist/updates/main/binary-$nativearch/"
-			curl --location "$security_mirror/dists/$dist/updates/Release" > "$newcachedir/debian-security/dists/$dist/updates/Release"
-			curl --location "$security_mirror/dists/$dist/updates/Release.gpg" > "$newcachedir/debian-security/dists/$dist/updates/Release.gpg"
-			curl --location "$security_mirror/dists/$dist/updates/main/binary-$nativearch/Packages.xz" > "$newcachedir/debian-security/dists/$dist/updates/main/binary-$nativearch/Packages.xz"
-			;;
-		stable)
-			mkdir -p "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/"
-			curl --location "$security_mirror/dists/$dist-security/Release" > "$newcachedir/debian-security/dists/$dist-security/Release"
-			curl --location "$security_mirror/dists/$dist-security/Release.gpg" > "$newcachedir/debian-security/dists/$dist-security/Release.gpg"
-			curl --location "$security_mirror/dists/$dist-security/main/binary-$nativearch/Packages.xz" > "$newcachedir/debian-security/dists/$dist-security/main/binary-$nativearch/Packages.xz"
-			[ -L "$newcachedir/debian-security/dists/$codename-security" ] || ln -s "$dist-security" "$newcachedir/debian-security/dists/$codename-security"
-			;;
-	esac
-
-	# the deb files downloaded by apt must be moved to their right locations in the
-	# pool directory
-	#
-	# Instead of parsing the Packages file, we could also attempt to move the deb
-	# files ourselves to the appropriate pool directories. But that approach
-	# requires re-creating the heuristic by which the directory is chosen, requires
-	# stripping the epoch from the filename and will break once mirrors change.
-	# This way, it doesn't matter where the mirror ends up storing the package.
-	{
-		get_newaptnames "$newmirrordir" "dists/$dist/main/binary-$nativearch/Packages.xz";
-		case "$dist" in oldstable|stable)
-			get_newaptnames "$newmirrordir" "dists/$dist-updates/main/binary-$nativearch/Packages.xz"
-			;;
-		esac
-		case "$dist" in
-			oldstable)
-				get_newaptnames "$newcachedir/debian-security" "dists/$dist/updates/main/binary-$nativearch/Packages.xz"
-				;;
-			stable)
-				get_newaptnames "$newcachedir/debian-security" "dists/$dist-security/main/binary-$nativearch/Packages.xz"
-				;;
-		esac
-	} | sort -u > "$rootdir/newaptnames"
-
 	rm "$rootdir/var/cache/apt/archives/lock"
 	rmdir "$rootdir/var/cache/apt/archives/partial"
-	# remove all packages that were in the old Packages file but not in the
-	# new one anymore
-	comm -23 "$rootdir/oldaptnames" "$rootdir/newaptnames" | xargs --delimiter="\n" --no-run-if-empty rm
-	# now the apt cache should be empty
-	if [ -n "$(ls -1qA "$rootdir/var/cache/apt/archives/")" ]; then
-		echo "$rootdir/var/cache/apt/archives not empty:"
-		ls -la "$rootdir/var/cache/apt/archives/"
-		exit 1
-	fi
-
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --option Dir::Etc::SourceList=/dev/null update
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get clean
 
@@ -425,13 +272,26 @@ components=main
 : "${CMD:=./mmdebstrap}"
 : "${USE_HOST_APT_CONFIG:=no}"
 
-if [ -e "$oldmirrordir/dists/$DEFAULT_DIST/Release" ]; then
-	http_code=$(curl --output /dev/null --silent --location --head --time-cond "$oldmirrordir/dists/$DEFAULT_DIST/Release" --write-out '%{http_code}' "$mirror/dists/$DEFAULT_DIST/Release")
+if [ -e "$oldmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
+	http_code=$(curl --output /dev/null --silent --location --head --time-cond "$oldmirrordir/dists/$DEFAULT_DIST/InRelease" --write-out '%{http_code}' "$mirror/dists/$DEFAULT_DIST/InRelease")
 	case "$http_code" in
 		200) ;; # need update
 		304) echo up-to-date; exit 0;;
 		*) echo "unexpected status: $http_code"; exit 1;;
 	esac
+fi
+
+./caching_proxy.py "$oldcachedir" "$newcachedir" &
+PROXYPID=$!
+
+for i in $(seq 10); do
+	curl --proxy "http://127.0.0.1:8080/" --silent -o /dev/null "http://deb.debian.org/debian/dists/$DEFAULT_DIST/InRelease" && break
+	sleep 1
+done
+if [ ! -s "$newmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
+	echo "failed to start proxy" >&2
+	kill $PROXYPID
+	exit 1
 fi
 
 trap "cleanup_newcachedir" EXIT INT TERM
@@ -447,8 +307,12 @@ elif [ "$HOSTARCH" = arm64 ]; then
 	arches="$arches amd64 armhf"
 fi
 
-for nativearch in $arches; do
-	for dist in oldstable stable testing unstable; do
+# we need the split_inline_sig() function
+# shellcheck disable=SC1091
+. /usr/share/debootstrap/functions
+
+for dist in oldstable stable testing unstable; do
+	for nativearch in $arches; do
 		# non-host architectures are only downloaded for $DEFAULT_DIST
 		if [ "$nativearch" != "$HOSTARCH" ] && [ "$DEFAULT_DIST" != "$dist" ]; then
 			continue
@@ -483,7 +347,19 @@ END
 				;;
 		esac
 	done
+	codename=$(awk '/^Codename: / { print $2; }' < "$newmirrordir/dists/$dist/InRelease")
+	ln -s "$dist" "$newmirrordir/dists/$codename"
+
+	# split the InRelease file into Release and Release.gpg not because apt
+	# or debootstrap need it that way but because grep-dctrl does
+	split_inline_sig \
+		"$newmirrordir/dists/$dist/InRelease" \
+		"$newmirrordir/dists/$dist/Release" \
+		"$newmirrordir/dists/$dist/Release.gpg"
+	touch --reference="$newmirrordir/dists/$dist/InRelease" "$newmirrordir/dists/$dist/Release" "$newmirrordir/dists/$dist/Release.gpg"
 done
+
+kill $PROXYPID
 
 # Create some symlinks so that we can trick apt into accepting multiple apt
 # lines that point to the same repository but look different. This is to
@@ -530,6 +406,25 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 			;;
 	esac
 
+	# we use the caching proxy again when building the qemu image
+	#  - we can re-use the packages that were already downloaded earlier
+	#  - we make sure that the qemu image uses the same Release file even
+	#    if a mirror push happened between now and earlier
+	#  - we avoid polluting the mirror with the additional packages by
+	#    using --readonly
+	./caching_proxy.py --readonly "$oldcachedir" "$newcachedir" &
+	PROXYPID=$!
+
+	for i in $(seq 10); do
+		curl --proxy "http://127.0.0.1:8080/" --silent -o /dev/null "http://deb.debian.org/debian/dists/$DEFAULT_DIST/InRelease" && break
+		sleep 1
+	done
+	if [ ! -s "$newmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
+		echo "failed to start proxy" >&2
+		kill $PROXYPID
+		exit 1
+	fi
+
 	# We must not use any --dpkgopt here because any dpkg options still
 	# leak into the chroot with chrootless mode.
 	# We do not use our own package cache here because
@@ -571,10 +466,11 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 		arches=$HOSTARCH
 	fi
 	$CMD --variant=apt --architectures="$arches" --include="$pkgs" \
-		--aptopt='Acquire::http::Dl-Limit "1000"' \
-		--aptopt='Acquire::https::Dl-Limit "1000"' \
-		--aptopt='Acquire::Retries "5"' \
+		--setup-hook='echo "Acquire::http::Proxy \"http://127.0.0.1:8080/\";" > "$1/etc/apt/apt.conf.d/00proxy"' \
+		--customize-hook='rm "$1/etc/apt/apt.conf.d/00proxy"' \
 		"$DEFAULT_DIST" - "$mirror" > "$tmpdir/debian-chroot.tar"
+
+	kill $PROXYPID
 
 	cat << END > "$tmpdir/mmdebstrap.service"
 [Unit]

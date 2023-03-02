@@ -39,7 +39,7 @@ all_formats = ["auto", "directory", "tar", "squashfs", "ext2", "null"]
 mirror = os.getenv("mirror", "http://127.0.0.1/debian")
 hostarch = subprocess.check_output(["dpkg", "--print-architecture"]).decode().strip()
 
-release_path = f"./shared/cache/debian/dists/{default_dist}/Release"
+release_path = f"./shared/cache/debian/dists/{default_dist}/InRelease"
 if not os.path.exists(release_path):
     print("path doesn't exist:", release_path, file=sys.stderr)
     print("run ./make_mirror.sh first", file=sys.stderr)

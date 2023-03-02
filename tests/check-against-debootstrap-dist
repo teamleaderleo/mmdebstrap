@@ -96,6 +96,7 @@ fi
 find /tmp/debian-{{ DIST }}-debootstrap/run/ -mindepth 1 -maxdepth 1 ! -name lock -print0 | xargs --no-run-if-empty -0 rm -r
 # debootstrap doesn't clean apt
 rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_{{ DIST }}_main_binary-{{ HOSTARCH }}_Packages \
+	/tmp/debian-{{ DIST }}-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_{{ DIST }}_InRelease \
 	/tmp/debian-{{ DIST }}-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_{{ DIST }}_Release \
 	/tmp/debian-{{ DIST }}-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_{{ DIST }}_Release.gpg
 

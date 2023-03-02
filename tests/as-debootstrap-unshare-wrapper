@@ -78,6 +78,7 @@ find /tmp/debian-debootstrap/run/ -mindepth 1 -maxdepth 1 ! -name lock -print0 |
 
 # debootstrap doesn't clean apt
 rm /tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_main_binary-{{ HOSTARCH }}_Packages \
+	/tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_InRelease \
 	/tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_Release \
 	/tmp/debian-debootstrap/var/lib/apt/lists/127.0.0.1_debian_dists_unstable_Release.gpg
 
