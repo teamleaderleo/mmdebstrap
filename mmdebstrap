@@ -6366,13 +6366,26 @@ Example: Minimizing the number of packages installed from experimental
 
 =item B<--keyring>=I<file>|I<directory>
 
-Change the default keyring to use by apt. By default, F</etc/apt/trusted.gpg>
-and F</etc/apt/trusted.gpg.d> are used. Depending on whether a file or
-directory is passed to this option, the former and latter default can be
-changed, respectively.  Since apt only supports a single keyring file and
-directory, respectively, you can B<not> use this option to pass multiple files
-and/or directories. Using the C<--keyring> argument in the following way is
-equal to keeping the default:
+Change the default keyring to use by apt during the initial setup. This is
+similar to setting B<Dir::Etc::Trusted> and B<Dir::Etc::TrustedParts> using
+B<--aptopt> except that the latter setting will be permanently stored in the
+chroot while the keyrings passed via <--keyring> will only be visible to apt as
+run by B<mmdebstrap>. Do not use B<--keyring> if apt inside the chroot needs to
+know about your keys after the initial chroot creation by B<mmdebstrap>. This
+option is mainly intended for users who use B<mmdebstrap> as a B<deboostrap>
+drop-in replacement. As such, it is probably not what you want to use if you
+use B<mmdebstrap> with more than a single mirror unless you pass it a directory
+containing all the keyrings you need.
+
+By default, the local setting of B<Dir::Etc::Trusted> and
+B<Dir::Etc::TrustedParts> are used to choose the keyring used by apt as run by
+B<mmdebstrap>. These two locations are set to F</etc/apt/trusted.gpg> and
+F</etc/apt/trusted.gpg.d> by default. Depending on whether a file or directory
+is passed to this option, the former and latter default can be changed,
+respectively.  Since apt only supports a single keyring file and directory,
+respectively, you can B<not> use this option to pass multiple files and/or
+directories. Using the C<--keyring> argument in the following way is equal to
+keeping the default:
 
     --keyring=/etc/apt/trusted.gpg --keyring=/etc/apt/trusted.gpg.d
 
@@ -6380,6 +6393,10 @@ If you need to pass multiple keyrings, use the C<signed-by> option when
 specifying the mirror like this:
 
     mmdebstrap mysuite out.tar "deb [signed-by=/path/to/key.gpg] http://..."
+
+Another reason to use C<signed-by> instead of B<--keyring> is if apt inside the
+chroot needs to know by what key the repository is signed even after the
+initial chroot creation.
 
 The C<signed-by> option will automatically be added to the final
 C<sources.list> if the keyring required for the selected I<SUITE> is not yet
@@ -6391,6 +6408,13 @@ installed, then you can create a Ubuntu Bionic chroot on Debian like this:
 
 The resulting chroot will have a C<source.list> with a C<signed-by> option
 pointing to F</usr/share/keyrings/ubuntu-archive-keyring.gpg>.
+
+You do not need to use B<--keyring> or C<signed-by> if you placed the keys that
+apt needs to know about into F</etc/apt/trusted.gpg.d> in the B<--setup-hook>
+(which is before C<apt update> runs), for example by using the <copy-in>
+special hook. You also need to copy your keys into the chroot explicitly if the
+key you passed via C<signed-by> points to a location that is not otherwise
+populated during chroot creation (for example by installing a keyring package).
 
 =item B<--dpkgopt>=I<option>|I<file>
 
