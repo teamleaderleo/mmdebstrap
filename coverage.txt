@@ -56,8 +56,20 @@ Needs-Root: true
 Test: mount-is-missing
 Needs-QEMU: true
 
-Test: check-for-bit-by-bit-identical-format-output
+Test: mmdebstrap
 Needs-Root: true
+Modes: root
+Formats: tar squashfs ext2
+Variants: essential apt minbase buildd - standard
+Skip-If:
+ variant == "standard" and dist in ["oldstable", "stable"] # #864082, #1004557, #1004558
+ variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
+ fmt == "squashfs" and dist == "oldstable" # squashfs-tools-ng is not available
+ fmt == "ext2" and dist == "oldstable" # genext2fs does not support SOURCE_DATE_EPOCH
+ mode == "fakechroot" and variant in ["-", "standard"] # no extended attributes
+ variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
+
+Test: check-for-bit-by-bit-identical-format-output
 Modes: unshare fakechroot
 Formats: tar squashfs ext2
 Variants: essential apt minbase buildd - standard
