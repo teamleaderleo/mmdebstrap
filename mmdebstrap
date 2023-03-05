@@ -6481,16 +6481,16 @@ comma or whitespace.
 
 =item B<--components>=I<comp1>[,I<comp2>,...]
 
-Comma or whitespace separated list of components like main, contrib and
-non-free which will be used for all URI-only I<MIRROR> arguments. The option
-can be specified multiple times and the components are concatenated in the
-order in which they are given on the command line. If later list items are
-repeated, then they get dropped so that the resulting component list is free
-of duplicates. So the following are equivalent:
+Comma or whitespace separated list of components like main, contrib, non-free
+and non-free-firmware which will be used for all URI-only I<MIRROR> arguments.
+The option can be specified multiple times and the components are concatenated
+in the order in which they are given on the command line. If later list items
+are repeated, then they get dropped so that the resulting component list is
+free of duplicates. So the following are equivalent:
 
-    --components="main contrib non-free"
-    --components=main,contrib,non-free
-    --comp=main --comp="contrib non-free" --comp="main,non-free"
+    --components="main contrib non-free non-free-firmware"
+    --components=main,contrib,non-free,non-free-firmware
+    --comp=main --comp="contrib non-free" --comp="main,non-free-firmware"
 
 =item B<--architectures>=I<native>[,I<foreign1>,...]
 
