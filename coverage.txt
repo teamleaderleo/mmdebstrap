@@ -3,18 +3,21 @@ Dists: any
 Variants: minbase buildd -
 Needs-Root: true
 Needs-APT-Config: true
+Skip-If: variant == "-" and dist == "oldstable" #917773
 
 Test: check-against-debootstrap-dist
 Dists: any
 Variants: minbase buildd -
 Needs-Root: true
 Needs-APT-Config: true
+Skip-If: variant == "-" and dist == "oldstable" #917773
 
 Test: as-debootstrap-unshare-wrapper
 Modes: unshare
 Needs-Root: true
 Variants: minbase -
 Needs-APT-Config: true
+Skip-If: variant == "-" and dist == "oldstable" #917773
 
 Test: help
 

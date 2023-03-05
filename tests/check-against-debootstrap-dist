@@ -183,23 +183,6 @@ if [ "{{ VARIANT }}" = "-" ]; then
 	esac
 fi
 
-# workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917773
-case {{ DIST }} in oldstable|stable)
-for f in shadow shadow-; do
-	if [ ! -e /tmp/debian-{{ DIST }}-mm/etc/$f ]; then
-		continue
-	fi
-	if ! cmp /tmp/debian-{{ DIST }}-debootstrap/etc/$f /tmp/debian-{{ DIST }}-mm/etc/$f >&2; then
-		echo patching /etc/$f on {{ DIST }} {{ VARIANT }} >&2
-		awk -v FS=: -v OFS=: -v SDE={{ SOURCE_DATE_EPOCH }} '{ print $1,$2,int(SDE/60/60/24),$4,$5,$6,$7,$8,$9 }' < /tmp/debian-{{ DIST }}-mm/etc/$f > /tmp/debian-{{ DIST }}-mm/etc/$f.bak
-		cat /tmp/debian-{{ DIST }}-mm/etc/$f.bak > /tmp/debian-{{ DIST }}-mm/etc/$f
-		rm /tmp/debian-{{ DIST }}-mm/etc/$f.bak
-	else
-		echo no difference for /etc/$f on {{ DIST }} {{ VARIANT }} >&2
-	fi
-done;;
-esac
-
 # check if the file content differs
 diff --unified --no-dereference --recursive /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm >&2
 
