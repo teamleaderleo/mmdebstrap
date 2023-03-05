@@ -191,12 +191,14 @@ Skip-If:
 
 Test: include-libmagic-mgc-arm64
 Needs-Root: true
+Needs-APT-Config: true
 Skip-If:
  hostarch != "amd64"
  not run_ma_same_tests
 
 Test: include-libmagic-mgc-arm64-with-multiple-arch-options
 Needs-Root: true
+Needs-APT-Config: true
 Skip-If:
  hostarch != "amd64"
  not run_ma_same_tests
