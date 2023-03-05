@@ -174,10 +174,22 @@ END
 		for f in /etc/apt/sources.list /etc/apt/sources.list.d/*; do
 			[ -e "$f" ] || continue
 			[ -e "$rootdir/$f" ] && echo >> "$rootdir/$f"
-			# we do not add entries from deb.debian.org or
-			# otherwise tests will fail if mirror pushes happen
-			# while the script is running
-			grep -v deb.debian.org/debian "$f" >> "$rootdir/$f" || :
+			# Filter out file:// repositories as they are added
+			# to each mmdebstrap call verbatim by
+			# debian/tests/copy_host_apt_config
+			# Also filter out all mirrors that are not of suite
+			# $DEFAULT_DIST, except experimental if the suite
+			# is unstable. This prevents packages from
+			# unstable entering a testing mirror.
+			if [ "$dist" = unstable ]; then
+				grep -v ' file://' "$f" \
+					| grep -E " (unstable|experimental) " \
+					>> "$rootdir/$f" || :
+			else
+				grep -v ' file://' "$f" \
+					| grep " $DEFAULT_DIST " \
+					>> "$rootdir/$f" || :
+			fi
 		done
 		for f in /etc/apt/preferences.d/*; do
 			[ -e "$f" ] || continue
