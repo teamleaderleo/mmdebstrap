@@ -198,6 +198,13 @@ END
 		done
 	fi
 
+	echo "creating mirror for $dist" >&2
+	for f in /etc/apt/sources.list /etc/apt/sources.list.d/* /etc/apt/preferences.d/*; do
+		[ -e "$rootdir/$f" ] || continue
+		echo "contents of $f:" >&2
+		cat "$rootdir/$f" >&2
+	done
+
 	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get update
 
 	pkgs=$(APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get indextargets \
