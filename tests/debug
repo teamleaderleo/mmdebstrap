@@ -1,6 +1,15 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C.UTF-8
-{{ CMD }} --mode=root --variant=apt --debug {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
-tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort | diff -u tar1.txt -
-rm -r /tmp/debian-chroot
+export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+
+trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
+
+# we use variant standard in debug mode to see all debug output and the maximum
+# number of packages that was chosen in case of USE_HOST_APT_CONFIG=yes
+[ {{ VARIANT }} = "standard" ]
+
+{{ CMD }} --variant={{ VARIANT }} --debug {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
+
+cmp ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar /tmp/debian-chroot.tar \
+	|| diffoscope ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar /tmp/debian-chroot.tar

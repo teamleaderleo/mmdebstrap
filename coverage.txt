@@ -283,10 +283,10 @@ Test: debootstrap-no-op-options
 Needs-Root: true
 
 Test: verbose
-Needs-Root: true
+Variants: standard
 
 Test: debug
-Needs-Root: true
+Variants: standard
 
 Test: quiet
 Needs-Root: true
