@@ -27,6 +27,15 @@ deletecache() {
 			else
 				echo "does not exist: $dir/debian-$dist-$variant.tar" >&2
 			fi
+			for format in tar ext2 squashfs; do
+				if [ -e "$dir/mmdebstrap-$dist-$variant.$format" ]; then
+					# attempt to delete for all dists because DEFAULT_DIST might've been different the last time
+					rm "$dir/mmdebstrap-$dist-$variant.$format"
+				elif [ "$dist" = "$DEFAULT_DIST" ]; then
+					# only warn about non-existance when it's expected to exist
+					echo "does not exist: $dir/mmdebstrap-$dist-$variant.$format" >&2
+				fi
+			done
 		done
 		if [ -e "$dir/debian/dists/$dist" ]; then
 			rm --one-file-system --recursive "$dir/debian/dists/$dist"
