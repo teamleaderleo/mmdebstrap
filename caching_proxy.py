@@ -46,7 +46,12 @@ class ProxyRequestHandler(http.server.BaseHTTPRequestHandler):
             newpath = pathlib.Path("/dev/null")
 
         # copy from oldpath to newpath and send back to client
-        if oldpath.exists():
+        # Only take files from the old cache if they are .deb files or Packages
+        # files in the by-hash directory as only those are unique by their path
+        # name. Other files like InRelease files have to be downloaded afresh.
+        if oldpath.exists() and (
+            oldpath.suffix == ".deb" or "by-hash" in oldpath.parts
+        ):
             print(f"proxy cached: {self.path}", file=sys.stderr)
             self.wfile.write(b"HTTP/1.1 200 OK\r\n")
             self.send_header("Content-Length", oldpath.stat().st_size)
