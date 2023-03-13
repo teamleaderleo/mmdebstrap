@@ -69,7 +69,7 @@ mirror="http://127.0.0.1/debian"
 
 export HAVE_QEMU HAVE_BINFMT RUN_MA_SAME_TESTS DEFAULT_DIST SOURCE_DATE_EPOCH CMD mirror
 
-./coverage.py
+./coverage.py "$@"
 
 if [ -e shared/cover_db.img ]; then
 	# produce report inside the VM to make sure that the versions match or
