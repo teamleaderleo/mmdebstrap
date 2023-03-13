@@ -283,10 +283,16 @@ Test: debootstrap-no-op-options
 Needs-Root: true
 
 Test: verbose
-Variants: standard
+Variants: - standard
+Skip-If:
+ variant == "-" and hostarch not in ["armel", "armhf", "mipsel"] # #1031276
+ variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
 
 Test: debug
-Variants: standard
+Variants: - standard
+Skip-If:
+ variant == "-" and hostarch not in ["armel", "armhf", "mipsel"] # #1031276
+ variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
 
 Test: quiet
 Needs-Root: true
