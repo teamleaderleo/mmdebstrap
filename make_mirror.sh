@@ -20,13 +20,19 @@ deletecache() {
 		return 1
 	fi
 	# be very careful with removing the old directory
-	for dist in oldstable stable testing unstable; do
+	# experimental is pulled in with USE_HOST_APT_CONFIG=yes on debci
+	# when testing a package from experimental
+	for dist in oldstable stable testing unstable experimental; do
+		# deleting artifacts from test "debootstrap"
 		for variant in minbase buildd -; do
 			if [ -e "$dir/debian-$dist-$variant.tar" ]; then
 				rm "$dir/debian-$dist-$variant.tar"
 			else
 				echo "does not exist: $dir/debian-$dist-$variant.tar" >&2
 			fi
+		done
+		# deleting artifacts from test "mmdebstrap"
+		for variant in essential apt minbase buildd - standard; do
 			for format in tar ext2 squashfs; do
 				if [ -e "$dir/mmdebstrap-$dist-$variant.$format" ]; then
 					# attempt to delete for all dists because DEFAULT_DIST might've been different the last time
@@ -72,11 +78,16 @@ deletecache() {
 			rm --one-file-system "$f"
 		fi
 	done
-	if [ -e "$dir/debian/pool/main" ]; then
-		rm --one-file-system --recursive "$dir/debian/pool/main"
-	else
-		echo "does not exist: $dir/debian/pool/main" >&2
-	fi
+	# on i386 and amd64, the intel-microcode and amd64-microcode packages
+	# from non-free-firwame get pulled in because they are
+	# priority:standard with USE_HOST_APT_CONFIG=yes
+	for c in main non-free-firmware; do
+		if [ -e "$dir/debian/pool/$c" ]; then
+			rm --one-file-system --recursive "$dir/debian/pool/$c"
+		else
+			echo "does not exist: $dir/debian/pool/$c" >&2
+		fi
+	done
 	if [ -e "$dir/debian-security/pool/updates/main" ]; then
 		rm --one-file-system --recursive "$dir/debian-security/pool/updates/main"
 	else
