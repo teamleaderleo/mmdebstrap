@@ -304,15 +304,24 @@ sub shellescape {
 }
 
 sub test_unshare_userns {
-    my $verbose      = shift;
-    my $unshare_fail = shift;
-    if ($EFFECTIVE_USER_ID == 0) {
-        my $msg = "cannot unshare user namespace when executing as root";
+    my $verbose = shift;
+    my $fail    = shift;
+
+    local *maybe_warn = sub {
+        my $msg = shift;
         if ($verbose) {
-            warning $msg;
+            if ($fail) {
+                error $msg;
+            } else {
+                warning $msg;
+            }
         } else {
             debug $msg;
         }
+    };
+
+    if ($EFFECTIVE_USER_ID == 0) {
+        maybe_warn("cannot unshare user namespace when executing as root");
         return 0;
     }
     # arguments to syscalls have to be stored in their own variable or
@@ -326,12 +335,7 @@ sub test_unshare_userns {
         if ($ret == 0) {
             exit 0;
         } else {
-            my $msg = "unshare syscall failed: $!";
-            if ($verbose) {
-                warning $msg;
-            } else {
-                debug $msg;
-            }
+            maybe_warn("unshare syscall failed: $!");
             exit 1;
         }
     }
@@ -344,120 +348,140 @@ sub test_unshare_userns {
     system "newuidmap 2>/dev/null";
     if (($? >> 8) != 1) {
         if (($? >> 8) == 127) {
-            my $msg = "cannot find newuidmap";
-            if ($verbose) {
-                if ($unshare_fail) {
-                    error $msg;
-                } else {
-                    warning $msg;
-                }
-            } else {
-                debug $msg;
-            }
+            maybe_warn("cannot find newuidmap");
         } else {
-            my $msg = "newuidmap returned unknown exit status: $?";
-            if ($verbose) {
-                warning $msg;
-            } else {
-                debug $msg;
-            }
+            maybe_warn("newuidmap returned unknown exit status: $?");
         }
         return 0;
     }
     system "newgidmap 2>/dev/null";
     if (($? >> 8) != 1) {
         if (($? >> 8) == 127) {
-            my $msg = "cannot find newgidmap";
-            if ($verbose) {
-                warning $msg;
-            } else {
-                debug $msg;
-            }
+            maybe_warn("cannot find newgidmap");
         } else {
-            my $msg = "newgidmap returned unknown exit status: $?";
-            if ($verbose) {
-                warning $msg;
-            } else {
-                debug $msg;
-            }
+            maybe_warn("newgidmap returned unknown exit status: $?");
         }
+        return 0;
+    }
+    my @idmap = read_subuid_subgid($verbose);
+    if (scalar @idmap == 0) {
+        maybe_warn("failed to parse /etc/subuid and /etc/subgid");
+        return 0;
+    }
+    # too much can go wrong when doing the dance required to unsharing the user
+    # namespace, so instead of adding more complexity to support maybe_warn()
+    # to a function that is already too complex, we use eval()
+    eval {
+        $pid = get_unshare_cmd(
+            sub {
+                if ($EFFECTIVE_USER_ID == 0) {
+                    exit 0;
+                } else {
+                    exit 1;
+                }
+            },
+            \@idmap
+        );
+        waitpid $pid, 0;
+        if ($? != 0) {
+            maybe_warn("failed to unshare the user namespace");
+            return 0;
+        }
+    };
+    if ($@) {
+        maybe_warn($@);
         return 0;
     }
     return 1;
 }
 
-sub read_subuid_subgid() {
+sub read_subuid_subgid {
+    my $verbose  = shift;
+    my @result   = ();
     my $username = getpwuid $REAL_USER_ID;
     my ($subid, $num_subid, $fh, $n);
-    my @result = ();
 
+    local *maybe_warn = sub {
+        my $msg = shift;
+        if ($verbose) {
+            warning $msg;
+        } else {
+            debug $msg;
+        }
+    };
     if (!-e "/etc/subuid") {
-        warning "/etc/subuid doesn't exist";
+        maybe_warn("/etc/subuid doesn't exist");
         return;
     }
     if (!-r "/etc/subuid") {
-        warning "/etc/subuid is not readable";
+        maybe_warn("/etc/subuid is not readable");
         return;
     }
 
     open $fh, "<", "/etc/subuid"
-      or error "cannot open /etc/subuid for reading: $!";
+      or maybe_warn("cannot open /etc/subuid for reading: $!");
+    if (!$fh) {
+        return;
+    }
     while (my $line = <$fh>) {
         ($n, $subid, $num_subid) = split(/:/, $line, 3);
         last if ($n eq $username);
     }
     close $fh;
     if (!length $subid) {
-        warning "/etc/subuid is empty";
+        maybe_warn("/etc/subuid is empty");
         return;
     }
     if ($n ne $username) {
-        warning "no entry in /etc/subuid for $username";
+        maybe_warn("no entry in /etc/subuid for $username");
         return;
     }
     push @result, ["u", 0, $subid, $num_subid];
 
     if (scalar(@result) < 1) {
-        warning "/etc/subuid does not contain an entry for $username";
+        maybe_warn("/etc/subuid does not contain an entry for $username");
         return;
     }
     if (scalar(@result) > 1) {
-        warning "/etc/subuid contains multiple entries for $username";
+        maybe_warn("/etc/subuid contains multiple entries for $username");
         return;
     }
 
     if (!-e "/etc/subgid") {
-        warning "/etc/subgid doesn't exist";
+        maybe_warn("/etc/subgid doesn't exist");
         return;
     }
     if (!-r "/etc/subgid") {
-        warning "/etc/subgid is not readable";
+        maybe_warn("/etc/subgid is not readable");
         return;
     }
 
     open $fh, "<", "/etc/subgid"
-      or error "cannot open /etc/subgid for reading: $!";
+      or maybe_warn("cannot open /etc/subgid for reading: $!");
+    if (!$fh) {
+        return;
+    }
     while (my $line = <$fh>) {
         ($n, $subid, $num_subid) = split(/:/, $line, 3);
         last if ($n eq $username);
     }
     close $fh;
     if (!length $subid) {
-        warning "/etc/subgid is empty";
+        maybe_warn("/etc/subgid is empty");
         return;
     }
     if ($n ne $username) {
-        warning "no entry in /etc/subgid for $username";
+        maybe_warn("no entry in /etc/subgid for $username");
         return;
     }
     push @result, ["g", 0, $subid, $num_subid];
 
     if (scalar(@result) < 2) {
-        warning "/etc/subgid does not contain an entry for $username";
+        maybe_warn("/etc/subgid does not contain an entry for $username");
         return;
     }
     if (scalar(@result) > 2) {
-        warning "/etc/subgid contains multiple entries for $username";
+        maybe_warn("/etc/subgid contains multiple entries for $username");
         return;
     }
 
@@ -4353,7 +4377,7 @@ sub main() {
         }
         my @idmap = ();
         if ($EFFECTIVE_USER_ID != 0) {
-            @idmap = read_subuid_subgid;
+            @idmap = read_subuid_subgid 1;
         }
         my $pid = get_unshare_cmd(
             sub {
@@ -5665,7 +5689,7 @@ sub main() {
     # for unshare mode the rootfs directory has to have appropriate
     # permissions
     if ($EFFECTIVE_USER_ID != 0 and $options->{mode} eq 'unshare') {
-        @idmap = read_subuid_subgid;
+        @idmap = read_subuid_subgid 1;
         # sanity check
         if (   scalar(@idmap) != 2
             || $idmap[0][0] ne 'u'
