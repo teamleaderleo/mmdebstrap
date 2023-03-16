@@ -2265,7 +2265,7 @@ sub run_setup() {
     # we have to make the config file world readable so that a possible
     # /usr/lib/apt/solvers/apt process which is run by the _apt user is also
     # able to read it
-    chmod 0666, "$tmpfile" or error "cannot chmod $tmpfile: $!";
+    chmod 0644, "$tmpfile" or error "cannot chmod $tmpfile: $!";
     if ($verbosity_level >= 3) {
         0 == system('apt-get', '--version')
           or error "apt-get --version failed: $?";
