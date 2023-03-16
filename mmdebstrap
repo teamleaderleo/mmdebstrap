@@ -305,23 +305,18 @@ sub shellescape {
 
 sub test_unshare_userns {
     my $verbose = shift;
-    my $fail    = shift;
 
-    local *maybe_warn = sub {
+    local *maybe_error = sub {
         my $msg = shift;
         if ($verbose) {
-            if ($fail) {
-                error $msg;
-            } else {
-                warning $msg;
-            }
+            error $msg;
         } else {
             debug $msg;
         }
     };
 
     if ($EFFECTIVE_USER_ID == 0) {
-        maybe_warn("cannot unshare user namespace when executing as root");
+        maybe_error("cannot unshare user namespace when executing as root");
         return 0;
     }
     # arguments to syscalls have to be stored in their own variable or
@@ -335,7 +330,7 @@ sub test_unshare_userns {
         if ($ret == 0) {
             exit 0;
         } else {
-            maybe_warn("unshare syscall failed: $!");
+            maybe_error("unshare syscall failed: $!");
             exit 1;
         }
     }
@@ -348,28 +343,28 @@ sub test_unshare_userns {
     system "newuidmap 2>/dev/null";
     if (($? >> 8) != 1) {
         if (($? >> 8) == 127) {
-            maybe_warn("cannot find newuidmap");
+            maybe_error("cannot find newuidmap");
         } else {
-            maybe_warn("newuidmap returned unknown exit status: $?");
+            maybe_error("newuidmap returned unknown exit status: $?");
         }
         return 0;
     }
     system "newgidmap 2>/dev/null";
     if (($? >> 8) != 1) {
         if (($? >> 8) == 127) {
-            maybe_warn("cannot find newgidmap");
+            maybe_error("cannot find newgidmap");
         } else {
-            maybe_warn("newgidmap returned unknown exit status: $?");
+            maybe_error("newgidmap returned unknown exit status: $?");
         }
         return 0;
     }
     my @idmap = read_subuid_subgid($verbose);
     if (scalar @idmap == 0) {
-        maybe_warn("failed to parse /etc/subuid and /etc/subgid");
+        maybe_error("failed to parse /etc/subuid and /etc/subgid");
         return 0;
     }
     # too much can go wrong when doing the dance required to unsharing the user
-    # namespace, so instead of adding more complexity to support maybe_warn()
+    # namespace, so instead of adding more complexity to support maybe_error()
     # to a function that is already too complex, we use eval()
     eval {
         $pid = get_unshare_cmd(
@@ -384,12 +379,12 @@ sub test_unshare_userns {
         );
         waitpid $pid, 0;
         if ($? != 0) {
-            maybe_warn("failed to unshare the user namespace");
+            maybe_error("failed to unshare the user namespace");
             return 0;
         }
     };
     if ($@) {
-        maybe_warn($@);
+        maybe_error($@);
         return 0;
     }
     return 1;
@@ -4372,8 +4367,8 @@ sub main() {
     # lxc-usernsexec -- lxc-unshare -s 'MOUNT|PID|UTSNAME|IPC' ...
     # but without needing lxc
     if (scalar @ARGV >= 1 && $ARGV[0] eq "--unshare-helper") {
-        if ($EFFECTIVE_USER_ID != 0 && !test_unshare_userns(1)) {
-            exit 1;
+        if ($EFFECTIVE_USER_ID != 0) {
+            test_unshare_userns(1);
         }
         my @idmap = ();
         if ($EFFECTIVE_USER_ID != 0) {
@@ -4840,26 +4835,8 @@ sub main() {
         }
         # ...or we are not root and then we need to be able to unshare the user
         # namespace.
-        if ($EFFECTIVE_USER_ID != 0 && !test_unshare_userns(1, 1)) {
-            my $procfile = '/proc/sys/kernel/unprivileged_userns_clone';
-            open(my $fh, '<', $procfile)
-              or error "failed to open $procfile: $!";
-            chomp(
-                my $content = do { local $/; <$fh> }
-            );
-            close($fh);
-            if ($content ne "1") {
-                info "/proc/sys/kernel/unprivileged_userns_clone is set to"
-                  . " $content";
-                info "Try running:";
-                info "  sudo sysctl -w kernel.unprivileged_userns_clone=1";
-                info "or permanently enable unprivileged usernamespaces by"
-                  . " putting the setting into /etc/sysctl.d/";
-                info "THIS SETTING HAS SECURITY IMPLICATIONS!";
-                info "Refer to https://bugs.debian.org/cgi-bin/"
-                  . "bugreport.cgi?bug=898446";
-            }
-            exit 1;
+        if ($EFFECTIVE_USER_ID != 0) {
+            test_unshare_userns(1);
         }
     } elsif ($options->{mode} eq 'chrootless') {
         if ($EFFECTIVE_USER_ID == 0) {
@@ -6692,9 +6669,9 @@ decides which way this is achieved.
 
 This mode automatically selects a fitting mode. If the effective user id is the
 one of the superuser, then the B<sudo> mode is chosen. Otherwise, the
-B<unshare> mode is picked if the system has the sysctl
-C<kernel.unprivileged_userns_clone> set to C<1>. Should that not be the case
-and if the fakechroot binary exists, the B<fakechroot> mode is chosen.
+B<unshare> mode is picked if F</etc/subuid> and F</etc/subgid> are set up
+correctly. Should that not be the case and if the fakechroot binary exists, the
+B<fakechroot> mode is chosen.
 
 =item B<sudo>, B<root>
 
