@@ -1,3 +1,8 @@
+1.3.4 (2023-03-16)
+------------------
+
+ - more safeguards before automatically choosing unshare mode
+
 1.3.3 (2023-02-19)
 ------------------
 
