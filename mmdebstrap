@@ -1823,6 +1823,25 @@ sub setup {
 
     run_hooks('setup', $options);
 
+    # apt runs dpkg from inside the chroot and directly passes the filename to
+    # dpkg. Hence, the included files on the outside must be present under the
+    # same path on the inside. If they are not, dpkg cannot find them.
+    if (scalar(grep { /^\// } @{ $options->{include} }) > 0) {
+        my $ret = 0;
+        foreach my $f (grep { /^\// } @{ $options->{include} }) {
+            next if -e "$options->{root}/$f";
+            warning
+              "path given via --include is not present inside the chroot: $f";
+            $ret = 1;
+        }
+        if ($ret != 0) {
+            warning("apt runs chrooted dpkg which needs access to the "
+                  . "package paths given via --include inside the chroot.");
+            warning "maybe try running mmdebstrap with "
+              . "--hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount";
+        }
+    }
+
     if (any { $_ eq 'update' } @{ $options->{skip} }) {
         info "skipping update as requested";
     } else {
@@ -5720,9 +5739,9 @@ sub main() {
         );
         waitpid $pid, 0;
         if ($? != 0) {
-            warning "no read access for some packages for the unshared user";
-            warning "maybe try running mmdebstrap with "
-              . "--hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount";
+            warning("apt on the outside is run as the unshared user and "
+                  . "needs read access to packages outside the chroot given "
+                  . "via --include");
         }
     }
 
@@ -6458,8 +6477,9 @@ by this option will be the only ones that get either extracted or installed by
 dpkg, respectively.  For all other variants, apt is used to install the
 additional packages. Package names are directly passed to apt and thus, you
 can use apt features like C<pkg/suite>, C<pkg=version>, C<pkg->, use a glob or
-regex for C<pkg>, use apt patterns or pass a path to a .deb package file. See
-apt(8) for the supported syntax.
+regex for C<pkg>, use apt patterns or pass a path to a .deb package file (see
+below for notes concerning passing the path to a .deb package file in
+B<unshare> mode). See apt(8) for the supported syntax.
 
 The option can be specified multiple times and the packages are concatenated in
 the order in which they are given on the command line. If later list items are
@@ -6486,6 +6506,22 @@ C<(>, C</>, C<./> or C<../> are not split and treated as single arguments to
 apt. To add more packages, use multiple B<--include> options. To disable this
 detection of patterns and paths, start the argument to B<--include> with a
 comma or whitespace.
+
+If you pass the path to a .deb package file using B<--include>, B<mmdebstrap>
+will ensure that the path exists. If the path is a relative path, it will
+internally by converted to an absolute path. Since apt (outside the chroot)
+passes paths to dpkg (on the inside) verbatim, you have to make the .deb
+package available under the same path inside the chroot as well or otherwise
+dpkg inside the chroot will be unable to access it. This can be achieved using
+a setup-hook. A hook that automatically makes the contents of C<file://>
+mirrors as well as .deb packages given with B<--include> available inside the
+chroot is provided by B<mmdebstrap> as
+B<--hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount>. This hook
+takes care of copying all relevant file to their correct locations and cleans
+up those files at the end. In B<unshare> mode, the .deb package paths have to
+be accessible by the unshared user as well. This means that the package itself
+likely must be made world-readable and all directory components on the path to
+it world-executable.
 
 =item B<--components>=I<comp1>[,I<comp2>,...]
 
