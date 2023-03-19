@@ -1613,6 +1613,9 @@ sub run_hooks {
     if (length $ENV{APT_CONFIG}) {
         push @env_opts, "MMDEBSTRAP_APT_CONFIG=$ENV{APT_CONFIG}";
     }
+    # I hook script that wants to call mmdebstrap with --hook-helper needs to
+    # know how mmdebstrap was executed
+    push @env_opts, "MMDEBSTRAP_ARGV0=$PROGRAM_NAME";
     # Storing the mode is important for hook scripts to potentially change
     # their behavior depending on the mode. It's also important for when the
     # hook wants to use the mmdebstrap --hook-helper.
@@ -6942,11 +6945,13 @@ C<MMDEBSTRAP_APT_CONFIG> environment variable. All environment variables set by
 the user are preserved, except for C<TMPDIR> which is cleared. See section
 B<TMPDIR>. Furthermore, C<MMDEBSTRAP_MODE> will store the mode set by
 B<--mode>, C<MMDEBSTRAP_HOOK> stores which hook is currently run (setup,
-extract, essential, customize) and C<MMDEBSTRAP_VERBOSITY> stores the numerical
-verbosity level (0 for no output, 1 for normal, 2 for verbose and 3 for debug
-output). The C<MMDEBSTRAP_INCLUDE> variable stores the list of packages, apt
-patterns or file paths given by the B<--include> option, separated by a comma
-and with commas and percent signs in the option values urlencoded.
+extract, essential, customize), C<MMDEBSTRAP_ARGV0> stores the name of the
+binary with which B<mmdebstrap> was executed and C<MMDEBSTRAP_VERBOSITY> stores
+the numerical verbosity level (0 for no output, 1 for normal, 2 for verbose and
+3 for debug output). The C<MMDEBSTRAP_INCLUDE> variable stores the list of
+packages, apt patterns or file paths given by the B<--include> option,
+separated by a comma and with commas and percent signs in the option values
+urlencoded.
 
 In special hooks, the paths inside the chroot are relative to the root
 directory of the chroot.  The path on the outside is relative to current
