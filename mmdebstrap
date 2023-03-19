@@ -4445,10 +4445,8 @@ sub main() {
             my ($opt_name, $opt_value) = @_;
             my $sanitize_path = sub {
                 my $pkg = shift;
-                $pkg = abs_path($pkg);
-                if (!defined $pkg) {
-                    error "cannot resolve absolute path of $pkg: $!";
-                }
+                $pkg = abs_path($pkg)
+                  // error "cannot resolve absolute path of $pkg: $!";
                 if ($pkg !~ /^\//) {
                     error "absolute path of $pkg doesn't start with a slash";
                 }
