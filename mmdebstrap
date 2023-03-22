@@ -1116,6 +1116,8 @@ sub run_apt_download_progress {
                         "-oDebug::NoLocking=1",
                         # no need for pty magic if we write no log
                         "-oDpkg::Use-Pty=0",
+                        # unset this or otherwise "cat >&$fd" will fail
+                        "-oDPkg::Chroot-Directory=",
                     ),
                     @{ $options->{APT_ARGV} },
                 ],
@@ -2022,6 +2024,7 @@ sub run_setup() {
         print $conf "Apt::Architectures \"$options->{nativearch}\";\n";
     }
     print $conf "Dir \"$options->{root}\";\n";
+    print $conf "DPkg::Chroot-Directory \"$options->{root}\";\n";
     # not needed anymore for apt 1.3 and newer
     print $conf
       "Dir::State::Status \"$options->{root}/var/lib/dpkg/status\";\n";
@@ -2878,6 +2881,7 @@ sub run_essential() {
         # Example: if the host has --path-exclude set, then this will also
         # affect the chroot. See #808203
         my @chrootless_opts = (
+            '-oDPkg::Chroot-Directory=',
             '-oDPkg::Options::=--force-not-root',
             '-oDPkg::Options::=--force-script-chrootless',
             '-oDPkg::Options::=--root=' . $options->{root},
@@ -3001,6 +3005,7 @@ sub run_install() {
     if ($options->{mode} eq 'chrootless') {
         if (scalar @pkgs_to_install > 0) {
             my @chrootless_opts = (
+                '-oDPkg::Chroot-Directory=',
                 '-oDPkg::Options::=--force-not-root',
                 '-oDPkg::Options::=--force-script-chrootless',
                 '-oDPkg::Options::=--root=' . $options->{root},
@@ -3054,8 +3059,6 @@ sub run_install() {
                             $options->{mode} eq 'fakechroot'
                             ? ('-o', 'DPkg::Install::Recursive::force=true')
                             : (),
-                            '-o',
-                            "DPkg::Chroot-Directory=$options->{root}",
                             '--yes',
                             'install'
                         ],
