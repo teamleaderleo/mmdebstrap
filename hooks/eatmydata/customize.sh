@@ -17,10 +17,10 @@ libdir="/usr/lib/$(dpkg-architecture -a "$chrootarch" -q DEB_HOST_MULTIARCH)"
 
 # if eatmydata was actually installed properly, then we are not removing
 # anything here
-if ! chroot "$rootdir" dpkg-query --list eatmydata; then
+if ! chroot "$rootdir" dpkg-query --show eatmydata; then
 	rm "$rootdir/usr/bin/eatmydata"
 fi
-if ! chroot "$rootdir" dpkg-query --list libeatmydata1; then
+if ! chroot "$rootdir" dpkg-query --show libeatmydata1; then
 	rm "$rootdir$libdir"/libeatmydata.so*
 fi
 
