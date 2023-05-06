@@ -21,7 +21,7 @@ fi
 [ "{{ MODE }}" = "fakechroot" ] && prefix="$prefix fakechroot fakeroot"
 $prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --include=doc-debian {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
 # delete contents of doc-debian
-rm /tmp/debian-chroot/usr/share/doc-base/debian-*
+rm /tmp/debian-chroot/usr/share/doc-base/doc-debian.debian-*
 rm -r /tmp/debian-chroot/usr/share/doc/debian
 rm -r /tmp/debian-chroot/usr/share/doc/doc-debian
 # delete real files

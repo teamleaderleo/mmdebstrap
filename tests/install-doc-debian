@@ -24,7 +24,7 @@ tar -C /tmp/debian-chroot --owner=0 --group=0 --numeric-owner --sort=name --clam
 tar tvf /tmp/debian-chroot.tar > doc-debian.tar.list
 rm /tmp/debian-chroot.tar
 # delete contents of doc-debian
-rm /tmp/debian-chroot/usr/share/doc-base/debian-*
+rm /tmp/debian-chroot/usr/share/doc-base/doc-debian.debian-*
 rm -r /tmp/debian-chroot/usr/share/doc/debian
 rm -r /tmp/debian-chroot/usr/share/doc/doc-debian
 # delete real files
