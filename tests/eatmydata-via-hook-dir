@@ -34,6 +34,10 @@ elfheader="$elfheader\\001\\000"
 	--hook-dir=./hooks/eatmydata \
 	--customize-hook='printf "'"$elfheader"'" | cmp --bytes=8 - "$1"/usr/bin/dpkg' \
 	 {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
-tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort | diff -u tar1.txt -
+ tar -C /tmp/debian-chroot --one-file-system -c . \
+	 | tar -t \
+	 | sort \
+	 | grep -v '^\./var/lib/dpkg/diversions\(-old\)\?$' \
+	 | diff -u tar1.txt -
 rm /tmp/checkeatmydata.sh
 rm -r /tmp/debian-chroot
