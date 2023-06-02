@@ -23,6 +23,11 @@ For the full documentation use:
 
     pod2man ./mmdebstrap | man -l -
 
+Or read a HTML version of the man page in either of these locations:
+
+ - https://gitlab.mister-muffin.de/josch/mmdebstrap/wiki
+ - https://manpages.debian.org/unstable/mmdebstrap/mmdebstrap.1.en.html
+
 The sales pitch in comparison to debootstrap
 --------------------------------------------
 
@@ -159,6 +164,7 @@ Contributors
  - Josh Triplett
  - Konstantin Demin
  - David Kalnischkies
+ - Emilio Pozuelo Monfort
  - Jakub Wilk
  - Joe Groocock
  - Nicolas Vigier
