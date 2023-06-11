@@ -225,7 +225,7 @@ END
 		cat "$rootdir/$f" >&2
 	done
 
-	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get update
+	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get update --error-on=any
 
 	pkgs=$(APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get indextargets \
 		--format '$(FILENAME)' 'Created-By: Packages' "Architecture: $nativearch" \
