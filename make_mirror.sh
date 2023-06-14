@@ -112,7 +112,6 @@ deletecache() {
 }
 
 cleanup_newcachedir() {
-	kill "$PROXYPID" || :
 	echo "running cleanup_newcachedir"
 	deletecache "$newcachedir"
 }
@@ -163,7 +162,7 @@ update_cache() (
 	# we only set this trap here and overwrite the previous trap, because
 	# the update_cache function is run as part of a pipe and thus in its
 	# own process which will EXIT after it finished
-	trap "cleanupapt" EXIT INT TERM
+	trap 'kill "$PROXYPID" || :;cleanupapt' EXIT INT TERM
 
 	for p in /etc/apt/apt.conf.d /etc/apt/sources.list.d /etc/apt/preferences.d /var/cache/apt/archives /var/lib/apt/lists/partial /var/lib/dpkg; do
 		mkdir -p "$rootdir/$p"
@@ -322,6 +321,7 @@ fi
 
 ./caching_proxy.py "$oldcachedir" "$newcachedir" &
 PROXYPID=$!
+trap 'kill "$PROXYPID" || :' EXIT INT TERM
 
 for i in $(seq 10); do
 	curl --proxy "http://127.0.0.1:8080/" --silent -o /dev/null "http://deb.debian.org/debian/dists/$DEFAULT_DIST/InRelease" && break
@@ -333,7 +333,7 @@ if [ ! -s "$newmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
 	exit 1
 fi
 
-trap "cleanup_newcachedir" EXIT INT TERM
+trap 'kill "$PROXYPID" || :;cleanup_newcachedir' EXIT INT TERM
 
 mkdir -p "$newcachedir"
 touch "$newcachedir/mmdebstrapcache"
@@ -471,7 +471,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	#   - it doesn't matter if the base system is from a different mirror timestamp
 	# procps is needed for /sbin/sysctl
 	tmpdir="$(mktemp -d)"
-	trap "cleanuptmpdir; cleanup_newcachedir" EXIT INT TERM
+	trap 'kill "$PROXYPID" || :;cleanuptmpdir; cleanup_newcachedir' EXIT INT TERM
 
 	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,grub-efi
 	if [ "$DEFAULT_DIST" != "oldstable" ]; then
