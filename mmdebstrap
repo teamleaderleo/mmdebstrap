@@ -7630,6 +7630,27 @@ To change compression specific options, either use the respecitve environment
 variables like B<XZ_OPT> or send B<mmdebstrap> output to your compressor of
 choice with a pipe.
 
+=head1 WRAPPERS
+
+=head2 debvm
+
+B<debvm> helps create and run virtual machines for various Debian releases and
+architectures.  The tool B<debvm-create> can be used to create a virtual
+machine image and the tool B<debvm-run> can be used to run such a machine
+image. Their purpose primarily is testing software using qemu as a containment
+technology.  These are relatively thin wrappers around B<mmdebstrap> and
+B<qemu>.
+
+=head2 bdebstrap
+
+B<bdebstrap> is a YAML config based multi-mirror Debian chroot creation tool.
+B<bdebstrap> is an alternative to B<debootstrap> and a wrapper around
+B<mmdebstrap> to support YAML based configuration files. It inherits all
+benefits from B<mmdebstrap>. The support for configuration allows storing all
+customization in a YAML file instead of having to use a very long one-liner
+call to B<mmdebstrap>. It also layering multiple customizations on top of each
+other, e.g. to support flavors of an image.
+
 =head1 BUGS
 
 https://gitlab.mister-muffin.de/josch/mmdebstrap/issues
@@ -7654,7 +7675,7 @@ update" as an error.
 
 =head1 SEE ALSO
 
-    debootstrap(8)
+    debootstrap(8), debvm(1), bdebstrap(1)
 
 =cut
 
