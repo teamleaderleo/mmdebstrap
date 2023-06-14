@@ -57,6 +57,8 @@ class ProxyRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", oldpath.stat().st_size)
             self.end_headers()
             with oldpath.open(mode="rb") as old, newpath.open(mode="wb") as new:
+                # we are not using shutil.copyfileobj() because we want to
+                # write to two file objects simultaneously
                 while True:
                     buf = old.read(64 * 1024)  # same as shutil uses
                     if not buf:
@@ -81,6 +83,9 @@ class ProxyRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header(k, v)
             self.end_headers()
             with newpath.open(mode="wb") as f:
+                # we are not using shutil.copyfileobj() because we want to
+                # write to two file objects simultaneously and throttle the
+                # writing speed to 1024 kB/s
                 while True:
                     buf = res.read(64 * 1024)  # same as shutil uses
                     if not buf:
