@@ -11,8 +11,8 @@ echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 # https://bugs.debian.org/969631
 # we cannot use useradd because passwd is not Essential:yes
 {{ CMD }} --variant={{ VARIANT }} --mode={{ MODE }} \
-	--essential-hook='case {{ DIST }} in oldstable|stable) if [ {{ VARIANT }} = - ]; then echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd; fi;; esac' \
-	"$(case {{ DIST }} in oldstable|stable) echo --merged-usr ;; *) echo --hook-dir=./hooks/merged-usr ;; esac)" \
+	--essential-hook='[ {{ DIST }} = oldstable ] && [ {{ VARIANT }} = - ] && echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd || :' \
+	"$(if [ {{ DIST }} = oldstable ]; then echo --merged-usr; else echo --hook-dir=./hooks/merged-usr; fi)" \
 	{{ DIST }} /tmp/debian-{{ DIST }}-mm.tar {{ MIRROR }}
 
 mkdir /tmp/debian-{{ DIST }}-mm
@@ -108,9 +108,6 @@ if [ "{{ VARIANT }}" = "-" ]; then
 
 	cap=$(chroot /tmp/debian-{{ DIST }}-debootstrap /sbin/getcap /bin/ping)
 	expected="/bin/ping cap_net_raw=ep"
-	if [ "{{ DIST }}" = oldstable ]; then
-		expected="/bin/ping = cap_net_raw+ep"
-	fi
 	if [ "$cap" != "$expected" ]; then
 		echo "expected bin/ping to have capabilities $expected" >&2
 		echo "but debootstrap produced: $cap" >&2
@@ -148,14 +145,12 @@ done
 # Because of unreproducible uids (#969631) we created the _apt user ourselves
 # and because passwd is not Essential:yes we didn't use useradd. But newer
 # versions of adduser and shadow will create a different /etc/shadow
-if [ "{{ VARIANT }}" = "-" ]; then
-case {{ DIST }} in oldstable|stable)
-for f in shadow shadow-; do
-	if grep -q '^_apt:!:' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
-		sed -i 's/^_apt:\*:\([^:]\+\):0:99999:7:::$/_apt:!:\1::::::/' /tmp/debian-{{ DIST }}-mm/etc/$f
-	fi
-done;;
-esac
+if [ "{{ VARIANT }}" = "-" ] && [ "{{ DIST}}" = oldstable ]; then
+	for f in shadow shadow-; do
+		if grep -q '^_apt:!:' /tmp/debian-{{ DIST }}-debootstrap/etc/$f; then
+			sed -i 's/^_apt:\*:\([^:]\+\):0:99999:7:::$/_apt:!:\1::::::/' /tmp/debian-{{ DIST }}-mm/etc/$f
+		fi
+	done
 fi
 
 for log in faillog lastlog; do
@@ -171,16 +166,12 @@ done
 # the order in which systemd and cron get installed differ and thus the order
 # of lines in /etc/group and /etc/gshadow differs
 if [ "{{ VARIANT }}" = "-" ]; then
-	case {{ DIST }} in testing|unstable)
-		for f in group group- gshadow gshadow-; do
-			cmp /tmp/debian-{{ DIST }}-mm/etc/$f /tmp/debian-{{ DIST }}-debootstrap/etc/$f 2>/dev/null && exit 1
-			for d in mm debootstrap; do
-				sort /tmp/debian-{{ DIST }}-$d/etc/$f > /tmp/debian-{{ DIST }}-$d/etc/$f.bak
-				mv /tmp/debian-{{ DIST }}-$d/etc/$f.bak /tmp/debian-{{ DIST }}-$d/etc/$f
-			done
+	for f in group group- gshadow gshadow-; do
+		for d in mm debootstrap; do
+			sort /tmp/debian-{{ DIST }}-$d/etc/$f > /tmp/debian-{{ DIST }}-$d/etc/$f.bak
+			mv /tmp/debian-{{ DIST }}-$d/etc/$f.bak /tmp/debian-{{ DIST }}-$d/etc/$f
 		done
-		;;
-	esac
+	done
 fi
 
 # check if the file content differs

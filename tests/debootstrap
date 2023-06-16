@@ -5,13 +5,6 @@ export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
 
 tmpdir="$(mktemp -d)"
 chmod 755 "$tmpdir"
-case "{{ DIST }}" in
-	oldstable|stable)
-		debootstrap --no-merged-usr --variant={{ VARIANT }} {{ DIST }} "$tmpdir" {{ MIRROR }}
-		;;
-	*)
-		debootstrap --merged-usr --variant={{ VARIANT }} {{ DIST }} "$tmpdir" {{ MIRROR }}
-		;;
-esac
+debootstrap "$([ "{{ DIST }}" = oldstable ] && echo --no-merged-usr || echo --merged-usr)" --variant={{ VARIANT }} {{ DIST }} "$tmpdir" {{ MIRROR }}
 tar --sort=name --mtime=@$SOURCE_DATE_EPOCH --clamp-mtime --numeric-owner --one-file-system --xattrs -C "$tmpdir" -c . > "./cache/debian-{{ DIST }}-{{ VARIANT }}.tar"
 rm -r "$tmpdir"

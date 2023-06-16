@@ -56,21 +56,13 @@ deletecache() {
 			fi
 			;;
 		esac
-		case "$dist" in
-			oldstable)
-				if [ -e "$dir/debian-security/dists/$dist/updates" ]; then
-					rm --one-file-system --recursive "$dir/debian-security/dists/$dist/updates"
-				else
-					echo "does not exist: $dir/debian-security/dists/$dist/updates" >&2
-				fi
-				;;
-			stable)
-				if [ -e "$dir/debian-security/dists/$dist-security" ]; then
-					rm --one-file-system --recursive "$dir/debian-security/dists/$dist-security"
-				else
-					echo "does not exist: $dir/debian-security/dists/$dist-security" >&2
-				fi
-				;;
+		case "$dist" in oldstable|stable)
+			if [ -e "$dir/debian-security/dists/$dist-security" ]; then
+				rm --one-file-system --recursive "$dir/debian-security/dists/$dist-security"
+			else
+				echo "does not exist: $dir/debian-security/dists/$dist-security" >&2
+			fi
+			;;
 		esac
 	done
 	for f in "$dir/debian-"*.qcow; do
@@ -239,7 +231,7 @@ END
 	# we need usr-is-merged to simulate debootstrap behaviour for all dists
 	# starting from Debian 12 (Bullseye)
 	case "$dist" in
-		oldstable|stable) : ;;
+		oldstable) : ;;
 		*) pkgs="$pkgs usr-is-merged usrmerge" ;;
 	esac
 
@@ -369,16 +361,8 @@ for dist in oldstable stable testing unstable; do
 		echo "deb [arch=$nativearch] $mirror $dist $components" | update_cache "$dist" "$nativearch"
 		# we need to include the base mirror again or otherwise
 		# packages like build-essential will be missing
-		case "$dist" in
-			oldstable)
-				cat << END | update_cache "$dist" "$nativearch"
-deb [arch=$nativearch] $mirror $dist $components
-deb [arch=$nativearch] $mirror $dist-updates main
-deb [arch=$nativearch] $security_mirror $dist/updates main
-END
-				;;
-			stable)
-				cat << END | update_cache "$dist" "$nativearch"
+		case "$dist" in oldstable|stable)
+			cat << END | update_cache "$dist" "$nativearch"
 deb [arch=$nativearch] $mirror $dist $components
 deb [arch=$nativearch] $mirror $dist-updates main
 deb [arch=$nativearch] $security_mirror $dist-security main
@@ -473,10 +457,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	tmpdir="$(mktemp -d)"
 	trap 'kill "$PROXYPID" || :;cleanuptmpdir; cleanup_newcachedir' EXIT INT TERM
 
-	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,grub-efi
-	if [ "$DEFAULT_DIST" != "oldstable" ]; then
-		pkgs="$pkgs,squashfs-tools-ng,genext2fs"
-	fi
+	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,grub-efi,disorderfs,squashfs-tools-ng,genext2fs
 	if [ ! -e ./mmdebstrap ]; then
 		pkgs="$pkgs,mmdebstrap"
 	fi

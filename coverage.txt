@@ -3,21 +3,18 @@ Dists: any
 Variants: minbase buildd -
 Needs-Root: true
 Needs-APT-Config: true
-Skip-If: variant == "-" and dist == "oldstable" #917773
 
 Test: check-against-debootstrap-dist
 Dists: any
 Variants: minbase buildd -
 Needs-Root: true
 Needs-APT-Config: true
-Skip-If: variant == "-" and dist == "oldstable" #917773
 
 Test: as-debootstrap-unshare-wrapper
 Modes: unshare
 Needs-Root: true
 Variants: minbase -
 Needs-APT-Config: true
-Skip-If: variant == "-" and dist == "oldstable" #917773
 
 Test: help
 
@@ -65,10 +62,7 @@ Modes: root
 Formats: tar squashfs ext2
 Variants: essential apt minbase buildd - standard
 Skip-If:
- variant == "standard" and dist in ["oldstable", "stable"] # #864082, #1004557, #1004558
- variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
- fmt == "squashfs" and dist == "oldstable" # squashfs-tools-ng is not available
- fmt == "ext2" and dist == "oldstable" # genext2fs does not support SOURCE_DATE_EPOCH
+ variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
  mode == "fakechroot" and variant in ["-", "standard"] # no extended attributes
  variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
 
@@ -77,16 +71,12 @@ Modes: unshare fakechroot
 Formats: tar squashfs ext2
 Variants: essential apt minbase buildd - standard
 Skip-If:
- variant == "standard" and dist in ["oldstable", "stable"] # #864082, #1004557, #1004558
- variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
- fmt == "squashfs" and dist == "oldstable" # squashfs-tools-ng is not available
- fmt == "ext2" and dist == "oldstable" # genext2fs does not support SOURCE_DATE_EPOCH
+ variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
  mode == "fakechroot" and variant in ["-", "standard"] # no extended attributes
  variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
 
 Test: tarfilter-idshift
 Needs-QEMU: true
-Skip-If: dist == "oldstable" # python3 tarfile module does not preserve xattrs
 
 Test: progress-bars-on-fake-tty
 
@@ -321,8 +311,7 @@ Test: compare-output-with-pre-seeded-var-cache-apt-archives
 Needs-QEMU: true
 Variants: any
 Skip-If:
- variant == "standard" and dist in ["oldstable", "stable"] # #864082, #1004557, #1004558
- variant == "important" and dist == "oldstable" # /var/lib/systemd/catalog/database differs
+ variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
 
 Test: create-directory-dry-run
 Modes: root
@@ -346,20 +335,20 @@ Variants: essential
 Modes: chrootless
 Needs-Root: true
 Skip-If:
- dist in ["oldstable", "stable"]
+ dist == "oldstable"
 
 Test: chrootless-fakeroot
 Variants: essential
 Modes: chrootless
 Skip-If:
- dist in ["oldstable", "stable"]
+ dist == "oldstable"
  hostarch in ["i386", "armel", "armhf", "mipsel"] # #1023286
 
 Test: chrootless-foreign
 Variants: essential
 Modes: chrootless
 Skip-If:
- dist in ["oldstable", "stable"]
+ dist == "oldstable"
  hostarch not in ["amd64", "arm64"]
  not run_ma_same_tests
 Needs-QEMU: true
