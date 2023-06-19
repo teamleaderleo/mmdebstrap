@@ -65,7 +65,7 @@ deletecache() {
 			;;
 		esac
 	done
-	for f in "$dir/debian-"*.qcow; do
+	for f in "$dir/debian-"*.ext4; do
 		if [ -e "$f" ]; then
 			rm --one-file-system "$f"
 		fi
@@ -401,10 +401,7 @@ cleanuptmpdir() {
 	if [ ! -e "$tmpdir" ]; then
 		return
 	fi
-	for f in "$tmpdir/worker.sh" \
-		"$tmpdir/mini-httpd" "$tmpdir/hosts" \
-		"$tmpdir/debian-chroot.tar" \
-		"$tmpdir/mmdebstrap.service"; do
+	for f in "$tmpdir/worker.sh" "$tmpdir/mmdebstrap.service"; do
 		if [ ! -e "$f" ]; then
 			echo "does not exist: $f" >&2
 			continue
@@ -418,17 +415,6 @@ SOURCE_DATE_EPOCH="$(date --date="$(grep-dctrl -s Date -n '' "$newmirrordir/dist
 export SOURCE_DATE_EPOCH
 
 if [ "$HAVE_QEMU" = "yes" ]; then
-	case "$HOSTARCH" in
-		amd64|i386|arm64)
-			# okay
-			;;
-		*)
-			echo "qemu support is only available on amd64, i386 and arm64" >&2
-			echo "because grub is only available on those arches" >&2
-			exit 1
-			;;
-	esac
-
 	# we use the caching proxy again when building the qemu image
 	#  - we can re-use the packages that were already downloaded earlier
 	#  - we make sure that the qemu image uses the same Release file even
@@ -448,49 +434,26 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 		exit 1
 	fi
 
-	# We must not use any --dpkgopt here because any dpkg options still
-	# leak into the chroot with chrootless mode.
-	# We do not use our own package cache here because
-	#   - it doesn't (and shouldn't) contain the extra packages
-	#   - it doesn't matter if the base system is from a different mirror timestamp
-	# procps is needed for /sbin/sysctl
 	tmpdir="$(mktemp -d)"
 	trap 'kill "$PROXYPID" || :;cleanuptmpdir; cleanup_newcachedir' EXIT INT TERM
 
-	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,binfmt-support,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,grub-efi,disorderfs,squashfs-tools-ng,genext2fs
+	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,disorderfs,squashfs-tools-ng,genext2fs,linux-image-generic
 	if [ ! -e ./mmdebstrap ]; then
 		pkgs="$pkgs,mmdebstrap"
 	fi
-	case "$HOSTARCH" in
-		amd64|arm64)
-			pkgs="$pkgs,linux-image-$HOSTARCH"
-			;;
-		i386)
-			pkgs="$pkgs,linux-image-686"
-			;;
-		ppc64el)
-			pkgs="$pkgs,linux-image-powerpc64le"
-			;;
-		*)
-			echo "no kernel image for $HOSTARCH" >&2
-			exit 1
-			;;
-	esac
-	if [ "$HOSTARCH" = amd64 ] && [ "$RUN_MA_SAME_TESTS" = "yes" ]; then
-		arches=amd64,arm64
-		pkgs="$pkgs,libfakechroot:arm64,libfakeroot:arm64"
-	elif [ "$HOSTARCH" = arm64 ] && [ "$RUN_MA_SAME_TESTS" = "yes" ]; then
-		arches=arm64,amd64
-		pkgs="$pkgs,libfakechroot:amd64,libfakeroot:amd64"
-	else
-		arches=$HOSTARCH
+	arches=$HOSTARCH
+	if [ "$RUN_MA_SAME_TESTS" = "yes" ]; then
+		case "$HOSTARCH" in
+			amd64)
+				arches=amd64,arm64
+				pkgs="$pkgs,libfakechroot:arm64,libfakeroot:arm64"
+				;;
+			arm64)
+				arches=arm64,amd64
+				pkgs="$pkgs,libfakechroot:amd64,libfakeroot:amd64"
+				;;
+		esac
 	fi
-	$CMD --variant=apt --architectures="$arches" --include="$pkgs" \
-		--setup-hook='echo "Acquire::http::Proxy \"http://127.0.0.1:8080/\";" > "$1/etc/apt/apt.conf.d/00proxy"' \
-		--customize-hook='rm "$1/etc/apt/apt.conf.d/00proxy"' \
-		"$DEFAULT_DIST" - "$mirror" > "$tmpdir/debian-chroot.tar"
-
-	kill $PROXYPID
 
 	cat << END > "$tmpdir/mmdebstrap.service"
 [Unit]
@@ -550,83 +513,30 @@ umount /mnt
 systemctl poweroff
 END
 	chmod +x "$tmpdir/worker.sh"
-	# initially we serve from the new cache so that debootstrap can grab
-	# the new package repository and not the old
-	cat << END > "$tmpdir/mini-httpd"
-START=1
-DAEMON_OPTS="-h 127.0.0.1 -p 80 -u nobody -dd /mnt/$newcache -i /var/run/mini-httpd.pid -T UTF-8"
-END
-	cat << 'END' > "$tmpdir/hosts"
-127.0.0.1 localhost
-END
-	#libguestfs-test-tool
-	#export LIBGUESTFS_DEBUG=1 LIBGUESTFS_TRACE=1
-	#
-	# In case the rootfs was prepared in fakechroot mode, ldconfig has to
-	# run to populate /etc/ld.so.cache or otherwise fakechroot tests will
-	# fail to run.
-	#
-	# The disk size is sufficient in most cases. Sometimes, gcc will do
-	# an upload with unstripped executables to make tracking down ICEs much
-	# easier (see #872672, #894014). During times with unstripped gcc, the
-	# buildd variant will not be 400MB but 1.3GB large and needs a 10G
-	# disk.
 	if [ -z ${DISK_SIZE+x} ]; then
 		DISK_SIZE=10G
 	fi
-	case "$HOSTARCH" in
-		amd64) GRUB_TARGET=x86_64-efi;;
-		i386) GRUB_TARGET=i386-efi;;
-		arm64) GRUB_TARGET=arm64-efi;;
-	esac
-	case "$HOSTARCH" in
-		arm64) SERIAL="loglevel=3 console=tty0 console=ttyAMA0,115200n8" ;;
-		*) SERIAL="loglevel=3 console=tty0 console=ttyS0,115200n8" ;;
-	esac
-	guestfish -- \
-		disk-create "$newcachedir/debian-$DEFAULT_DIST.qcow" qcow2 "$DISK_SIZE" : \
-		add-drive "$newcachedir/debian-$DEFAULT_DIST.qcow" format:qcow2 : \
-		launch : \
-		part-init /dev/sda gpt : \
-		part-add /dev/sda primary 8192 262144 : \
-		part-add /dev/sda primary 262145 -34 : \
-		part-set-gpt-type /dev/sda 1 C12A7328-F81F-11D2-BA4B-00A0C93EC93B  : \
-		mkfs ext2 /dev/sda2 : \
-		mount /dev/sda2 / : \
-		tar-in "$tmpdir/debian-chroot.tar" / xattrs:true : \
-		mkdir-p /boot/efi : \
-		mkfs vfat /dev/sda1 : \
-		mount /dev/sda1 /boot/efi : \
-		command /sbin/ldconfig : \
-		mkdir-p /etc/systemd/system/multi-user.target.wants : \
-		ln-s ../mmdebstrap.service /etc/systemd/system/multi-user.target.wants/mmdebstrap.service : \
-		copy-in "$tmpdir/mmdebstrap.service" /etc/systemd/system/ : \
-		copy-in "$tmpdir/worker.sh" / : \
-		copy-in "$tmpdir/mini-httpd" /etc/default : \
-		copy-in "$tmpdir/hosts" /etc/ : \
-		touch /mmdebstrap-testenv : \
-		command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda2) / ext4 errors=remount-ro 0 1 > /etc/fstab'" : \
-		command "sh -c 'echo UUID=\$(blkid -c /dev/null -o value -s UUID /dev/sda1) /boot/efi vfat errors=remount-ro 0 2 >> /etc/fstab'" : \
-		command "sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=/GRUB_CMDLINE_LINUX_DEFAULT=\"biosdevname=0 net.ifnames=0 consoleblank=0 rw $SERIAL\"/' /etc/default/grub" : \
-		command "update-initramfs -u" : \
-		command "grub-mkconfig -o /boot/grub/grub.cfg" : \
-		command "grub-install /dev/sda --target=$GRUB_TARGET --no-nvram --force-extra-removable --no-floppy --modules=part_gpt --grub-mkdevicemap=/boot/grub/device.map" : \
-		sync : \
-		umount /boot/efi : \
-		umount / : \
-		shutdown
+	# set PATH to pick up the correct mmdebstrap variant
+	env PATH="$(dirname "$(realpath --canonicalize-existing "$CMD")"):$PATH" \
+		debvm-create --skip=usrmerge --size="$DISK_SIZE" \
+		--release="$DEFAULT_DIST" --skip=usrmerge \
+		--output="$newcachedir/debian-$DEFAULT_DIST.ext4" -- \
+		--architectures="$arches" --include="$pkgs" \
+		--setup-hook='echo "Acquire::http::Proxy \"http://127.0.0.1:8080/\";" > "$1/etc/apt/apt.conf.d/00proxy"' \
+		--hook-dir=/usr/share/mmdebstrap/hooks/maybe-merged-usr \
+		--customize-hook='rm "$1/etc/apt/apt.conf.d/00proxy"' \
+		--customize-hook='mkdir -p "$1/etc/systemd/system/multi-user.target.wants"' \
+		--customize-hook='ln -s ../mmdebstrap.service "$1/etc/systemd/system/multi-user.target.wants/mmdebstrap.service"' \
+		--customize-hook='touch "$1/mmdebstrap-testenv"' \
+		--customize-hook='copy-in "'"$tmpdir"'/mmdebstrap.service" /etc/systemd/system/' \
+		--customize-hook='copy-in "'"$tmpdir"'/worker.sh" /' \
+		--customize-hook='printf 127.0.0.1 localhost > "$1/etc/hosts"' \
+		--customize-hook='printf "START=1\nDAEMON_OPTS=\"-h 127.0.0.1 -p 80 -u nobody -dd /mnt/cache -i /var/run/mini-httpd.pid -T UTF-8\"\n" > "$1/etc/default/mini-httpd"' \
+		"$mirror"
+
+	kill $PROXYPID
 	cleanuptmpdir
 	trap "cleanup_newcachedir" EXIT INT TERM
-fi
-
-if [ "$HAVE_QEMU" = "yes" ]; then
-	# now replace the minihttpd config with one that serves the new repository
-	guestfish -a "$newcachedir/debian-$DEFAULT_DIST.qcow" -i <<EOF
-upload -<<END /etc/default/mini-httpd
-START=1
-DAEMON_OPTS="-h 127.0.0.1 -p 80 -u nobody -dd /mnt/cache -i /var/run/mini-httpd.pid -T UTF-8"
-END
-EOF
 fi
 
 # delete possibly leftover symlink

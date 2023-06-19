@@ -45,10 +45,11 @@ rm -f shared/cover_db.img
 
 if [ "$HAVE_QEMU" = "yes" ]; then
 	# prepare image for cover_db
-	guestfish -N shared/cover_db.img=disk:64M -- mkfs vfat /dev/sda
+	fallocate -l 64M shared/cover_db.img
+	/usr/sbin/mkfs.vfat shared/cover_db.img
 
-	if [ ! -e "./shared/cache/debian-$DEFAULT_DIST.qcow" ]; then
-		echo "./shared/cache/debian-$DEFAULT_DIST.qcow does not exist" >&2
+	if [ ! -e "./shared/cache/debian-$DEFAULT_DIST.ext4" ]; then
+		echo "./shared/cache/debian-$DEFAULT_DIST.ext4 does not exist" >&2
 		exit 1
 	fi
 fi
