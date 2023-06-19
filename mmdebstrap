@@ -1613,13 +1613,16 @@ sub run_hooks {
     if (length $ENV{APT_CONFIG}) {
         push @env_opts, "MMDEBSTRAP_APT_CONFIG=$ENV{APT_CONFIG}";
     }
-    # I hook script that wants to call mmdebstrap with --hook-helper needs to
+    # A hook script that wants to call mmdebstrap with --hook-helper needs to
     # know how mmdebstrap was executed
     push @env_opts, "MMDEBSTRAP_ARGV0=$PROGRAM_NAME";
     # Storing the mode is important for hook scripts to potentially change
     # their behavior depending on the mode. It's also important for when the
     # hook wants to use the mmdebstrap --hook-helper.
     push @env_opts, "MMDEBSTRAP_MODE=$options->{mode}";
+    if (defined $options->{suite}) {
+        push @env_opts, "MMDEBSTRAP_SUITE=$options->{suite}";
+    }
     # Storing the hook name is important for hook scripts to potentially change
     # their behavior depending on the hook. It's also important for when the
     # hook wants to use the mmdebstrap --hook-helper.
@@ -6985,7 +6988,7 @@ the numerical verbosity level (0 for no output, 1 for normal, 2 for verbose and
 3 for debug output). The C<MMDEBSTRAP_INCLUDE> variable stores the list of
 packages, apt patterns or file paths given by the B<--include> option,
 separated by a comma and with commas and percent signs in the option values
-urlencoded.
+urlencoded. If I<SUITE> name was supplied, it's stored in C<MMDEBSTRAP_SUITE>.
 
 In special hooks, the paths inside the chroot are relative to the root
 directory of the chroot.  The path on the outside is relative to current
