@@ -5814,7 +5814,8 @@ sub main() {
         '--format=pax',
         '--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime',
         '-c',
-        '--exclude=./dev'
+        '--exclude=./dev',
+        '--exclude=./lost+found'
     );
     # tar2sqfs and genext2fs do not support extended attributes
     if ($format eq "squashfs") {
