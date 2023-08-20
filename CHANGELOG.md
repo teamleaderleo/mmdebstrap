@@ -1,3 +1,9 @@
+1.3.8 (2023-08-20)
+------------------
+
+ - hooks/merged-usr: implement post-merging as debootstrap does
+ - exclude ./lost+found from tarball
+
 1.3.7 (2023-06-21)
 ------------------
 
