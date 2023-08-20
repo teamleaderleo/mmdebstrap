@@ -518,8 +518,7 @@ END
 	fi
 	# set PATH to pick up the correct mmdebstrap variant
 	env PATH="$(dirname "$(realpath --canonicalize-existing "$CMD")"):$PATH" \
-		debvm-create --skip=usrmerge --size="$DISK_SIZE" \
-		--release="$DEFAULT_DIST" --skip=usrmerge \
+		debvm-create --skip=usrmerge --size="$DISK_SIZE" --release="$DEFAULT_DIST" \
 		--output="$newcachedir/debian-$DEFAULT_DIST.ext4" -- \
 		--architectures="$arches" --include="$pkgs" \
 		--setup-hook='echo "Acquire::http::Proxy \"http://127.0.0.1:8080/\";" > "$1/etc/apt/apt.conf.d/00proxy"' \
