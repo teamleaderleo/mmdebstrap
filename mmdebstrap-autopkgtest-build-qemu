@@ -65,6 +65,7 @@ opt_mirror() {
 	export MIRROR="$1"
 }
 opt_script() {
+	test -f "$1" || die "passed script '$1' does not refer to a file"
 	SCRIPT="$1"
 }
 opt_size() {
@@ -145,8 +146,16 @@ case "$ARCHITECTURE" in
 	;;
 esac
 
-GNU_ARCHITECTURE="$(dpkg-architecture "-a$ARCHITECTURE" -qDEB_HOST_GNU_TYPE)"
-for pkg in autopkgtest "binutils-$(echo "$GNU_ARCHITECTURE" | tr _ -)" dosfstools e2fsprogs fdisk mount mtools passwd "systemd-boot-efi:$ARCHITECTURE" uidmap; do
+if test "$(dpkg-query -f '${db:Status-Status}' -W binutils-multiarch)" = installed; then
+	GNU_PREFIX=
+else
+	GNU_ARCHITECTURE="$(dpkg-architecture "-a$ARCHITECTURE" -qDEB_HOST_GNU_TYPE)"
+	GNU_PREFIX="$GNU_ARCHITECTURE-"
+	GNU_SUFFIX="-$(echo "$GNU_ARCHITECTURE" | tr _ -)"
+	test "$(dpkg-query -f '${db:Status-Status}' -W "binutils$GNU_SUFFIX")" = installed ||
+		die "please install binutils$GNU_SUFFIX or binutils-multiarch"
+fi
+for pkg in autopkgtest dosfstools e2fsprogs fdisk mount mtools passwd "systemd-boot-efi:$ARCHITECTURE" uidmap; do
 	test "$(dpkg-query -f '${db:Status-Status}' -W "$pkg")" = installed ||
 		die "please install $pkg"
 done
@@ -191,7 +200,12 @@ set -- "$@" \
 	'--customize-hook=passwd --root "$1" --delete user' \
 	'--customize-hook=/usr/share/autopkgtest/setup-commands/setup-testbed'
 
-test -n "$SCRIPT" && set -- "$@" "--customize-hook=$SCRIPT"
+if test -n "$SCRIPT"; then
+	set -- "$@" \
+		"--customize-hook=upload '$SCRIPT' /userscript" \
+		"--chrooted-customize-hook=sh /userscript" \
+		'--customize-hook=rm -f "$1/userscript"'
+fi
 
 EXT4_OFFSET_BYTES=$(( (FAT_OFFSET_SECTORS + FAT_SIZE_SECTORS) * 512))
 EXT4_OPTIONS="offset=$EXT4_OFFSET_BYTES,assume_storage_prezeroed=1"
@@ -220,7 +234,7 @@ align_size() {
 	echo "$(( ($1) + ($2) - 1 - (($1) + ($2) - 1) % ($2) ))"
 }
 
-alignment=$("$GNU_ARCHITECTURE-objdump" -p "$BOOTSTUB" | sed 's/^SectionAlignment\s\+\([0-9]\)/0x/;t;d')
+alignment=$("${GNU_PREFIX}objdump" -p "$BOOTSTUB" | sed 's/^SectionAlignment\s\+\([0-9]\)/0x/;t;d')
 test -z "$alignment" && die "failed to discover the alignment of the efi stub"
 echo "determined efi vma alignment as $alignment"
 test "$RELEASE" = jessie -a "$((alignment))" -lt "$((1024*1024))" && {
@@ -229,7 +243,7 @@ test "$RELEASE" = jessie -a "$((alignment))" -lt "$((1024*1024))" && {
 }
 lastoffset=0
 # shellcheck disable=SC2034  # unused variables serve documentation
-lastoffset="$("$GNU_ARCHITECTURE-objdump" -h "$BOOTSTUB" |
+lastoffset="$("${GNU_PREFIX}objdump" -h "$BOOTSTUB" |
 	while read -r idx name size vma lma fileoff algn behind; do
 		test -z "$behind" -a "${algn#"2**"}" != "$algn" || continue
 		offset=$(( 0x$vma + 0x$size ))
@@ -249,7 +263,7 @@ linux_offset=$((cmdline_offset + cmdline_size))
 initrd_offset=$((linux_offset + linux_size))
 
 SOURCE_DATE_EPOCH=0 \
-	"$GNU_ARCHITECTURE-objcopy" \
+	"${GNU_PREFIX}objcopy" \
 	--enable-deterministic-archives \
 	--add-section .cmdline="$WORKDIR/cmdline" \
 	--change-section-vma .cmdline="$(printf 0x%x "$cmdline_offset")" \
