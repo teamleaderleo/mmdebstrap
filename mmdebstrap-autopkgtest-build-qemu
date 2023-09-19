@@ -44,6 +44,9 @@ opt_boot() {
 opt_architecture() {
 	ARCHITECTURE="$1"
 }
+opt_arch() {
+	ARCHITECTURE="$1"
+}
 opt_apt_proxy() {
 	# consumed by setup-testbed
 	export AUTOPKGTEST_APT_PROXY="$1"
@@ -86,14 +89,14 @@ positional_7() {
 
 while test "$#" -gt 0; do
 	case "$1" in
-		--architecture=*|--boot=*|--keyring=*|--mirror=*|--script=*|--size=*)
+		--architecture=*|--arch=*|--boot=*|--keyring=*|--mirror=*|--script=*|--size=*)
 			optname="${1%%=*}"
 			"opt_${optname#--}" "${1#*=}"
 		;;
 		--apt-proxy=*)
 			opt_apt_proxy "${1#*=}"
 		;;
-		--architecture|--boot|--keyring|--mirror|--script|--size)
+		--architecture|--arch|--boot|--keyring|--mirror|--script|--size)
 			test "$#" -ge 2 || usage_error "missing argument for $1"
 			"opt_${1#--}" "$2"
 			shift
