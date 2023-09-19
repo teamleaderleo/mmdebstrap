@@ -2,15 +2,101 @@
 # Copyright 2023 Johannes Schauer Marin Rodrigues <josch@debian.org>
 # Copyright 2023 Helmut Grohne <helmut@subdivi.de>
 # SPDX-License-Identifier: MIT
-#
-# This script is mostly compatible with autopkgtest-build-qemu as shipped in
-# autopkgtest. Main differences:
-#  * It does not support any value for --boot but efi.
-#  * It uses different tools, most importantly swaps out vmdb2.
-#  * It can be run as non-root via user namespaces.
 
 # We generally use single quotes to avoid variable expansion:
 # shellcheck disable=SC2016
+
+: <<'POD2MAN'
+=head1 NAME
+
+mmdebstrap-autopkgtest-build-qemu - autopkgtest-build-qemu without vmdb2 but mmdebstrap and EFI boot
+
+=head1 SYNOPSIS
+
+B<mmdebstrap-autopkgtest-build-qemu> [I<OPTIONS>] B<--boot>=B<efi> I<RELEASE> I<IMAGE>
+
+=head1 DESCRIPTION
+
+B<mmdebstrap-autopkgtest-build-qemu> is a mostly compatible drop-in replacement
+for B<autopkgtest-build-qemu>(1) with two main differences: Firstly, it uses
+B<mmdebstrap>(1) instead of B<vmdb2>(1) and thus is able to create QEMU disk
+images without requiring superuser privileges.  Secondly, it uses
+B<systemd-boot>(7) and thus only supports booting via EFI.
+
+=head1 POSITIONAL PARAMETERS
+
+=over 8
+
+=item I<RELEASE>
+
+The release to download from the I<MIRROR>.  This parameter is required.
+
+=item I<IMAGE>
+
+The file to write, in raw format. This parameter is required.
+
+=back
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--mirror>=I<MIRROR>
+
+Specify  which  distribution  to install.  It defaults to
+http://deb.debian.org/debian (i.e. Debian), but you can pass a mirror of any
+Debian derivative.
+
+=item B<--architecture>=I<ARCHITECTURE>
+
+Set the architecture for the virtual machine image, specified as a B<dpkg>(1)
+architecture.  If  omitted, the host architecture is assumed.
+
+B<--arch>=I<ARCH> is an alias for this option.
+
+=item B<--script>=I<SCRIPT>
+
+Specifies a user script that will be called with the root filesystem of the
+image as its first parameter. This script can them make any necesssary
+modifications to the root filesystem.
+
+The script must be a POSIX shell script, and should not depend on bash-specific
+features. This  script will be executed inside a B<chroot>(1) call in the
+virtual machine root filesystem.
+
+=item B<--size>=I<SIZE>
+
+Specifies the image size for the virtual machine, defaulting to 25G.
+
+=item B<--apt-proxy>=I<PROXY>
+
+Specify  an  apt proxy to use in the virtual machine.  By default, if you have
+an apt proxy configured on the host, the virtual machine will automatically use
+this, otherwise there is no default.
+
+=item B<--boot>=B<efi>, B<--efi>
+
+Select the way the generated image will expect to be booted. Unless you
+explicitly select --boot=efi, operation will fail.
+
+=item B<--keyring>=I<KEYRING>
+
+Passes an additional B<--keyring> parameter to B<mmdebstrap>.
+
+=back
+
+=head1 EXAMPLES
+
+    $ mmdebstrap-autopkgtest-build-qemu --boot=efi stable /path/to/debian-stable-i386.img i386
+
+    $ mmdebstrap-autopkgtest-build-qemu --boot=efi unstable /path/to/debian-unstable.img
+
+=head1 SEE ALSO
+
+    B<autopkgtest-build-qemu>(1), B<autopkgtest-virt-qemu>(1), B<mmdebstrap>(1), B<autopkgtest>(1)
+
+=cut
+POD2MAN
 
 set -eu
 
@@ -19,7 +105,7 @@ die() {
 	exit 1
 }
 usage() {
-	die "usage: $0 [--boot=|--architecture=|--apt-proxy=|--keyring=|--mirror=|--script=|--size=] <RELEASE> <IMAGE> [MIRROR] [ARCHITECTURE] [SCRIPT] [SIZE]"
+	die "usage: $0 [--architecture=|--apt-proxy=|--keyring=|--mirror=|--script=|--size=] --boot=efi <RELEASE> <IMAGE>"
 }
 usage_error() {
 	echo "error: $*" 1>&2
