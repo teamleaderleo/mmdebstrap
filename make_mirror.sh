@@ -301,8 +301,9 @@ components=main
 # by default, use the mmdebstrap executable in the current directory
 : "${CMD:=./mmdebstrap}"
 : "${USE_HOST_APT_CONFIG:=no}"
+: "${FORCE_UPDATE:=no}"
 
-if [ -e "$oldmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
+if [ "$FORCE_UPDATE" != "yes" ] && [ -e "$oldmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
 	http_code=$(curl --output /dev/null --silent --location --head --time-cond "$oldmirrordir/dists/$DEFAULT_DIST/InRelease" --write-out '%{http_code}' "$mirror/dists/$DEFAULT_DIST/InRelease")
 	case "$http_code" in
 		200) ;; # need update
