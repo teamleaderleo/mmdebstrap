@@ -207,8 +207,8 @@ Lastly, shift user id and group id of each entry by the value given by the
                 skip = True
         return skip
 
-    # starting with Python 3.8, the default format became PAX_FORMAT, so this
-    # is only for compatibility with older versions of Python 3
+    # starting with Python 3.8, the default format became PAX_FORMAT but we
+    # are still explicit here in case of future changes.
     with tarfile.open(fileobj=sys.stdin.buffer, mode="r|*") as in_tar, tarfile.open(
         fileobj=sys.stdout.buffer, mode="w|", format=tarfile.PAX_FORMAT
     ) as out_tar:
