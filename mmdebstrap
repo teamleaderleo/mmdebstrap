@@ -1654,6 +1654,9 @@ sub run_hooks {
         push @env_opts,
           ("MMDEBSTRAP_ESSENTIAL=" . (join " ", @{$essential_pkgs}));
     }
+    if ($options->{mode} eq 'unshare') {
+        push @env_opts, "container=mmdebstrap-unshare";
+    }
 
     # Unset the close-on-exec flag, so that the file descriptor does not
     # get closed when we exec
@@ -7412,7 +7415,7 @@ As a debootstrap wrapper to run it without superuser privileges but using Linux
 user namespaces instead. This fixes Debian bug #829134.
 
     $ mmdebstrap --variant=custom --mode=unshare \
-        --setup-hook='env container=lxc debootstrap unstable "$1"' \
+        --setup-hook='debootstrap unstable "$1"' \
         - debian-debootstrap.tar
 
 Build a non-Debian chroot like Ubuntu bionic:
