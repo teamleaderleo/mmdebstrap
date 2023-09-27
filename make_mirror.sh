@@ -550,3 +550,5 @@ mv --no-target-directory ./shared/cache.tmp ./shared/cache
 deletecache "$oldcachedir"
 
 trap - EXIT INT TERM
+
+echo "$0 finished successfully" >&2
