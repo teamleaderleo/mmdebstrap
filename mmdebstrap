@@ -1266,8 +1266,9 @@ sub setup_mounts {
                             next;
                         }
                         if (!$options->{havemknod}) {
-                          # If had mknod, then the directory to bind-mount into
-                          # was already created in the run_setup function.
+                            # If had mknod, then the directory to bind-mount
+                            # into was already created in the run_setup
+                            # function.
                             push @cleanup_tasks, sub {
                                 rmdir "$options->{root}/dev/$fname"
                                   or warning("cannot rmdir ./dev/$fname: $!");
@@ -1309,17 +1310,17 @@ sub setup_mounts {
                               or warning("umount ./dev/$fname failed: $?");
                         };
                         if ($fname eq "pts/") {
-                          # We cannot just bind-mount /dev/pts from the host as
-                          # doing so will make posix_openpt() fail. Instead, we
-                          # need to mount a new devpts.
-                          # We need ptmxmode=666 because /dev/ptmx is a symlink
-                          # to /dev/pts/ptmx and without it posix_openpt() will
-                          # fail if we are not the root user.
-                          # See also:
-                          # kernel.org/doc/Documentation/filesystems/devpts.txt
-                          # salsa.debian.org/debian/schroot/-/merge_requests/2
-                          # https://bugs.debian.org/856877
-                          # https://bugs.debian.org/817236
+                            # We cannot just bind-mount /dev/pts from the host
+                            # as doing so will make posix_openpt() fail.
+                            # Instead, we need to mount a new devpts.
+                            # We need ptmxmode=666 because /dev/ptmx is a
+                            # symlink to /dev/pts/ptmx and without it
+                            # posix_openpt() will fail if we are not the root
+                            # user. See also:
+                            # kernel.o/doc/Documentation/filesystems/devpts.txt
+                            # salsa.d.o/debian/schroot/-/merge_requests/2
+                            # https://bugs.debian.org/856877
+                            # https://bugs.debian.org/817236
                             0 == system(
                                 'mount',
                                 '-t',
