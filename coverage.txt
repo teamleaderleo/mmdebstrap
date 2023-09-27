@@ -277,12 +277,14 @@ Variants: - standard
 Skip-If:
  variant == "-" and hostarch not in ["armel", "armhf", "mipsel"] # #1031276
  variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
+ variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
 
 Test: debug
 Variants: - standard
 Skip-If:
  variant == "-" and hostarch not in ["armel", "armhf", "mipsel"] # #1031276
  variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
+ variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
 
 Test: quiet
 Needs-Root: true
