@@ -3173,7 +3173,7 @@ sub run_cleanup() {
         }
 
         if (any { $_ eq 'cleanup/mmdebstrap/qemu' } @{ $options->{skip} }) {
-            info "skipping cleanup/mmdebstrap/qume as requested";
+            info "skipping cleanup/mmdebstrap/qemu as requested";
         } elsif (defined $options->{qemu}
             and any { $_ eq $options->{mode} } ('root', 'unshare')
               and -e "$options->{root}/usr/bin/qemu-$options->{qemu}-static") {
@@ -6730,7 +6730,7 @@ This mode directly executes chroot and is the same mode of operation as is
 used by debootstrap. It is the only mode that can directly create a directory
 chroot with the right permissions. If the chroot directory is not accessible
 by the _apt user, then apt sandboxing will be automatically disabled. This mode
-needs to be able to mount and thus requires C<SYS_CAP_ADMIN>.
+needs to be able to mount and thus requires C<CAP_SYS_ADMIN>.
 
 =item B<unshare>
 
