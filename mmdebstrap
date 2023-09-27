@@ -2772,90 +2772,49 @@ sub run_prepare {
         error "unknown mode: $options->{mode}";
     }
 
-    # copy qemu-user-static binary into chroot
-    if (defined $options->{qemu}) {
-        if ($options->{mode} eq 'fakechroot') {
-            # Make sure that the fakeroot and fakechroot shared
-            # libraries exist for the right architecture
-            open my $fh, '-|', 'dpkg-architecture', '-a',
-              $options->{nativearch},
-              '-qDEB_HOST_MULTIARCH' // error "failed to fork(): $!";
-            chomp(
-                my $deb_host_multiarch = do { local $/; <$fh> }
-            );
-            close $fh;
-            if (($? != 0) or (!$deb_host_multiarch)) {
-                error "dpkg-architecture failed: $?";
-            }
-            my $fakechrootdir = "/usr/lib/$deb_host_multiarch/fakechroot";
-            if (!-e "$fakechrootdir/libfakechroot.so") {
-                error "$fakechrootdir/libfakechroot.so doesn't exist."
-                  . " Install libfakechroot:$options->{nativearch}"
-                  . " outside the chroot";
-            }
-            my $fakerootdir = "/usr/lib/$deb_host_multiarch/libfakeroot";
-            if (!-e "$fakerootdir/libfakeroot-sysv.so") {
-                error "$fakerootdir/libfakeroot-sysv.so doesn't exist."
-                  . " Install libfakeroot:$options->{nativearch}"
-                  . " outside the chroot";
-            }
-            # The rest of this block sets environment variables, so we
-            # have to add the "no critic" statement to stop perlcritic
-            # from complaining about setting global variables
-            ## no critic (Variables::RequireLocalizedPunctuationVars)
-            # fakechroot only fills LD_LIBRARY_PATH with the
-            # directories of the host's architecture. We append the
-            # directories of the chroot architecture.
-            $ENV{LD_LIBRARY_PATH}
-              = "$ENV{LD_LIBRARY_PATH}:$fakechrootdir:$fakerootdir";
-            # The binfmt support on the outside is used, so qemu needs
-            # to know where it has to look for shared libraries
-            if (defined $ENV{QEMU_LD_PREFIX}
-                && $ENV{QEMU_LD_PREFIX} ne "") {
-                $ENV{QEMU_LD_PREFIX} = "$ENV{QEMU_LD_PREFIX}:$options->{root}";
-            } else {
-                $ENV{QEMU_LD_PREFIX} = $options->{root};
-            }
-        } elsif (any { $_ eq $options->{mode} } ('root', 'unshare')) {
-            my $require_qemu_static = 1;
-            # make $@ local, so we don't print an eventual error
-            # in other parts where we evaluate $@
-            local $@ = '';
-            eval {
-                # Check for the F flag which makes the kernel open the binfmt
-                # binary at configuration time instead of lazily at startup
-                # time. If the flag is set, then the qemu-static binary is not
-                # required inside the chroot.
-                if (-e "/proc/sys/fs/binfmt_misc/qemu-$options->{qemu}") {
-                    open my $fh, '<',
-                      "/proc/sys/fs/binfmt_misc/qemu-$options->{qemu}";
-                    while (my $line = <$fh>) {
-                        chomp($line);
-                        if ($line =~ /^flags: [A-Z]*F[A-Z]*$/) {
-                            $require_qemu_static = 0;
-                            last;
-                        }
-                    }
-                    close $fh;
-                }
-            };
-            if ($require_qemu_static) {
-                # other modes require a static qemu-user binary
-                my $qemubin = "/usr/bin/qemu-$options->{qemu}-static";
-                if (!-e $qemubin) {
-                    error "cannot find $qemubin";
-                }
-                copy $qemubin, "$options->{root}/$qemubin"
-                  or error "cannot copy $qemubin: $!";
-                # File::Copy does not retain permissions but on some
-                # platforms (like Travis CI) the binfmt interpreter must
-                # have the executable bit set or otherwise execve will
-                # fail with EACCES
-                chmod 0755, "$options->{root}/$qemubin"
-                  or error "cannot chmod $qemubin: $!";
-            }
+    # foreign architecture setup for fakechroot mode
+    if (defined $options->{qemu} && $options->{mode} eq 'fakechroot') {
+        # Make sure that the fakeroot and fakechroot shared libraries exist for
+        # the right architecture
+        open my $fh, '-|', 'dpkg-architecture', '-a',
+          $options->{nativearch},
+          '-qDEB_HOST_MULTIARCH' // error "failed to fork(): $!";
+        chomp(
+            my $deb_host_multiarch = do { local $/; <$fh> }
+        );
+        close $fh;
+        if (($? != 0) or (!$deb_host_multiarch)) {
+            error "dpkg-architecture failed: $?";
+        }
+        my $fakechrootdir = "/usr/lib/$deb_host_multiarch/fakechroot";
+        if (!-e "$fakechrootdir/libfakechroot.so") {
+            error "$fakechrootdir/libfakechroot.so doesn't exist."
+              . " Install libfakechroot:$options->{nativearch}"
+              . " outside the chroot";
+        }
+        my $fakerootdir = "/usr/lib/$deb_host_multiarch/libfakeroot";
+        if (!-e "$fakerootdir/libfakeroot-sysv.so") {
+            error "$fakerootdir/libfakeroot-sysv.so doesn't exist."
+              . " Install libfakeroot:$options->{nativearch}"
+              . " outside the chroot";
+        }
+
+        # The rest of this block sets environment variables, so we have to add
+        # the "no critic" statement to stop perlcritic from complaining about
+        # setting global variables
+        ## no critic (Variables::RequireLocalizedPunctuationVars)
+        # fakechroot only fills LD_LIBRARY_PATH with the directories of the
+        # host's architecture. We append the directories of the chroot
+        # architecture.
+        $ENV{LD_LIBRARY_PATH}
+          = "$ENV{LD_LIBRARY_PATH}:$fakechrootdir:$fakerootdir";
+        # The binfmt support on the outside is used, so qemu needs to know
+        # where it has to look for shared libraries
+        if (defined $ENV{QEMU_LD_PREFIX}
+            && $ENV{QEMU_LD_PREFIX} ne "") {
+            $ENV{QEMU_LD_PREFIX} = "$ENV{QEMU_LD_PREFIX}:$options->{root}";
         } else {
-            error "unknown mode: $options->{mode}";
+            $ENV{QEMU_LD_PREFIX} = $options->{root};
         }
     }
 
