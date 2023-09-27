@@ -3262,6 +3262,52 @@ sub run_cleanup() {
             closedir($dh);
         }
     }
+
+    if (any { $_ eq 'cleanup/dev' } @{ $options->{skip} }) {
+        info "skipping cleanup/dev as requested";
+    } else {
+
+        # By default, tar is run with --exclude=./dev because we create the
+        # ./dev entries ourselves using @devfiles. But if --skip=output/dev is
+        # used, --exclude=./dev is not passed so that the chroot includes ./dev
+        # as created by base-files. But if mknod was available (for example
+        # when running as root) then ./dev will also include the @devfiles
+        # entries created by run_setup() and thus the resulting tarball will
+        # include things inside ./dev despite the user having supplied
+        # --skip=output/dev. So if --skip=output/dev was passed and if a
+        # tarball is to be created, we need to make sure to clean up the
+        # ./dev entries that were created in run_setup(). This is not done
+        # when creating a directory because in that case we want to do the
+        # same as debootstrap and create a directory including device nodes.
+        if ($options->{format} ne 'directory' && any { $_ eq 'output/dev' }
+            @{ $options->{skip} }) {
+            foreach my $file (@devfiles) {
+                my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
+                  = @{$file};
+                if (!-e "$options->{root}/dev/$fname") {
+                    next;
+                }
+                # do not remove ./dev itself
+                if ($fname eq "") {
+                    next;
+                }
+                if ($type == 0) {    # normal file
+                    error "type 0 not implemented";
+                } elsif ($type == 1) {    # hardlink
+                    error "type 1 not implemented";
+                } elsif (any { $_ eq $type } (2, 3, 4))
+                {                         # symlink, char, block
+                    unlink "$options->{root}/dev/$fname"
+                      or error "failed to unlink ./dev/$fname: $!";
+                } elsif ($type == 5) {    # directory
+                    rmdir "$options->{root}/dev/$fname"
+                      or error "failed to unlink ./dev/$fname: $!";
+                } else {
+                    error "unsupported type: $type";
+                }
+            }
+        }
+    }
     return;
 }
 
@@ -4445,6 +4491,7 @@ sub main() {
         include         => [],
         architectures   => [$hostarch],
         mode            => 'auto',
+        format          => 'auto',
         dpkgopts        => [],
         aptopts         => [],
         apttrusted      => $apttrusted,
@@ -4458,7 +4505,6 @@ sub main() {
         skip            => [],
     };
     my $logfile = undef;
-    my $format  = 'auto';
     Getopt::Long::Configure('default', 'bundling', 'auto_abbrev',
         'ignore_case_always');
     GetOptions(
@@ -4541,7 +4587,7 @@ sub main() {
         'q|quiet'   => sub { $verbosity_level = 0; },
         'v|verbose' => sub { $verbosity_level = 2; },
         'd|debug'   => sub { $verbosity_level = 3; },
-        'format=s'  => \$format,
+        'format=s'  => \$options->{format},
         'logfile=s' => \$logfile,
         # no-op options so that mmdebstrap can be used with
         # sbuild-createchroot --debootstrap=mmdebstrap
@@ -4708,16 +4754,16 @@ sub main() {
     }
 
     # sqfs is an alias for squashfs
-    if ($format eq 'sqfs') {
-        $format = 'squashfs';
+    if ($options->{format} eq 'sqfs') {
+        $options->{format} = 'squashfs';
     }
     # dir is an alias for directory
-    if ($format eq 'dir') {
-        $format = 'directory';
+    if ($options->{format} eq 'dir') {
+        $options->{format} = 'directory';
     }
     my @valid_formats
       = ('auto', 'directory', 'tar', 'squashfs', 'ext2', 'null');
-    if (none { $_ eq $format } @valid_formats) {
+    if (none { $_ eq $options->{format} } @valid_formats) {
         error "invalid format. Choose from " . (join ', ', @valid_formats);
     }
 
@@ -5484,7 +5530,7 @@ sub main() {
     my $tar_compressor = get_tar_compressor($options->{target});
 
     # figure out the right format
-    if ($format eq 'auto') {
+    if ($options->{format} eq 'auto') {
         # (stat(...))[6] is the device identifier which contains the major and
         # minor numbers for character special files
         # major 1 and minor 3 is /dev/null on Linux
@@ -5493,7 +5539,7 @@ sub main() {
             and -c '/dev/null'
             and major((stat("/dev/null"))[6]) == 1
             and minor((stat("/dev/null"))[6]) == 3) {
-            $format = 'null';
+            $options->{format} = 'null';
         } elsif ($options->{target} eq '-'
             and $OSNAME eq 'linux'
             and major((stat(STDOUT))[6]) == 1
@@ -5501,9 +5547,9 @@ sub main() {
             # by checking the major and minor number of the STDOUT fd we also
             # can detect redirections to /dev/null and choose the null format
             # accordingly
-            $format = 'null';
+            $options->{format} = 'null';
         } elsif ($options->{target} ne '-' and -d $options->{target}) {
-            $format = 'directory';
+            $options->{format} = 'directory';
         } elsif (
             defined $tar_compressor
             or $options->{target} =~ /\.tar$/
@@ -5511,7 +5557,7 @@ sub main() {
             or -p $options->{target}    # named pipe (fifo)
             or -c $options->{target}    # character special like /dev/null
         ) {
-            $format = 'tar';
+            $options->{format} = 'tar';
             # check if the compressor is installed
             if (defined $tar_compressor) {
                 my $pid = fork() // error "fork() failed: $!";
@@ -5531,7 +5577,7 @@ sub main() {
                 }
             }
         } elsif ($options->{target} =~ /\.(squashfs|sqfs)$/) {
-            $format = 'squashfs';
+            $options->{format} = 'squashfs';
             # check if tar2sqfs is installed
             my $pid = fork() // error "fork() failed: $!";
             if ($pid == 0) {
@@ -5547,7 +5593,7 @@ sub main() {
                 error("failed to start tar2sqfs --version");
             }
         } elsif ($options->{target} =~ /\.ext2$/) {
-            $format = 'ext2';
+            $options->{format} = 'ext2';
             # check if the installed version of genext2fs supports tarballs on
             # stdin
             (undef, my $filename) = tempfile(
@@ -5568,32 +5614,34 @@ sub main() {
                 error "genext2fs failed with exit status: $exitstatus";
             }
         } else {
-            $format = 'directory';
+            $options->{format} = 'directory';
         }
-        info "automatically chosen format: $format";
+        info "automatically chosen format: $options->{format}";
     }
 
-    if ($options->{target} eq '-' and $format ne 'tar' and $format ne 'null') {
-        error "the $format format is unable to write to standard output";
+    if (    $options->{target} eq '-'
+        and $options->{format} ne 'tar'
+        and $options->{format} ne 'null') {
+        error "the $options->{format} format is unable to write to stdout";
     }
 
-    if ($format eq 'null'
+    if ($options->{format} eq 'null'
         and none { $_ eq $options->{target} } ('-', '/dev/null')) {
         info "ignoring target $options->{target} with null format";
     }
 
-    if ($format eq 'ext2') {
+    if ($options->{format} eq 'ext2') {
         if (!can_execute 'genext2fs') {
             error "need genext2fs for ext2 format";
         }
-    } elsif ($format eq 'squashfs') {
+    } elsif ($options->{format} eq 'squashfs') {
         if (!can_execute 'tar2sqfs') {
             error "need tar2sqfs binary from the squashfs-tools-ng package";
         }
     }
 
-    if (any { $_ eq $format } ('tar', 'squashfs', 'ext2', 'null')) {
-        if ($format ne 'null') {
+    if (any { $_ eq $options->{format} } ('tar', 'squashfs', 'ext2', 'null')) {
+        if ($options->{format} ne 'null') {
             if (any { $_ eq $options->{variant} } ('extract', 'custom')
                   and $options->{mode} eq 'fakechroot') {
                 info "creating a tarball or squashfs image or ext2 image in"
@@ -5630,7 +5678,7 @@ sub main() {
         ) {
             chmod 0755, $options->{root} or error "cannot chmod root: $!";
         }
-    } elsif ($format eq 'directory') {
+    } elsif ($options->{format} eq 'directory') {
         # user does not seem to have specified a tarball as output, thus work
         # directly in the supplied directory
         $options->{root} = $options->{target};
@@ -5686,7 +5734,7 @@ sub main() {
             }
         }
     } else {
-        error "unknown format: $format";
+        error "unknown format: $options->{format}";
     }
 
     # check for double quotes because apt doesn't allow to escape them and
@@ -5770,14 +5818,27 @@ sub main() {
         error "unknown mode: $options->{mode}";
     }
 
+    # If a tarball is to be created, we always (except if --skip=output/dev is
+    # passed) craft the /dev entries ourselves.
+    # Why do we put /dev entries in the final tarball?
+    #  - because debootstrap does it
+    #  - because schroot (#856877) and pbuilder rely on it and we care about
+    #    Debian buildds (using schroot) and reproducible builds infra (using
+    #    pbuilder)
+    # If both the above assertion change, we can stop creating /dev entries as
+    # well.
     my $devtar = '';
-    # We always craft the /dev entries ourselves if a tarball is to be created
-    if (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
+    if (any { $_ eq $options->{format} } ('tar', 'squashfs', 'ext2')) {
         foreach my $file (@devfiles) {
             my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
               = @{$file};
             if (length "./dev/$fname" > 100) {
                 error "tar entry cannot exceed 100 characters";
+            }
+            if ($type == 3
+                and any { $_ eq 'output/mknod' } @{ $options->{skip} }) {
+                info "skipping output/mknod as requested for ./dev/$fname";
+                next;
             }
             my $entry = pack(
                 'a100 a8 a8 a8 a12 a12 A8 a1 a100 a8 a32 a32 a8 a8 a155 x12',
@@ -5802,10 +5863,10 @@ sub main() {
               = sprintf("%06o\0", unpack("%16C*", $entry));
             $devtar .= $entry;
         }
-    } elsif (any { $_ eq $format } ('directory', 'null')) {
+    } elsif (any { $_ eq $options->{format} } ('directory', 'null')) {
         # nothing to do
     } else {
-        error "unknown format: $format";
+        error "unknown format: $options->{format}";
     }
 
     my $exitstatus = 0;
@@ -5818,11 +5879,14 @@ sub main() {
         '--format=pax',
         '--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime',
         '-c',
-        '--exclude=./dev',
         '--exclude=./lost+found'
     );
+    # only exclude ./dev if device nodes are written out (the default)
+    if (none { $_ eq 'output/dev' } @{ $options->{skip} }) {
+        push @taropts, '--exclude=./dev';
+    }
     # tar2sqfs and genext2fs do not support extended attributes
-    if ($format eq "squashfs") {
+    if ($options->{format} eq "squashfs") {
         # tar2sqfs supports user.*, trusted.* and security.* but not system.*
         # https://bugs.debian.org/988100
         # lib/sqfs/xattr/xattr.c of https://github.com/AgentD/squashfs-tools-ng
@@ -5831,7 +5895,7 @@ sub main() {
         warning("tar2sqfs does not support extended attributes"
               . " from the 'system' namespace");
         push @taropts, '--xattrs', '--xattrs-exclude=system.*';
-    } elsif ($format eq "ext2") {
+    } elsif ($options->{format} eq "ext2") {
         warning "genext2fs does not support extended attributes";
     } else {
         push @taropts, '--xattrs';
@@ -5883,7 +5947,7 @@ sub main() {
                 close $childsock;
 
                 close $nblkreader;
-                if (!$options->{dryrun} && $format eq 'ext2') {
+                if (!$options->{dryrun} && $options->{format} eq 'ext2') {
                     my $numblocks = approx_disk_usage($options->{root});
                     print $nblkwriter "$numblocks\n";
                     $nblkwriter->flush();
@@ -5892,7 +5956,8 @@ sub main() {
 
                 if ($options->{dryrun}) {
                     info "simulate creating tarball...";
-                } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
+                } elsif (any { $_ eq $options->{format} }
+                    ('tar', 'squashfs', 'ext2')) {
                     info "creating tarball...";
 
                     # redirect tar output to the writing end of the pipe so
@@ -5913,10 +5978,11 @@ sub main() {
                       or error "tar failed: $?";
 
                     info "done";
-                } elsif (any { $_ eq $format } ('directory', 'null')) {
+                } elsif (any { $_ eq $options->{format} }
+                    ('directory', 'null')) {
                     # nothing to do
                 } else {
-                    error "unknown format: $format";
+                    error "unknown format: $options->{format}";
                 }
 
                 exit 0;
@@ -5948,7 +6014,7 @@ sub main() {
             close $childsock;
 
             close $nblkreader;
-            if (!$options->{dryrun} && $format eq 'ext2') {
+            if (!$options->{dryrun} && $options->{format} eq 'ext2') {
                 my $numblocks = approx_disk_usage($options->{root});
                 print $nblkwriter $numblocks;
                 $nblkwriter->flush();
@@ -5957,7 +6023,8 @@ sub main() {
 
             if ($options->{dryrun}) {
                 info "simulate creating tarball...";
-            } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
+            } elsif (any { $_ eq $options->{format} }
+                ('tar', 'squashfs', 'ext2')) {
                 info "creating tarball...";
 
                 # redirect tar output to the writing end of the pipe so that
@@ -6005,10 +6072,10 @@ sub main() {
                 }
 
                 info "done";
-            } elsif (any { $_ eq $format } ('directory', 'null')) {
+            } elsif (any { $_ eq $options->{format} } ('directory', 'null')) {
                 # nothing to do
             } else {
-                error "unknown format: $format";
+                error "unknown format: $options->{format}";
             }
 
             exit 0;
@@ -6066,7 +6133,7 @@ sub main() {
 
     my $numblocks = 0;
     close $nblkwriter;
-    if (!$options->{dryrun} && $format eq 'ext2') {
+    if (!$options->{dryrun} && $options->{format} eq 'ext2') {
         $numblocks = <$nblkreader>;
         if (defined $numblocks) {
             chomp $numblocks;
@@ -6083,9 +6150,9 @@ sub main() {
 
     if ($options->{dryrun}) {
         # nothing to do
-    } elsif (any { $_ eq $format } ('directory', 'null')) {
+    } elsif (any { $_ eq $options->{format} } ('directory', 'null')) {
         # nothing to do
-    } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2')) {
+    } elsif (any { $_ eq $options->{format} } ('tar', 'squashfs', 'ext2')) {
         # we use eval() so that error() doesn't take this process down and
         # thus leaves the setup() process without a parent
         eval {
@@ -6094,27 +6161,27 @@ sub main() {
                     error "cannot copy to standard output: $!";
                 }
             } else {
-                if (   $format eq 'squashfs'
-                    or $format eq 'ext2'
+                if (   $options->{format} eq 'squashfs'
+                    or $options->{format} eq 'ext2'
                     or defined $tar_compressor) {
                     my @argv = ();
-                    if ($format eq 'squashfs') {
+                    if ($options->{format} eq 'squashfs') {
                         push @argv, 'tar2sqfs',
                           '--quiet', '--no-skip', '--force',
                           '--exportable',
                           '--compressor', 'xz',
                           '--block-size', '1048576',
                           $options->{target};
-                    } elsif ($format eq 'ext2') {
+                    } elsif ($options->{format} eq 'ext2') {
                         if ($numblocks <= 0) {
                             error "invalid number of blocks: $numblocks";
                         }
                         push @argv, 'genext2fs', '-B', 1024, '-b', $numblocks,
                           '-i', '16384', '-a', '-', $options->{target};
-                    } elsif ($format eq 'tar') {
+                    } elsif ($options->{format} eq 'tar') {
                         push @argv, @{$tar_compressor};
                     } else {
-                        error "unknown format: $format";
+                        error "unknown format: $options->{format}";
                     }
                     POSIX::sigprocmask(SIG_BLOCK, $sigset)
                       or error "Can't block signals: $!";
@@ -6132,15 +6199,16 @@ sub main() {
                           or error "Can't unblock signals: $!";
 
                         # redirect stdout to file or /dev/null
-                        if ($format eq 'squashfs' or $format eq 'ext2') {
+                        if (   $options->{format} eq 'squashfs'
+                            or $options->{format} eq 'ext2') {
                             open(STDOUT, '>', '/dev/null')
                               or error "cannot open /dev/null for writing: $!";
-                        } elsif ($format eq 'tar') {
+                        } elsif ($options->{format} eq 'tar') {
                             open(STDOUT, '>', $options->{target})
                               or error
                               "cannot open $options->{target} for writing: $!";
                         } else {
-                            error "unknown format: $format";
+                            error "unknown format: $options->{format}";
                         }
                         open(STDIN, '<&', $rfh)
                           or error "cannot open file handle for reading: $!";
@@ -6177,7 +6245,7 @@ sub main() {
             $exitstatus = 1;
         }
     } else {
-        error "unknown format: $format";
+        error "unknown format: $options->{format}";
     }
     close($rfh);
     waitpid $pid, 0;
@@ -6188,9 +6256,10 @@ sub main() {
     # change signal handler message
     $waiting_for = "cleanup";
 
-    if (any { $_ eq $format } ('directory')) {
+    if (any { $_ eq $options->{format} } ('directory')) {
         # nothing to do
-    } elsif (any { $_ eq $format } ('tar', 'squashfs', 'ext2', 'null')) {
+    } elsif (any { $_ eq $options->{format} }
+        ('tar', 'squashfs', 'ext2', 'null')) {
         if (!-e $options->{root}) {
             error "$options->{root} does not exist";
         }
@@ -6238,7 +6307,7 @@ sub main() {
             error "unknown mode: $options->{mode}";
         }
     } else {
-        error "unknown format: $format";
+        error "unknown format: $options->{format}";
     }
 
     if ($got_signal) {
@@ -7252,9 +7321,20 @@ Performs cleanup tasks, unless B<--skip=cleanup> is used:
 
 =back
 
+=item B<output>
+
 For formats other than B<directory>, pack up the temporary chroot directory
 into a tarball, ext2 image or squashfs image and delete the temporary chroot
 directory.
+
+If B<--skip=output/dev> is added, the resulting chroot will not contain the
+device nodes, directories and symlinks that B<debootstrap> creates but just
+an empty /dev as created by B<base-files>.
+
+If B<--skip=output/mknod> is added, the resulting chroot will not contain
+device nodes (neither block nor character special devices). This is useful
+if the chroot tarball is to be exatracted in environments where mknod does
+not function like in unshared user namespaces.
 
 =back
 
@@ -7470,7 +7550,7 @@ Create a system that can be used with podman:
 
 As a docker/podman replacement:
 
-    $ mmdebstrap unstable | mmtarfilter --path-exclude='/dev/*' > chroot.tar
+    $ mmdebstrap --skip=output/mknod unstable chroot.tar
     [...]
     $ mmdebstrap --variant=custom --skip=update \
         --setup-hook='tar-in chroot.tar /' \

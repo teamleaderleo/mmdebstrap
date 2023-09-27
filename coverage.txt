@@ -422,3 +422,9 @@ Skip-If: hostarch in ["i386", "armel", "armhf", "mipsel"] # #1023286
 
 Test: auto-mode-as-normal-user
 Modes: auto
+
+Test: skip-output-dev
+Modes: root unshare
+
+Test: skip-output-mknod
+Modes: root unshare
