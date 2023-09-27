@@ -250,6 +250,17 @@ END
 	trap "-" EXIT INT TERM
 )
 
+check_proxy_running() {
+	if timeout 1 bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET http://deb.debian.org/debian/dists/'"$DEFAULT_DIST"'/InRelease HTTP/1.1\nHost: deb.debian.org\n\n" >&3 && grep "Suite: '"$DEFAULT_DIST"'" <&3 >/dev/null' 2>/dev/null; then
+		return 0
+	elif timeout 1 env http_proxy="http://127.0.0.1:8080/" wget --quiet -O - "http://deb.debian.org/debian/dists/$DEFAULT_DIST/InRelease" | grep "Suite: $DEFAULT_DIST" >/dev/null; then
+		return 0
+	elif timeout 1 curl --proxy "http://127.0.0.1:8080/" --silent "http://deb.debian.org/debian/dists/$DEFAULT_DIST/InRelease" | grep "Suite: $DEFAULT_DIST" >/dev/null; then
+		return 0
+	fi
+	return 1
+}
+
 if [ -e "./shared/cache.A" ] && [ -e "./shared/cache.B" ]; then
 	echo "both ./shared/cache.A and ./shared/cache.B exist" >&2
 	echo "was a former run of the script aborted?" >&2
@@ -317,7 +328,7 @@ PROXYPID=$!
 trap 'kill "$PROXYPID" || :' EXIT INT TERM
 
 for i in $(seq 10); do
-	curl --proxy "http://127.0.0.1:8080/" --silent -o /dev/null "http://deb.debian.org/debian/dists/$DEFAULT_DIST/InRelease" && break
+	check_proxy_running && break
 	sleep 1
 done
 if [ ! -s "$newmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
@@ -426,7 +437,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	PROXYPID=$!
 
 	for i in $(seq 10); do
-		curl --proxy "http://127.0.0.1:8080/" --silent -o /dev/null "http://deb.debian.org/debian/dists/$DEFAULT_DIST/InRelease" && break
+		check_proxy_running && break
 		sleep 1
 	done
 	if [ ! -s "$newmirrordir/dists/$DEFAULT_DIST/InRelease" ]; then
