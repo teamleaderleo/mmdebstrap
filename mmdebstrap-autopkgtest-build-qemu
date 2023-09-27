@@ -6,6 +6,15 @@
 # We generally use single quotes to avoid variable expansion:
 # shellcheck disable=SC2016
 
+# Replacement for autopkgtest-build-qemu and vmdb2 for all architectures
+# supporting EFI booting (amd64, arm64, armhf, i386, riscv64).
+# For use as replacement for autopkgtest-build-qemu and vmdb2 on ppc64el which
+# neither supports extlinux nor efi booting there is an unmaintained script
+# which uses grub instead to boot:
+#
+#     https://gitlab.mister-muffin.de/josch/mmdebstrap/src/commit/
+#     e523741610a4ed8579642bfc755956f64c847ef3/mmdebstrap-autopkgtest-build-qemu
+
 : <<'POD2MAN'
 =head1 NAME
 
