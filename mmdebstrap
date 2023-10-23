@@ -6175,6 +6175,8 @@ sub main() {
         # nothing to do
     } elsif (any { $_ eq $options->{format} } ('directory', 'null')) {
         # nothing to do
+    } elsif ($options->{format} eq 'ext2' && $numblocks <= 0) {
+        # nothing to do because of invalid $numblocks
     } elsif (any { $_ eq $options->{format} } ('tar', 'squashfs', 'ext2')) {
         # we use eval() so that error() doesn't take this process down and
         # thus leaves the setup() process without a parent
