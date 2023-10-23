@@ -6693,6 +6693,10 @@ installed. At that point, the chroot directory does not contain any
 executables and thus cannot be chroot-ed into. See section B<HOOKS> for more
 information.
 
+Example: add additional apt sources entries on top of the default ones:
+
+    --setup-hook='echo "deb http..." > "$1"/etc/apt/sources.list.d/custom.list'
+
 Example: Setup chroot for installing a sub-essential busybox-based chroot
 with --variant=custom
 --include=dpkg,busybox,libc-bin,base-files,base-passwd,debianutils
