@@ -2962,15 +2962,15 @@ sub run_install() {
 
     my @pkgs_to_install = (@{ $options->{include} });
     if ($options->{variant} eq 'buildd') {
-        push @pkgs_to_install, 'build-essential';
+        push @pkgs_to_install, 'build-essential', 'apt';
     }
     if (any { $_ eq $options->{variant} }
-        ('required', 'important', 'standard', 'buildd')) {
+        ('required', 'important', 'standard')) {
         # Many of the priority:required packages are also essential:yes. We
         # make sure not to select those here to avoid useless "xxx is already
         # the newest version" messages.
         my $priority;
-        if (any { $_ eq $options->{variant} } ('required', 'buildd')) {
+        if (any { $_ eq $options->{variant} } ('required')) {
             $priority = '?and(?priority(required),?not(?essential))';
         } elsif ($options->{variant} eq 'important') {
             $priority = '?and(?or(?priority(required),?priority(important)),'
