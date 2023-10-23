@@ -446,6 +446,10 @@ def main():
         print("failed %d:" % len(failed), file=sys.stderr)
         for f in failed:
             print(f, file=sys.stderr)
+    currenttime = time.time()
+    walltime = timedelta(seconds=int(currenttime - starttime))
+    print(f"total runtime: {walltime}", file=sys.stderr)
+    if failed:
         exit(1)
 
 
