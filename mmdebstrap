@@ -1630,6 +1630,7 @@ sub run_hooks {
     if (defined $options->{suite}) {
         push @env_opts, "MMDEBSTRAP_SUITE=$options->{suite}";
     }
+    push @env_opts, "MMDEBSTRAP_FORMAT=$options->{format}";
     # Storing the hook name is important for hook scripts to potentially change
     # their behavior depending on the hook. It's also important for when the
     # hook wants to use the mmdebstrap --hook-helper.
@@ -7020,11 +7021,12 @@ C<APT_CONFIG> as written by mmdebstrap it can be found in the
 C<MMDEBSTRAP_APT_CONFIG> environment variable. All environment variables set by
 the user are preserved, except for C<TMPDIR> which is cleared. See section
 B<TMPDIR>. Furthermore, C<MMDEBSTRAP_MODE> will store the mode set by
-B<--mode>, C<MMDEBSTRAP_HOOK> stores which hook is currently run (setup,
-extract, essential, customize), C<MMDEBSTRAP_ARGV0> stores the name of the
-binary with which B<mmdebstrap> was executed and C<MMDEBSTRAP_VERBOSITY> stores
-the numerical verbosity level (0 for no output, 1 for normal, 2 for verbose and
-3 for debug output). The C<MMDEBSTRAP_INCLUDE> variable stores the list of
+B<--mode>, C<MMDEBSTRAP_FORMAT> stores the format chosen by B<--format>,
+C<MMDEBSTRAP_HOOK> stores which hook is currently run (setup, extract,
+essential, customize), C<MMDEBSTRAP_ARGV0> stores the name of the binary with
+which B<mmdebstrap> was executed and C<MMDEBSTRAP_VERBOSITY> stores the
+numerical verbosity level (0 for no output, 1 for normal, 2 for verbose and 3
+for debug output). The C<MMDEBSTRAP_INCLUDE> variable stores the list of
 packages, apt patterns or file paths given by the B<--include> option,
 separated by a comma and with commas and percent signs in the option values
 urlencoded. If I<SUITE> name was supplied, it's stored in C<MMDEBSTRAP_SUITE>.
