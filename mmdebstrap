@@ -4022,6 +4022,8 @@ sub hooklistener {
                 if ($? != 0) {
                     error "tar failed";
                 }
+            } elsif ($msg eq "error") {
+                error "received error on socket";
             } else {
                 error "unknown message: $msg";
             }
