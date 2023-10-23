@@ -2601,6 +2601,8 @@ sub run_extract() {
         }
         # not using dpkg-deb --extract as that would replace the
         # merged-usr symlinks with plain directories
+        # even after switching from pre-merging to post-merging, dpkg-deb
+        # will ignore filter rules from dpkg.cfg.d
         # https://bugs.debian.org/989602
         # not using dpkg --unpack because that would try running preinst
         # maintainer scripts
