@@ -1170,6 +1170,12 @@ sub setup_mounts {
                             );
                             next;
                         }
+                        if (-e "$options->{root}/dev/$fname") {
+                            warning(
+                                "skipping creation of ./dev/$fname because it"
+                                  . " already exists in the target");
+                            next;
+                        }
                         push @cleanup_tasks, sub {
                             unlink "$options->{root}/dev/$fname"
                               or warning("cannot unlink ./dev/$fname: $!");
