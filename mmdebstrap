@@ -6757,6 +6757,13 @@ Example: Preparing a chroot for use with autopkgtest
     --customize-hook='echo "127.0.0.1 localhost host" > "$1/etc/hosts"'
     --customize-hook=/usr/share/autopkgtest/setup-commands/setup-testbed
 
+Example: to mimic B<debootstrap> behaviour, B<mmdebstrap> copies from the host.
+Remove them in a B<--customize-hook> to make the chroot reproducible across
+multiple hosts:
+
+    --customize-hook='rm "$1"/etc/resolv.conf'
+    --customize-hook='rm "$1"/etc/hostname'
+
 =item B<--hook-directory>=I<directory>
 
 Execute scripts in I<directory> with filenames starting with C<setup>,
