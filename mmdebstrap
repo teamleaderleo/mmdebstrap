@@ -1755,7 +1755,8 @@ sub run_hooks {
                     # does for python
                     my @args = shellwords $script;
                     hookhelper($options->{root}, $options->{mode}, $name,
-                        $options->{qemu}, $verbosity_level, @args);
+                        (join ',', @{ $options->{skip} }),
+                        $verbosity_level, @args);
                     exit 0;
                 }
                 waitpid($pid, 0);
@@ -3356,8 +3357,20 @@ sub pivot_root {
 }
 
 sub hookhelper {
-    my ($root, $mode, $hook, $qemu, $verbosity, $command, @args) = @_;
+    my ($root, $mode, $hook, $skipopt, $verbosity, $command, @args) = @_;
     $verbosity_level = $verbosity;
+    my @skipopts = ();
+    if (length $skipopt) {
+        for my $skip (split /[,\s]+/, $skipopt) {
+            # strip leading and trailing whitespace
+            $skip =~ s/^\s+|\s+$//g;
+            # skip if the remainder is an empty string
+            if ($skip eq '') {
+                next;
+            }
+            push @skipopts, $skip;
+        }
+    }
     # we put everything in an eval block because that way we can easily handle
     # errors without goto labels or much code duplication: the error handler
     # has to send an "error" message to the other side
