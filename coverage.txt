@@ -428,3 +428,6 @@ Modes: root unshare
 
 Test: skip-output-mknod
 Modes: root unshare
+
+Test: skip-tar-in-mknod
+Modes: unshare

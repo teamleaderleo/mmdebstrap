@@ -3459,8 +3459,48 @@ sub hookhelper {
                         @cmdprefix,    @tarcmd,    '--xattrs-include=*',
                         '--directory', $directory, '--extract', '--file', '-'
                     );
-                    debug("helper: running " . (join " ", @cmd));
-                    open($fh, '|-', @cmd) // error "failed to fork(): $!";
+                    # go via mmtarfilter if copy-in/mknod, tar-in/mknod or
+                    # sync-in/mknod were part of the skip options
+                    if (any { $_ eq "$command/mknod" } @skipopts) {
+                        info "skipping $command/mknod as requested";
+                        my $tarfilter = "mmtarfilter";
+                        if (-x "./tarfilter") {
+                            $tarfilter = "./tarfilter";
+                        }
+                        pipe my $filter_reader, $fh or error "pipe failed: $!";
+                        pipe my $tar_reader, my $filter_writer
+                          or error "pipe failed: $!";
+                        my $pid1 = fork() // error "fork() failed: $!";
+                        if ($pid1 == 0) {
+                            open(STDIN, '<&', $filter_reader)
+                              or error "cannot open STDIN: $!";
+                            open(STDOUT, '>&', $filter_writer)
+                              or error "cannot open STDOUT: $!";
+                            close($tar_reader)
+                              or error "cannot close tar_reader: $!";
+                            debug(
+                                "helper: running $tarfilter --type-exclude=3 "
+                                  . "--type-exclude=4");
+                            eval { Devel::Cover::set_coverage("none") }
+                              if $is_covering;
+                            exec $tarfilter, '--type-exclude=3',
+                              '--type-exclude=4';
+                        }
+                        my $pid2 = fork() // error "fork() failed: $!";
+                        if ($pid2 == 0) {
+                            open(STDIN, '<&', $tar_reader)
+                              or error "cannot open STDIN: $!";
+                            close($filter_writer)
+                              or error "cannot close filter_writer: $!";
+                            debug("helper: running " . (join " ", @cmd));
+                            eval { Devel::Cover::set_coverage("none") }
+                              if $is_covering;
+                            exec { $cmd[0] } @cmd;
+                        }
+                    } else {
+                        debug("helper: running " . (join " ", @cmd));
+                        open($fh, '|-', @cmd) // error "failed to fork(): $!";
+                    }
                 } else {
                     error "unknown command: $command";
                 }
@@ -7088,7 +7128,9 @@ only update the content of an existing directory.
 =item B<tar-in> I<outside.tar> I<pathinside>
 
 Unpacks a tarball I<outside.tar> from outside the chroot into a certain
-location I<pathinside> inside the chroot.
+location I<pathinside> inside the chroot. In B<unshare> mode, device nodes
+cannot be created. To ignore device nodes in tarballs, use
+B<--skip=tar-in/mknod>.
 
 =item B<tar-out> I<pathinside> I<outside.tar>
 
@@ -7530,9 +7572,9 @@ Create a system that can be used with podman:
 
 As a docker/podman replacement:
 
-    $ mmdebstrap --skip=output/mknod unstable chroot.tar
+    $ mmdebstrap unstable chroot.tar
     [...]
-    $ mmdebstrap --variant=custom --skip=update \
+    $ mmdebstrap --variant=custom --skip=update,tar-in/mknod \
         --setup-hook='tar-in chroot.tar /' \
         --customize-hook='chroot "$1" whoami' unstable /dev/null
     [...]
@@ -7545,8 +7587,8 @@ installed, then instead of downloading and installing the essential packages
 twice you can instead build on top of the already present minimal chroot:
 
     $ mmdebstrap --variant=apt unstable chroot.tar
-    $ mmdebstrap --variant=custom --setup-hook \
-        'mmtarfilter "--path-exclude=/dev/*" < chroot.tar | tar -C "$1" -x' \
+    $ mmdebstrap --variant=custom --skip=update,setup,cleanup,tar-in/mknod \
+        --setup-hook='tar-in chroot.tar /' \
         --customize-hook='chroot "$1" apt-get install --yes pkg1 pkg2' \
         '' chroot-full.tar
 
