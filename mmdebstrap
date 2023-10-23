@@ -6747,15 +6747,16 @@ Execute arbitrary I<command>s after the chroot is set up and all packages got
 installed but before final cleanup actions are carried out. See section
 B<HOOKS> for more information.
 
-Example: Preparing a chroot for use with autopkgtest
+Example: Add a user without a password
 
-    --customize-hook='chroot "$1" passwd --delete root'
     --customize-hook='chroot "$1" useradd --home-dir /home/user
         --create-home user'
     --customize-hook='chroot "$1" passwd --delete user'
+
+Example: set up F</etc/hostname> and F</etc/hosts>
+
     --customize-hook='echo host > "$1/etc/hostname"'
     --customize-hook='echo "127.0.0.1 localhost host" > "$1/etc/hosts"'
-    --customize-hook=/usr/share/autopkgtest/setup-commands/setup-testbed
 
 Example: to mimic B<debootstrap> behaviour, B<mmdebstrap> copies from the host.
 Remove them in a B<--customize-hook> to make the chroot reproducible across
@@ -7524,7 +7525,14 @@ sources on the current system:
             --wildcards './usr/src/libdvd-pkg/libdvdcss2_*_*.deb'
     $ ls libdvdcss2_*_*.deb
 
-Use as replacement for autopkgtest-build-qemu and vmdb2:
+Use as replacement for autopkgtest-build-qemu and vmdb2 for all architectures
+supporting EFI booting (amd64, arm64, armhf, i386, riscv64), use a convenience
+wrapper around B<mmdebstrap>:
+
+    $ mmdebstrap-autopkgtest-build-qemu unstable ./autopkgtest.img
+
+Use as replacement for autopkgtest-build-qemu and vmdb2 on architectures
+supporting extlinux (amd64 and i386):
 
     $ mmdebstrap --variant=important --include=linux-image-amd64 \
         --customize-hook='chroot "$1" passwd --delete root' \
