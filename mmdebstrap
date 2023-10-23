@@ -7594,6 +7594,12 @@ Create a system that can be used with docker:
     root
     $ sudo docker rmi debian
 
+Create and boot a qemu virtual machine for an arbitrary architecture using
+the B<debvm-create> wrapper script around B<mmdebstrap>:
+
+    $ debvm-create -r stable -- --architecture=riscv64
+    $ debvm-run
+
 Create a system that can be used with podman:
 
     $ mmdebstrap unstable | podman import - debian
