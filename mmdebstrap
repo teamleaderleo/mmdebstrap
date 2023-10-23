@@ -1181,7 +1181,7 @@ sub setup_mounts {
                               or warning("cannot unlink ./dev/$fname: $!");
                         };
                         symlink $linkname, "$options->{root}/dev/$fname"
-                          or error
+                          or warning
                           "cannot create symlink ./dev/$fname -> $linkname";
                     }
                 } elsif ($type == 3 or $type == 4) {
