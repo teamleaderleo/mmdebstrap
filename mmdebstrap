@@ -4030,7 +4030,7 @@ sub hooklistener {
         }
     };
     if ($@) {
-        debug("hooklistener errored out: $@");
+        warning("hooklistener errored out: $@");
         # inform the other side that something went wrong
         print STDOUT (pack("n", 0) . "error")
           or error "cannot write to socket: $!";
