@@ -6265,8 +6265,30 @@ sub main() {
             # running tar and this process itself) to reliably tear down
             # all running child processes. The main process is not affected
             # because we are ignoring SIGHUP.
+            #
+            # FIXME: this codepath becomes dangerous in case mmdebstrap is not
+            # run in its own process group. When run from the terminal, the
+            # shell creates a new process group as part of its job control, so
+            # sending SIGHUP to all processes in our own process group should
+            # not be dangerous.  But for example, on debci, lxc will run in the
+            # same process group as mmdebstrap and sending SIGHUP to the whole
+            # process group will also kill lxc. Creating a new process group
+            # for $pid will break things because only the foreground job is
+            # allowed to read from the terminal.  If a background job does it,
+            # i will be suspended with SIGTTIN.  Even though apt could be told
+            # to not read from the terminal by opening STDIN from /dev/null,
+            # this would make --chrooted-customize-hook=bash impossible.
+            # Making the $pid process group the foreground job will destroy all
+            # the signal handling we have set up for when the user presses
+            # ctrl+c in a terminal. Even if we fix the signal handling we now
+            # find ourselves in the opposite situation: the $pid process must
+            # now clean up the former main process tree reliably. And we cannot
+            # create a new process group for everything all-in-one because that
+            # would also destroy CTRL+C handling from the terminal.
             warning "creating tarball failed: $@";
-            kill HUP => -getpgrp();
+            my $pgroup = getpgrp();
+            warning "sending SIGHUP to all processes in process group $pgroup";
+            kill HUP => -$pgroup;
             $exitstatus = 1;
         }
     } else {
