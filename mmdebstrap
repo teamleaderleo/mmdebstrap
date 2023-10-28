@@ -6528,13 +6528,13 @@ Example: Minimizing the number of packages installed from experimental
 Change the default keyring to use by apt during the initial setup. This is
 similar to setting B<Dir::Etc::Trusted> and B<Dir::Etc::TrustedParts> using
 B<--aptopt> except that the latter setting will be permanently stored in the
-chroot while the keyrings passed via <--keyring> will only be visible to apt as
-run by B<mmdebstrap>. Do not use B<--keyring> if apt inside the chroot needs to
-know about your keys after the initial chroot creation by B<mmdebstrap>. This
-option is mainly intended for users who use B<mmdebstrap> as a B<deboostrap>
-drop-in replacement. As such, it is probably not what you want to use if you
-use B<mmdebstrap> with more than a single mirror unless you pass it a directory
-containing all the keyrings you need.
+chroot while the keyrings passed via B<--keyring> will only be visible to apt
+as run by B<mmdebstrap>. Do not use B<--keyring> if apt inside the chroot needs
+to know about your keys after the initial chroot creation by B<mmdebstrap>.
+This option is mainly intended for users who use B<mmdebstrap> as a
+B<deboostrap> drop-in replacement. As such, it is probably not what you want to
+use if you use B<mmdebstrap> with more than a single mirror unless you pass it
+a directory containing all the keyrings you need.
 
 By default, the local setting of B<Dir::Etc::Trusted> and
 B<Dir::Etc::TrustedParts> are used to choose the keyring used by apt as run by
@@ -6570,7 +6570,7 @@ pointing to F</usr/share/keyrings/ubuntu-archive-keyring.gpg>.
 
 You do not need to use B<--keyring> or C<signed-by> if you placed the keys that
 apt needs to know about into F</etc/apt/trusted.gpg.d> in the B<--setup-hook>
-(which is before C<apt update> runs), for example by using the <copy-in>
+(which is before C<apt update> runs), for example by using the B<copy-in>
 special hook. You also need to copy your keys into the chroot explicitly if the
 key you passed via C<signed-by> points to a location that is not otherwise
 populated during chroot creation (for example by installing a keyring package).
@@ -6606,7 +6606,7 @@ additional packages. Package names are directly passed to apt and thus, you
 can use apt features like C<pkg/suite>, C<pkg=version>, C<pkg->, use a glob or
 regex for C<pkg>, use apt patterns or pass a path to a .deb package file (see
 below for notes concerning passing the path to a .deb package file in
-B<unshare> mode). See apt(8) for the supported syntax.
+B<unshare> mode). See L<apt(8)> for the supported syntax.
 
 The option can be specified multiple times and the packages are concatenated in
 the order in which they are given on the command line. If later list items are
@@ -6870,9 +6870,9 @@ allow unprivileged use of chroot and creation of files that appear to be owned
 by the superuser inside the unshared namespace. A tarball created in this mode
 will be bit-by-bit identical to a tarball created with the B<root> mode. With
 this mode, the only binaries that will run as the root user will be
-B<newuidmap(1)> and B<newgidmap(1)> via their setuid bit. Running those
+L<newuidmap(1)> and L<newgidmap(1)> via their setuid bit. Running those
 successfully requires F</etc/subuid> and F</etc/subgid> to have an entry for
-your username. This entry was usually created by B<adduser(8)> already.
+your username. This entry was usually created by L<adduser(8)> already.
 
 The unshared user will not automatically have access to the same files as you
 do. This is intentional and an additional security against unintended changes
@@ -6882,8 +6882,8 @@ globally readable or writable directories or use special hooks like B<copy-in>
 and B<copy-out>.
 
 Besides the user namespace, the mount, pid (process ids), uts (hostname) and
-ipc namespaces will be unshared as well. See the man pages of B<namespaces(7)>
-and B<unshare(2)> as well as the manual pages they are linking to.
+ipc namespaces will be unshared as well. See the man pages of L<namespaces(7)>
+and L<unshare(2)> as well as the manual pages they are linking to.
 
 A directory chroot created with this mode will end up with wrong ownership
 information (seen from outside the unshared user namespace). For correct
@@ -6919,7 +6919,7 @@ C<fakechroot fakeroot -i fakeroot.env chroot ...>. This mode will not work if
 maintainer scripts are unable to handle C<LD_PRELOAD> correctly like the
 package B<initramfs-tools> until version 0.132. This mode will also not work
 with a different libc inside the chroot than on the outside. See the section
-B<LIMITATIONS> in B<fakechroot(1)>.
+B<LIMITATIONS> in L<fakechroot(1)>.
 
 =item B<chrootless>
 
@@ -6934,7 +6934,7 @@ dpkg-root-support usertag of debian-dpkg@lists.debian.org in the Debian bug
 tracking system. B<WARNING>: if this option is used carelessly with packages
 that do not support C<DPKG_ROOT>, this mode can result in undesired changes to
 the system running B<mmdebstrap> because maintainer-scripts will be run without
-B<chroot(1)>.
+L<chroot(1)>.
 
 =for TODO
 =item B<qemu>
@@ -7030,7 +7030,7 @@ of the filename extensions listed in the section B<COMPRESSION>, or if
 I<TARGET> equals C<->, or if I<TARGET> is a named pipe (fifo) or if I<TARGET>
 is a character special file, then the B<tar> format will be chosen. If
 I<TARGET> ends with C<.squashfs> or C<.sqfs>, then the B<squashfs> format will
-be chosen. If <TARGET> ends with C<.ext2> then the B<ext2> format will be
+be chosen. If I<TARGET> ends with C<.ext2> then the B<ext2> format will be
 chosen. If none of these conditions apply, the B<directory> format will be
 chosen.
 
@@ -7841,7 +7841,7 @@ update" as an error.
 
 =head1 SEE ALSO
 
-    debootstrap(8), debvm(1), bdebstrap(1)
+L<debootstrap(8)>, L<debvm(1)>, L<bdebstrap(1)>
 
 =cut
 

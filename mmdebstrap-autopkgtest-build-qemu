@@ -27,10 +27,10 @@ B<mmdebstrap-autopkgtest-build-qemu> [I<OPTIONS>] B<--boot>=B<efi> I<RELEASE> I<
 =head1 DESCRIPTION
 
 B<mmdebstrap-autopkgtest-build-qemu> is a mostly compatible drop-in replacement
-for B<autopkgtest-build-qemu>(1) with two main differences: Firstly, it uses
-B<mmdebstrap>(1) instead of B<vmdb2>(1) and thus is able to create QEMU disk
+for L<autopkgtest-build-qemu(1)> with two main differences: Firstly, it uses
+L<mmdebstrap(1)> instead of L<vmdb2(1)> and thus is able to create QEMU disk
 images without requiring superuser privileges.  Secondly, it uses
-B<systemd-boot>(7) and thus only supports booting via EFI.
+L<systemd-boot(7)> and thus only supports booting via EFI.
 
 =head1 POSITIONAL PARAMETERS
 
@@ -58,7 +58,7 @@ Debian derivative.
 
 =item B<--architecture>=I<ARCHITECTURE>
 
-Set the architecture for the virtual machine image, specified as a B<dpkg>(1)
+Set the architecture for the virtual machine image, specified as a L<dpkg(1)>
 architecture.  If  omitted, the host architecture is assumed.
 
 B<--arch>=I<ARCH> is an alias for this option.
@@ -70,7 +70,7 @@ image as its first parameter. This script can them make any necesssary
 modifications to the root filesystem.
 
 The script must be a POSIX shell script, and should not depend on bash-specific
-features. This  script will be executed inside a B<chroot>(1) call in the
+features. This  script will be executed inside a L<chroot(1)> call in the
 virtual machine root filesystem.
 
 =item B<--size>=I<SIZE>
@@ -102,7 +102,7 @@ Passes an additional B<--keyring> parameter to B<mmdebstrap>.
 
 =head1 SEE ALSO
 
-    B<autopkgtest-build-qemu>(1), B<autopkgtest-virt-qemu>(1), B<mmdebstrap>(1), B<autopkgtest>(1)
+L<autopkgtest-build-qemu(1)>, L<autopkgtest-virt-qemu(1)>, L<mmdebstrap(1)>, L<autopkgtest(1)>
 
 =cut
 POD2MAN
