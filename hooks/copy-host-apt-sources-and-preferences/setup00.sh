@@ -29,10 +29,13 @@ for f in "$SOURCELIST" \
 	"$PREFERENCES" \
 	"$PREFERENCESPARTS"/*; do
 	[ -e "$f" ] || continue
+	mkdir --parents "$(dirname "$rootdir/$f")"
 	if [ -e "$rootdir/$f" ]; then
 		if [ "${MMDEBSTRAP_VERBOSITY:-1}" -ge 2 ]; then
 			echo "I: $f already exists in chroot, appending..." >&2
 		fi
+		# Add extra newline between old content and new content.
+		# This is required in case of deb822 files.
 		echo >> "$rootdir/$f"
 	fi
 	cat "$f" >> "$rootdir/$f"
