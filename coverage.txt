@@ -418,7 +418,9 @@ Test: empty-sources.list
 Test: merged-fakechroot-inside-unmerged-chroot
 Needs-Root: true
 Needs-APT-Config: true
-Skip-If: hostarch in ["i386", "armel", "armhf", "mipsel"] # #1023286
+Skip-If:
+ hostarch in ["i386", "armel", "armhf", "mipsel"] # #1023286
+ dist in ["testing", "unstable"]  # #1053671
 
 Test: auto-mode-as-normal-user
 Modes: auto
