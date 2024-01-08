@@ -10,9 +10,6 @@ cleanup() {
 	rv=$?
 	rm -f "$tmpdir/log"
 	[ -e "$tmpdir" ] && rmdir "$tmpdir"
-	if [ -n "${TAIL_PID:-}" ]; then
-		kill "$TAIL_PID"
-	fi
 	if [ -e shared/output.txt ]; then
 		res="$(cat shared/exitstatus.txt)"
 		if [ "$res" != "0" ]; then
@@ -30,8 +27,7 @@ if [ -e shared/output.txt ]; then
 	rm shared/output.txt
 fi
 touch shared/output.txt
-tail -f shared/output.txt &
-TAIL_PID=$!
+setpriv --pdeathsig TERM tail -f shared/output.txt &
 
 # to connect to serial use:
 #   minicom -D 'unix#/tmp/ttyS0'
