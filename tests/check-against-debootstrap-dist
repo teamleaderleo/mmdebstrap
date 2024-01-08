@@ -13,6 +13,7 @@ echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 {{ CMD }} --variant={{ VARIANT }} --mode={{ MODE }} \
 	--essential-hook='[ {{ DIST }} = oldstable ] && [ {{ VARIANT }} = - ] && echo _apt:*:100:65534::/nonexistent:/usr/sbin/nologin >> "$1"/etc/passwd || :' \
 	"$(if [ {{ DIST }} = oldstable ]; then echo --merged-usr; else echo --hook-dir=./hooks/merged-usr; fi)" \
+	"$(case {{ DIST }} in oldstable) echo --include=e2fsprogs,mount,tzdata,gcc-9-base;; stable) echo --include=e2fsprogs,mount,tzdata;; *) echo --include=base-files ;; esac )" \
 	{{ DIST }} /tmp/debian-{{ DIST }}-mm.tar {{ MIRROR }}
 
 mkdir /tmp/debian-{{ DIST }}-mm
@@ -176,7 +177,7 @@ fi
 
 # since debootstrap 1.0.133 there is no tzdata in the buildd variant and thus
 # debootstrap creates its own /etc/localtime
-if [ "{{ VARIANT }}" = "buildd" ]; then
+if [ "{{ VARIANT }}" = "buildd" ] && [ "{{ DIST }}" != "stable" ] && [ "{{ DIST }}" != "oldstable" ]; then
 	[ "$(readlink /tmp/debian-{{ DIST }}-debootstrap/etc/localtime)" = /usr/share/zoneinfo/UTC ]
 	rm /tmp/debian-{{ DIST }}-debootstrap/etc/localtime
 fi
