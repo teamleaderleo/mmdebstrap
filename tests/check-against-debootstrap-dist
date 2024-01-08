@@ -182,6 +182,25 @@ if [ "{{ VARIANT }}" = "buildd" ] && [ "{{ DIST }}" != "stable" ] && [ "{{ DIST 
 	rm /tmp/debian-{{ DIST }}-debootstrap/etc/localtime
 fi
 
+# starting with systemd 255 upstream dropped splitusr support and depending on
+# the installation order, symlink targets are prefixed with /usr or not
+# See #1060000 and #1054137
+case {{ DIST }} in testing|unstable)
+	for f in multi-user.target.wants/e2scrub_reap.service timers.target.wants/apt-daily-upgrade.timer timers.target.wants/apt-daily.timer timers.target.wants/e2scrub_all.timer; do
+		for d in mm debootstrap; do
+			[ -L "/tmp/debian-{{ DIST }}-$d/etc/systemd/system/$f" ] || continue
+			oldlink="$(readlink "/tmp/debian-{{ DIST }}-$d/etc/systemd/system/$f")"
+			case $oldlink in
+				/usr/*) : ;;
+				/*) oldlink="/usr$oldlink" ;;
+				*) echo unexpected >&2; exit 1 ;;
+			esac
+			ln -sf "$oldlink" "/tmp/debian-{{ DIST }}-$d/etc/systemd/system/$f"
+		done
+	done
+	;;
+esac
+
 # check if the file content differs
 diff --unified --no-dereference --recursive /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm >&2
 
@@ -190,8 +209,9 @@ diff --unified --no-dereference --recursive /tmp/debian-{{ DIST }}-debootstrap /
 find /tmp/debian-{{ DIST }}-debootstrap /tmp/debian-{{ DIST }}-mm -type d -print0 | xargs -0 touch --date="@{{ SOURCE_DATE_EPOCH }}"
 # debootstrap never ran apt -- fixing permissions
 for d in ./var/lib/apt/lists/partial ./var/cache/apt/archives/partial; do
-	chroot /tmp/debian-{{ DIST }}-debootstrap chmod 0700 $d
-	chroot /tmp/debian-{{ DIST }}-debootstrap chown "$(id -u _apt):root" $d
+	unmergedPATH="$PATH$(if [ "{{ DIST }}" = oldstable ]; then echo :/bin:/sbin; fi)"
+	PATH="$unmergedPATH" chroot /tmp/debian-{{ DIST }}-debootstrap chmod 0700 $d
+	PATH="$unmergedPATH" chroot /tmp/debian-{{ DIST }}-debootstrap chown "$(id -u _apt):root" $d
 done
 tar -C /tmp/debian-{{ DIST }}-debootstrap --numeric-owner --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/root1.tar .
 tar -C /tmp/debian-{{ DIST }}-mm --numeric-owner --sort=name --clamp-mtime --mtime="$(date --utc --date=@{{ SOURCE_DATE_EPOCH }} --iso-8601=seconds)" -cf /tmp/root2.tar .

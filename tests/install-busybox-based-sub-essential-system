@@ -28,6 +28,11 @@ for cmd in sort tee; do
 	test -L /tmp/debian-chroot/usr/bin/$cmd
 	test "$(readlink /tmp/debian-chroot/usr/bin/$cmd)" = "/usr/bin/busybox"
 done
+
+# if /bin or /sbin are not symlinks, add /bin and /sbin to PATH
+if [ ! -L /tmp/debian-chroot/bin ] || [ ! -L /tmp/debian-chroot/sbin ]; then
+	export PATH="$PATH:/sbin:/bin"
+fi
 chroot /tmp/debian-chroot echo foobar \
 	| chroot /tmp/debian-chroot cat \
 	| chroot /tmp/debian-chroot sort \
