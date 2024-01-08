@@ -27,7 +27,7 @@ for f in tarfilter coverage.py caching_proxy.py; do
 	black --check "./$f"
 done
 
-shellcheck --exclude=SC2016 coverage.sh make_mirror.sh run_null.sh run_qemu.sh gpgvnoexpkeysig hooks/*/*.sh
+shellcheck --exclude=SC2016 coverage.sh make_mirror.sh run_null.sh run_qemu.sh gpgvnoexpkeysig mmdebstrap-autopkgtest-build-qemu hooks/*/*.sh
 
 mirrordir="./shared/cache/debian"
 
