@@ -4722,7 +4722,7 @@ sub main() {
                 }
                 push @{ $options->{skip} }, $skip;
             }
-        }) or pod2usage(-exitval => 2, -verbose => 1);
+        }) or pod2usage(-exitval => 2, -verbose => 0);
 
     if (defined($logfile)) {
         open(STDERR, '>', $logfile) or error "cannot open $logfile: $!";
