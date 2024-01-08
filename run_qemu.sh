@@ -36,6 +36,7 @@ setpriv --pdeathsig TERM tail -f shared/output.txt &
 #   socat stdin,raw,echo=0,escape=0x11 unix-connect:/tmp/ttyS0
 ret=0
 timeout --foreground 40m debvm-run --image="$(realpath "$cachedir")/debian-$DEFAULT_DIST.ext4" -- \
+	-nic none \
 	-m 4G -snapshot \
 	-monitor unix:/tmp/monitor,server,nowait \
 	-serial unix:/tmp/ttyS0,server,nowait \

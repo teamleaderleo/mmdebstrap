@@ -493,6 +493,8 @@ mount -t 9p -o trans=virtio,access=any,msize=128k mmdebstrap /mnt
 # need to restart mini-httpd because we mounted different content into www-root
 systemctl restart mini-httpd
 
+ip link set enp0s1 down || :
+
 handler () {
 	while IFS= read -r line || [ -n "$line" ]; do
 		printf "%s %s: %s\n" "$(date -u -d "0 $(date +%s.%3N) seconds - $2 seconds" +"%T.%3N")" "$1" "$line"
@@ -530,7 +532,8 @@ END
 	fi
 	# set PATH to pick up the correct mmdebstrap variant
 	env PATH="$(dirname "$(realpath --canonicalize-existing "$CMD")"):$PATH" \
-		debvm-create --skip=usrmerge --size="$DISK_SIZE" --release="$DEFAULT_DIST" \
+		debvm-create --skip=usrmerge,systemdnetwork \
+		--size="$DISK_SIZE" --release="$DEFAULT_DIST" \
 		--output="$newcachedir/debian-$DEFAULT_DIST.ext4" -- \
 		--architectures="$arches" --include="$pkgs" \
 		--setup-hook='echo "Acquire::http::Proxy \"http://127.0.0.1:8080/\";" > "$1/etc/apt/apt.conf.d/00proxy"' \
