@@ -6400,44 +6400,51 @@ B<mmdebstrap> creates a Debian chroot of I<SUITE> into I<TARGET> from one or
 more I<MIRROR>s. It is meant as an alternative to the debootstrap tool (see
 section B<DEBOOTSTRAP>). In contrast to debootstrap it uses apt to resolve
 dependencies and is thus able to use more than one mirror and resolve more
-complex dependencies. See section B<OPERATION> for an overview of how
-B<mmdebstrap> works internally.
+complex dependency relationships. See section B<OPERATION> for an overview of
+how B<mmdebstrap> works internally.
 
-If no I<MIRROR> option is provided and I<SUITE> is not a stable release name,
-L<http://deb.debian.org/debian> is used.  If I<SUITE> is a stable release name
-and no I<MIRROR> is specified, then mirrors for updates and security are
-automatically added. If a I<MIRROR> option starts with "deb " or "deb-src "
-then it is used as a one-line-style format entry for apt's sources.list inside
-the chroot.  If a I<MIRROR> option contains a "://" then it is interpreted as a
-mirror URI and the apt line inside the chroot is assembled as "deb [arch=A] B C
-D" where A is the host's native architecture, B is the I<MIRROR>, C is the
-given I<SUITE> and D is the components given via B<--components> (defaults to
-"main"). If a I<MIRROR> option happens to be an existing file, then its
-contents are pasted into the chroot's sources.list.  This can be used to supply
-a deb822 style sources.list. If I<MIRROR> is C<-> then standard input is pasted
-into the chroot's sources.list.  More than one mirror can be specified and are
-appended to the chroot's sources.list in the given order. If you specify a
-https or tor I<MIRROR> and you want the chroot to be able to update itself,
-don't forget to also install the ca-certificates package, the
-apt-transport-https package for apt versions less than 1.5 and/or the
-apt-transport-tor package using the B<--include> option, as necessary.
-
-The optional I<TARGET> argument can either be the path to a directory, the path
-to a tarball filename, the path to a squashfs image, the path to an ext2 image,
-a FIFO, a character special device, or C<->. Without the B<--format> option,
-I<TARGET> will be used to choose the format. See the section B<FORMATS> for
-more information. If no I<TARGET> was specified or if I<TARGET> is C<->, an
-uncompressed tarball will be sent to standard output.
-
-The I<SUITE> may be a valid release code name (eg, sid, stretch, jessie) or a
-symbolic name (eg, unstable, testing, stable, oldstable). Any suite name that
-works with apt on the given mirror will work. If no I<SUITE> was specified,
-then a single I<MIRROR> C<-> is added and thus the information of the desired
-suite has to come from standard input as part of a valid apt sources.list file.
+The I<SUITE> option may either be a valid release code name (eg, sid, bookworm,
+trixie) or a symbolic name (eg, unstable, testing, stable, oldstable). Any
+suite name that works with apt on the given mirror will work. The I<SUITE>
+option is optional if no I<TARGET> and no I<MIRROR> option is provided.  If
+I<SUITE> is missing, then the information of the desired suite has to come from
+standard input as part of a valid apt sources.list file or be set up via hooks.
 The value of the I<SUITE> argument will be used to determine which apt index to
 use for finding out the set of C<Essential:yes> packages and/or the set of
-packages with the right priority for the selected variant. See the section
+packages with the right priority for the selected variant. This functionality
+can be disabled by choosing the empty string for I<SUITE>. See the section
 B<VARIANTS> for more information.
+
+The I<TARGET> option may either be the path to a directory, the path to a
+tarball filename, the path to a squashfs image, the path to an ext2 image, a
+FIFO, a character special device, or C<->.  The I<TARGET> option is optional if
+no I<MIRROR> option is provided. If I<TARGET> is missing or if I<TARGET> is
+C<->, an uncompressed tarball will be sent to standard output. Without the
+B<--format> option, I<TARGET> will be used to choose the format. See the
+section B<FORMATS> for more information.
+
+The I<MIRROR> option may either be provided as a URI, in apt one-line format,
+as a path to a file in apt's one-line or deb822-format, or C<->.  If no
+I<MIRROR> option is provided, then L<http://deb.debian.org/debian> is used as
+the default. If I<SUITE> does not refer to "unstable" or "testing", then
+I<SUITE>-updates and I<SUITE>-security mirrors are automatically added. If a
+I<MIRROR> option starts with "deb " or "deb-src " then it is used as a one-line
+format entry for apt's sources.list inside the chroot. If a I<MIRROR> option
+contains a "://" then it is interpreted as a mirror URI and the apt line inside
+the chroot is assembled as "deb [arch=A] B C D" where A is the host's native
+architecture, B is the I<MIRROR>, C is the given I<SUITE> and D is the
+components given via B<--components> (defaults to "main"). If a I<MIRROR>
+option happens to be an existing file, then its contents are written into the
+chroot's sources.list (if the first I<MIRROR> is a file in one-line format) or
+into the chroot's sources.list.d directory, named with the extension .list or
+.sources, depending on whether the file is in one-line or deb822 format,
+respectively.  If I<MIRROR> is C<-> then standard input is pasted into the
+chroot's sources.list.  More than one mirror can be specified and are appended
+to the chroot's sources.list in the given order. If you specify a https or tor
+I<MIRROR> and you want the chroot to be able to update itself, don't forget to
+also install the ca-certificates package, the apt-transport-https package for
+apt versions less than 1.5 and/or the apt-transport-tor package using the
+B<--include> option, as necessary.
 
 All status output is printed to standard error unless B<--logfile> is used to
 redirect it to a file or B<--quiet> or B<--silent> is used to suppress any
