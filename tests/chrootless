@@ -8,7 +8,7 @@ trap "rm -f /tmp/chrootless.tar /tmp/root.tar" EXIT INT TERM
 for INCLUDE in '' 'apt' 'apt,build-essential' 'systemd-sysv'; do
 	for MODE in root chrootless; do
 		{{ CMD }} --mode=$MODE --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
-			${INCLUDE:+--include="$INCLUDE"} \
+			${INCLUDE:+--include="$INCLUDE"} --skip=check/chrootless \
 			{{ DIST }} "/tmp/$MODE.tar" {{ MIRROR }}
 	done
 	cmp /tmp/root.tar /tmp/chrootless.tar || diffoscope /tmp/root.tar /tmp/chrootless.tar

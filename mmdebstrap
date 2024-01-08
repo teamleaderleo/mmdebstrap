@@ -4939,9 +4939,17 @@ sub main() {
             test_unshare_userns(1);
         }
     } elsif ($options->{mode} eq 'chrootless') {
-        if ($EFFECTIVE_USER_ID == 0) {
-            warning "running chrootless mode as root might damage the host "
-              . "system";
+        if (any { $_ eq 'check/chrootless' } @{ $options->{skip} }) {
+            info "skipping check/chrootless as requested";
+        } else {
+            my $ischroot = 0 == system 'ischroot';
+            if (   $EFFECTIVE_USER_ID == 0
+                && !exists $ENV{FAKEROOTKEY}
+                && !$ischroot) {
+                error
+                  "running chrootless mode as root without fakeroot might "
+                  . "damage the host system if not run inside a chroot";
+            }
         }
     } else {
         error "unknown mode: $options->{mode}";
@@ -7239,6 +7247,8 @@ Upon startup, several checks are carried out, like:
 =item * whether required utilities (apt, dpkg, tar) are installed
 
 =item * which mode to use and whether prerequisites are met
+
+=item * do not allow chrootless mode as root (without fakeroot) unless inside a chroot. This check can be disabled using B<--skip=check/chrootless>
 
 =item * whether the requested architecture can be executed (requires arch-test) using qemu binfmt_misc support. This requires arch-test and can be disabled using B<--skip=check/qemu>
 

@@ -45,7 +45,7 @@ for INCLUDE in '' 'apt' 'systemd-sysv'; do
 	arch-test "$arch" && exit 1
 	{{ CMD }} --mode=chrootless --architecture="$arch" --variant={{ VARIANT }} \
 		--hook-dir=./hooks/merged-usr ${INCLUDE:+--include="$INCLUDE"} \
-		{{ DIST }} "/tmp/chrootless.tar" {{ MIRROR }}
+		--skip=check/chrootless {{ DIST }} "/tmp/chrootless.tar" {{ MIRROR }}
 	# when creating a foreign architecture chroot, the tarballs are not
 	# bit-by-bit identical but contain a few remaining differences:
 	#
