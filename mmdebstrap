@@ -6993,7 +6993,9 @@ then this variant will fail because it cannot configure the packages.
 
 =item B<essential>
 
-C<Essential:yes> packages.
+C<Essential:yes> packages. If I<SUITE> is a non-empty string, then only
+packages from the archive with suite or codename matching I<SUITE> will be
+considered for selection of C<Essential:yes> packages.
 
 =item B<apt>
 
