@@ -6956,10 +6956,13 @@ dpkg-root-support usertag of debian-dpkg@lists.debian.org in the Debian bug
 tracking system. B<WARNING>: if this option is used carelessly with packages
 that do not support C<DPKG_ROOT>, this mode can result in undesired changes to
 the system running B<mmdebstrap> because maintainer-scripts will be run without
-L<chroot(1)>.
+L<chroot(1)>. Make sure to run this mode without superuser privileges and/or
+inside a throw-away chroot enviroment like so:
 
-=for TODO
-=item B<qemu>
+    mmdebstrap --variant=apt --include=mmdebstrap \
+        --customize-hook='chroot "$1" mmdebstrap --mode=chrootless
+                          --variant=apt unstable chrootless.tar' \
+        --customize-hook='copy-out chrootless.tar .' unstable /dev/null
 
 =back
 
