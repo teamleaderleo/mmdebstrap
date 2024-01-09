@@ -6920,6 +6920,11 @@ available and you know your subuid/subgid offset (100000 in this example):
     $ sudo systemd-nspawn --private-users=100000 \
     > --directory=./debian-rootfs /bin/bash
 
+A directory created in B<unshare> mode cannot be removed the normal way.
+Instead, use something like this:
+
+    $ unshare --map-root-user --map-auto rm -rf ./debian-rootfs
+
 If this mode is used as the root user, the user namespace is not unshared (but
 the mount namespace and other still are) and created directories will have
 correct ownership information. This is also useful in cases where the root user
