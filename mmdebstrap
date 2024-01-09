@@ -2234,6 +2234,8 @@ sub run_setup() {
                 chmod $mode, "$options->{root}/$file"
                   or error "cannot chmod $file: $!";
             }
+        } elsif (-e $file && -e "$options->{root}/$file") {
+            info "rootfs alreday contains $file";
         } else {
             warning("Host system does not have a $file to copy into the"
                   . " rootfs.");
