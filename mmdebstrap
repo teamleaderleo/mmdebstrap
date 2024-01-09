@@ -1953,7 +1953,7 @@ sub run_setup() {
         # since we do not know the dpkg version inside the chroot at this
         # point, we can only omit it in chrootless mode
         if ($options->{mode} ne 'chrootless'
-            or scalar @{ $options->{dpkgopts} } > 0) {
+            or length $options->{dpkgopts} > 0) {
             push @directories, '/etc/dpkg/dpkg.cfg.d/';
         }
         # if dpkg and apt operate from the outside we need some more
@@ -2083,26 +2083,11 @@ sub run_setup() {
         close $fh;
     }
 
-    if (scalar @{ $options->{aptopts} } > 0
+    if (length $options->{aptopts} > 0
         and (!-e "$options->{root}/etc/apt/apt.conf.d/99mmdebstrap")) {
         open my $fh, '>', "$options->{root}/etc/apt/apt.conf.d/99mmdebstrap"
           or error "cannot open /etc/apt/apt.conf.d/99mmdebstrap: $!";
-        foreach my $opt (@{ $options->{aptopts} }) {
-            if (-r $opt) {
-                # flush handle because copy() uses syswrite() which bypasses
-                # buffered IO
-                $fh->flush();
-                copy $opt, $fh or error "cannot copy $opt: $!";
-            } else {
-                print $fh $opt;
-                if ($opt !~ /;$/) {
-                    print $fh ';';
-                }
-                if ($opt !~ /\n$/) {
-                    print $fh "\n";
-                }
-            }
-        }
+        print $fh $options->{aptopts};
         close $fh;
         if ($verbosity_level >= 3) {
             debug "content of /etc/apt/apt.conf.d/99mmdebstrap:";
@@ -2110,7 +2095,7 @@ sub run_setup() {
         }
     }
 
-    if (scalar @{ $options->{dpkgopts} } > 0
+    if (length $options->{dpkgopts} > 0
         and (!-e "$options->{root}/etc/dpkg/dpkg.cfg.d/99mmdebstrap")) {
         # FIXME: in chrootless mode, dpkg will only read the configuration
         # from the host -- see #808203
@@ -2120,19 +2105,7 @@ sub run_setup() {
         }
         open my $fh, '>', "$options->{root}/etc/dpkg/dpkg.cfg.d/99mmdebstrap"
           or error "cannot open /etc/dpkg/dpkg.cfg.d/99mmdebstrap: $!";
-        foreach my $opt (@{ $options->{dpkgopts} }) {
-            if (-r $opt) {
-                # flush handle because copy() uses syswrite() which bypasses
-                # buffered IO
-                $fh->flush();
-                copy $opt, $fh or error "cannot copy $opt: $!";
-            } else {
-                print $fh $opt;
-                if ($opt !~ /\n$/) {
-                    print $fh "\n";
-                }
-            }
-        }
+        print $fh $options->{dpkgopts};
         close $fh;
         if ($verbosity_level >= 3) {
             debug "content of /etc/dpkg/dpkg.cfg.d/99mmdebstrap:";
@@ -4520,8 +4493,8 @@ sub main() {
         architectures   => [$hostarch],
         mode            => 'auto',
         format          => 'auto',
-        dpkgopts        => [],
-        aptopts         => [],
+        dpkgopts        => '',
+        aptopts         => '',
         apttrusted      => $apttrusted,
         apttrustedparts => $apttrustedparts,
         noop            => [],
@@ -4588,9 +4561,44 @@ sub main() {
         },
         'architectures=s@' => \$options->{architectures},
         'mode=s'           => \$options->{mode},
-        'dpkgopt=s@'       => \$options->{dpkgopts},
-        'aptopt=s@'        => \$options->{aptopts},
-        'keyring=s'        => sub {
+        'dpkgopt=s'        => sub {
+            my ($opt_name, $opt_value) = @_;
+            if (-r $opt_value) {
+                open my $fh, '<', $opt_value
+                  or error "failed to open $opt_value: $!";
+                $options->{dpkgopts} .= do { local $/; <$fh> };
+                if ($options->{dpkgopts} !~ /\n$/) {
+                    print $fh "\n";
+                }
+                close $fh;
+            } else {
+                $options->{dpkgopts} .= $opt_value;
+                if ($opt_value !~ /\n$/) {
+                    $options->{dpkgopts} .= "\n";
+                }
+            }
+        },
+        'aptopt=s' => sub {
+            my ($opt_name, $opt_value) = @_;
+            if (-r $opt_value) {
+                open my $fh, '<', $opt_value
+                  or error "failed to open $opt_value: $!";
+                $options->{aptopts} .= do { local $/; <$fh> };
+                if ($options->{aptopts} !~ /\n$/) {
+                    print $fh "\n";
+                }
+                close $fh;
+            } else {
+                $options->{aptopts} .= $opt_value;
+                if ($opt_value !~ /;$/) {
+                    $options->{aptopts} .= ';';
+                }
+                if ($opt_value !~ /\n$/) {
+                    $options->{aptopts} .= "\n";
+                }
+            }
+        },
+        'keyring=s' => sub {
             my ($opt_name, $opt_value) = @_;
             if ($opt_value =~ /"/) {
                 error "--keyring: apt cannot handle paths with double quotes:"
