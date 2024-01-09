@@ -7010,7 +7010,7 @@ ignored without throwing an error.
 
 =item B<required>, B<minbase>
 
-The B<essential> set plus all packages with Priority:required and apt.
+The B<essential> set plus all packages with Priority:required.
 It is roughly equivalent to running mmdebstrap with
 
     --variant=essential --include="?priority(required)"
