@@ -29,12 +29,15 @@ MMTARFILTER=
 # this applies to 'z' lines in files in /usr/lib/tmpfiles.d/
 for INCLUDE in '' 'apt' 'apt,build-essential' 'systemd-sysv'; do
 	{{ CMD }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
-		--customize-hook="if [ \"$INCLUDE\" = systemd-sysv ]; then for f in var/log/journal etc/credstore etc/credstore.encrypted; do chmod 00755 \"\$1/\$f\"; done; fi" \
 		${INCLUDE:+--include="$INCLUDE"} \
-		{{ DIST }} - {{ MIRROR }} | "$MMTARFILTER" --pax-exclude='*' >/tmp/root.tar
+		{{ DIST }} - {{ MIRROR }} \
+		| "$MMTARFILTER" --path-exclude="/var/log/journal" --path-exclude="/etc/credstore*" \
+		>/tmp/root.tar
 	$prefix fakeroot {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
 		${INCLUDE:+--include="$INCLUDE"} \
-		{{ DIST }} - {{ MIRROR }} | "$MMTARFILTER" > /tmp/chrootless.tar
+		{{ DIST }} - {{ MIRROR }} \
+		| "$MMTARFILTER" --path-exclude="/var/log/journal" --path-exclude="/etc/credstore*" \
+		> /tmp/chrootless.tar
 	cmp /tmp/root.tar /tmp/chrootless.tar || diffoscope /tmp/root.tar /tmp/chrootless.tar
 	rm /tmp/chrootless.tar /tmp/root.tar
 done
