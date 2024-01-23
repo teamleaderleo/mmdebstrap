@@ -20,6 +20,8 @@ if [ -e ./mmdebstrap ]; then
 	fi
 
 	perlcritic --severity 4 --verbose 8 ./mmdebstrap
+
+	pod2man ./mmdebstrap >/dev/null
 fi
 
 for f in tarfilter coverage.py caching_proxy.py; do
