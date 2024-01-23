@@ -30,7 +30,9 @@ B<mmdebstrap-autopkgtest-build-qemu> is a mostly compatible drop-in replacement
 for L<autopkgtest-build-qemu(1)> with two main differences: Firstly, it uses
 L<mmdebstrap(1)> instead of L<vmdb2(1)> and thus is able to create QEMU disk
 images without requiring superuser privileges.  Secondly, it uses
-L<systemd-boot(7)> and thus only supports booting via EFI.
+L<systemd-boot(7)> and thus only supports booting via EFI. For architectures
+for which L<autopkgtest-virt-qemu(1)> does not default to EFI booting you must
+pass B<--boot=efi> when invoking the autopkgtest virt backend.
 
 =head1 POSITIONAL PARAMETERS
 
@@ -96,9 +98,17 @@ Passes an additional B<--keyring> parameter to B<mmdebstrap>.
 
 =head1 EXAMPLES
 
-    $ mmdebstrap-autopkgtest-build-qemu --boot=efi stable /path/to/debian-stable-i386.img i386
+Make sure, that F</path/to/debian-unstable.img> is a path that the unshared
+user has access to. This can be done by ensuring world-execute permissions on
+all path components or by creating the image in a world-readable directory like
+/tmp before copying it into its final location.
 
-    $ mmdebstrap-autopkgtest-build-qemu --boot=efi unstable /path/to/debian-unstable.img
+    $ mmdebstrap-autopkgtest-build-qemu --boot=efi --arch=amd64 unstable /path/to/debian-unstable.img
+    [...]
+    $ autopkgtest mypackage -- qemu --boot=efi --dpkg-architecture=amd64 /path/to/debian-unstable.img
+
+Make sure to add B<--boot=efi> to both the B<mmdebstrap-autopkgtest-build-qemu>
+as well as the B<autopkgtest-virt-qemu> invocation.
 
 =head1 SEE ALSO
 
@@ -223,21 +233,31 @@ test "$BOOT" = efi ||
 case "$ARCHITECTURE" in
 	amd64)
 		EFIIMG=bootx64.efi
+		QEMUARCH=x86_64
+		VMFPKG=ovmf
 	;;
 	arm64)
 		EFIIMG=bootaa64.efi
+		QEMUARCH=aarch64
+		VMFPKG=qemu-efi-aarch64
 	;;
 	armhf)
 		EFIIMG=bootarm.efi
+		QEMUARCH=arm
+		VMFPKG=qemu-efi-arm
 	;;
 	i386)
 		EFIIMG=bootia32.efi
+		QEMUARCH=i386
+		VMFPKG=ovmf-ia32
 	;;
 	riscv64)
 		EFIIMG=bootriscv64.efi
+		QEMUARCH=riscv64
+		VMFPKG=
 	;;
 	*)
-		die "unsupported architecture"
+		die "unsupported architecture: $ARCHITECTURE"
 	;;
 esac
 
@@ -250,9 +270,17 @@ else
 	test "$(dpkg-query -f '${db:Status-Status}' -W "binutils$GNU_SUFFIX")" = installed ||
 		die "please install binutils$GNU_SUFFIX or binutils-multiarch"
 fi
+
+arches=" $(dpkg --print-architecture) $(dpkg --print-foreign-architectures | tr '\n' ' ') "
+case $arches in
+	*" $ARCHITECTURE "*) : ;; # nothing to do
+	*) die "enable $ARCHITECTURE by running: sudo dpkg --add-architecture $ARCHITECTURE && sudo apt update" ;;
+esac
+
 for pkg in autopkgtest dosfstools e2fsprogs fdisk mount mtools passwd "systemd-boot-efi:$ARCHITECTURE" uidmap; do
-	test "$(dpkg-query -f '${db:Status-Status}' -W "$pkg")" = installed ||
+	if [ "$(dpkg-query -f '${db:Status-Status}' -W "$pkg")" != installed ]; then
 		die "please install $pkg"
+	fi
 done
 
 BOOTSTUB="/usr/lib/systemd/boot/efi/linux${EFIIMG#boot}.stub"
@@ -277,6 +305,14 @@ rm -f "$IMAGE"
 : >"$IMAGE"
 unshare -U -r --map-groups=auto chown 0:1 "$IMAGE"
 chmod 0660 "$IMAGE"
+
+# Make sure that the unshared user is able to access the file.
+# Alternatively to using /sbin/mkfs.ext4 could use --format=ext2 which would
+# add an extra copy operation and come with the limitations of ext2.
+# Another solution: https://github.com/tytso/e2fsprogs/pull/118
+if ! mmdebstrap --unshare-helper touch "$IMAGE"; then
+	die "$IMAGE cannot be accessed by the unshared user -- either make all path components up to the image itself world-executable or place the image into a world-readable path like /tmp"
+fi
 
 set -- \
 	--mode=unshare \
@@ -387,3 +423,12 @@ start=$((FAT_OFFSET_SECTORS + FAT_SIZE_SECTORS)), type=0FC63DAF-8483-4772-8E79-3
 EOF
 
 dd if="$WORKDIR/fat" of="$IMAGE" conv=notrunc,sparse bs=512 "seek=$FAT_OFFSET_SECTORS" status=none
+
+if test "$(dpkg --print-architecture)" != "$ARCHITECTURE" && test "$(dpkg-query -f '${db:Status-Status}' -W "qemu-system-$QEMUARCH")" != installed; then
+	echo "I: you might need to install a package providing qemu-system-$QEMUARCH to use this image with autopkgtest-virt-qemu" >&2
+fi
+if test -n "$VMFPKG" && test "$(dpkg-query -f '${db:Status-Status}' -W "$VMFPKG")" != installed; then
+	echo "I: you might need to install $VMFPKG to use this image with autopkgtest-virt-qemu" >&2
+fi
+
+echo "I: don't forget to pass --boot=efi when running autopkgtest-virt-qemu with this image" >&2
