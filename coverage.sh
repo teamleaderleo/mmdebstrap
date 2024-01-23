@@ -2,11 +2,21 @@
 
 set -eu
 
-if [ -e ./mmdebstrap ]; then
+# by default, use the mmdebstrap executable in the current directory together
+# with perl Devel::Cover but allow to overwrite this
+: "${CMD:=perl -MDevel::Cover=-silent,-nogcov ./mmdebstrap}"
+
+case "$CMD" in
+	"mmdebstrap "*|mmdebstrap|*" mmdebstrap"|*" mmdebstrap "*)
+		MMSCRIPT="$(command -v mmdebstrap 2>/dev/null)";;
+	*)	MMSCRIPT=./mmdebstrap;;
+esac
+
+if [ -e "$MMSCRIPT" ]; then
 	TMPFILE=$(mktemp)
-	perltidy < ./mmdebstrap > "$TMPFILE"
+	perltidy < "$MMSCRIPT" > "$TMPFILE"
 	ret=0
-	diff -u ./mmdebstrap "$TMPFILE" || ret=$?
+	diff -u "$MMSCRIPT" "$TMPFILE" || ret=$?
 	if [ "$ret" -ne 0 ]; then
 		echo "perltidy failed" >&2
 		rm "$TMPFILE"
@@ -14,14 +24,14 @@ if [ -e ./mmdebstrap ]; then
 	fi
 	rm "$TMPFILE"
 
-	if [ "$(sed -e '/^__END__$/,$d' ./mmdebstrap | wc --max-line-length)" -gt 79 ]; then
+	if [ "$(sed -e '/^__END__$/,$d' "$MMSCRIPT" | wc --max-line-length)" -gt 79 ]; then
 		echo "exceeded maximum line length of 79 characters" >&2
 		exit 1
 	fi
 
-	perlcritic --severity 4 --verbose 8 ./mmdebstrap
+	perlcritic --severity 4 --verbose 8 "$MMSCRIPT"
 
-	pod2man ./mmdebstrap >/dev/null
+	pod2man "$MMSCRIPT" >/dev/null
 fi
 
 for f in tarfilter coverage.py caching_proxy.py; do
@@ -65,9 +75,6 @@ export LC_ALL=C.UTF-8
 
 : "${HAVE_BINFMT:=yes}"
 
-# by default, use the mmdebstrap executable in the current directory together
-# with perl Devel::Cover but allow to overwrite this
-: "${CMD:=perl -MDevel::Cover=-silent,-nogcov ./mmdebstrap}"
 mirror="http://127.0.0.1/debian"
 
 export HAVE_QEMU HAVE_BINFMT RUN_MA_SAME_TESTS DEFAULT_DIST SOURCE_DATE_EPOCH CMD mirror
