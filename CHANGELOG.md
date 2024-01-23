@@ -1,3 +1,12 @@
+1.4.1 (2024-01-09)
+------------------
+
+ - set DPkg::Chroot-Directory in APT_CONFIG to simplify calling apt in hooks
+ - disallow running chrootless as root without fakeroot unless
+   --skip=check/chrootless is used
+ - only print short --help output if wrong args are passed
+ - read files passed as --aptopt and --dpkgopt outside the unshared namespace
+
 1.4.0 (2023-10-24)
 ------------------
 
