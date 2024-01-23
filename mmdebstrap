@@ -3112,7 +3112,7 @@ sub run_cleanup() {
     } else {
         # clean up temporary configuration file
         unlink "$options->{root}/etc/apt/apt.conf.d/00mmdebstrap"
-          or error "failed to unlink /etc/apt/apt.conf.d/00mmdebstrap: $!";
+          or warning "failed to unlink /etc/apt/apt.conf.d/00mmdebstrap: $!";
 
         if (defined $ENV{APT_CONFIG} && -e $ENV{APT_CONFIG}) {
             unlink $ENV{APT_CONFIG}
