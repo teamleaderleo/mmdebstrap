@@ -1551,32 +1551,34 @@ sub setup_mounts {
         if (any { $_ eq 'chroot/start-stop-daemon' } @{ $options->{skip} }) {
             info "skipping chroot/start-stop-daemon as requested";
         } else {
+            my $ssdloc;
+            if (-f "$options->{root}/sbin/start-stop-daemon") {
+                $ssdloc = "$options->{root}/sbin/start-stop-daemon";
+            } elsif (-f "$options->{root}/usr/sbin/start-stop-daemon") {
+                $ssdloc = "$options->{root}/usr/sbin/start-stop-daemon";
+            }
             push @cleanup_tasks, sub {
-                if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
-                    move(
-                        "$options->{root}/sbin/start-stop-daemon.REAL",
-                        "$options->{root}/sbin/start-stop-daemon"
-                    ) or error "cannot move start-stop-daemon: $!";
+                return unless length $ssdloc;
+                if (-e "$ssdloc.REAL") {
+                    move("$ssdloc.REAL", "$ssdloc")
+                      or error "cannot move start-stop-daemon: $!";
+                    warning "/sbin/start-stop-daemon fake replaced with real";
                 }
             };
-            if (-f "$options->{root}/sbin/start-stop-daemon") {
-                if (-e "$options->{root}/sbin/start-stop-daemon.REAL") {
-                    error
-                      "$options->{root}/sbin/start-stop-daemon.REAL already"
-                      . " exists";
+            if (length $ssdloc) {
+                if (-e "$ssdloc.REAL") {
+                    error "$ssdloc.REAL already exists";
                 }
-                move(
-                    "$options->{root}/sbin/start-stop-daemon",
-                    "$options->{root}/sbin/start-stop-daemon.REAL"
-                ) or error "cannot move start-stop-daemon: $!";
-                open my $fh, '>', "$options->{root}/sbin/start-stop-daemon"
+                move("$ssdloc", "$ssdloc.REAL")
+                  or error "cannot move start-stop-daemon: $!";
+                open my $fh, '>', $ssdloc
                   or error "cannot open start-stop-daemon: $!";
                 print $fh "#!/bin/sh\n";
                 print $fh
                   "echo \"Warning: Fake start-stop-daemon called, doing"
                   . " nothing\">&2\n";
                 close $fh;
-                chmod 0755, "$options->{root}/sbin/start-stop-daemon"
+                chmod 0755, "$ssdloc"
                   or error "cannot chmod start-stop-daemon: $!";
             }
         }
@@ -7338,7 +7340,7 @@ them afterwards. This can be disabled using B<--skip=chroot/mount> or
 specifically by B<--skip=chroot/mount/dev>, B<--skip=chroot/mount/proc> and
 B<--skip=chroot/mount/sys>, respectively. B<mmdebstrap> will disable running
 services by temporarily moving F</usr/sbin/policy-rc.d> and
-F</sbin/start-stop-daemon> if they exist. This can be disabled with
+F</usr/sbin/start-stop-daemon> if they exist. This can be disabled with
 B<--skip=chroot/policy-rc.d> and B<--skip=chroot/start-stop-daemon>,
 respectively.
 
@@ -7385,7 +7387,7 @@ This step is not carried out in B<extract> mode.
 =item B<unmount>
 
 Unmount everything that was mounted during the B<mount> stage and restores
-F</usr/sbin/policy-rc.d> and F</sbin/start-stop-daemon> if necessary.
+F</usr/sbin/policy-rc.d> and F</usr/sbin/start-stop-daemon> if necessary.
 
 =item B<cleanup>
 
