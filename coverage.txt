@@ -194,18 +194,18 @@ Skip-If:
  hostarch != "amd64"
  not run_ma_same_tests
 
-Test: include-libmagic-mgc-arm64
+Test: include-foreign-libmagic-mgc
 Needs-Root: true
 Needs-APT-Config: true
 Skip-If:
- hostarch != "amd64"
+ hostarch not in ["amd64", "arm64"]
  not run_ma_same_tests
 
-Test: include-libmagic-mgc-arm64-with-multiple-arch-options
+Test: include-foreign-libmagic-mgc-with-multiple-arch-options
 Needs-Root: true
 Needs-APT-Config: true
 Skip-If:
- hostarch != "amd64"
+ hostarch not in ["amd64", "arm64"]
  not run_ma_same_tests
 
 Test: aptopt
