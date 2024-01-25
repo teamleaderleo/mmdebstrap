@@ -6967,7 +6967,7 @@ tracking system. B<WARNING>: if this option is used carelessly with packages
 that do not support C<DPKG_ROOT>, this mode can result in undesired changes to
 the system running B<mmdebstrap> because maintainer-scripts will be run without
 L<chroot(1)>. Make sure to run this mode without superuser privileges and/or
-inside a throw-away chroot enviroment like so:
+inside a throw-away chroot environment like so:
 
     mmdebstrap --variant=apt --include=mmdebstrap \
         --customize-hook='chroot "$1" mmdebstrap --mode=chrootless
