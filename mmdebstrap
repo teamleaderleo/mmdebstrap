@@ -7018,19 +7018,19 @@ get installed at once. The downside of this variant is, that if it should
 happen that an B<essential> package is not installable, then it will just get
 ignored without throwing an error.
 
+=item B<buildd>
+
+The B<essential> set plus apt and build-essential.
+It is roughly equivalent to running mmdebstrap with
+
+    --variant=essential --include="apt,build-essential"
+
 =item B<required>, B<minbase>
 
 The B<essential> set plus all packages with Priority:required.
 It is roughly equivalent to running mmdebstrap with
 
     --variant=essential --include="?priority(required)"
-
-=item B<buildd>
-
-The B<minbase> set plus build-essential.
-It is roughly equivalent to running mmdebstrap with
-
-    --variant=essential --include="?priority(required),build-essential"
 
 =item B<important>, B<debootstrap>, B<->
 
