@@ -3120,16 +3120,6 @@ sub run_cleanup() {
             unlink $ENV{APT_CONFIG}
               or error "failed to unlink $ENV{APT_CONFIG}: $!";
         }
-
-        if (any { $_ eq 'cleanup/mmdebstrap/qemu' } @{ $options->{skip} }) {
-            info "skipping cleanup/mmdebstrap/qemu as requested";
-        } elsif (defined $options->{qemu}
-            and any { $_ eq $options->{mode} } ('root', 'unshare')
-              and -e "$options->{root}/usr/bin/qemu-$options->{qemu}-static") {
-            unlink "$options->{root}/usr/bin/qemu-$options->{qemu}-static"
-              or error
-              "cannot unlink /usr/bin/qemu-$options->{qemu}-static: $!";
-        }
     }
 
     if (any { $_ eq 'cleanup/reproducible' } @{ $options->{skip} }) {
