@@ -7341,8 +7341,7 @@ Extract the downloaded packages into the rootfs.
 =item B<prepare>
 
 In B<fakechroot> mode, environment variables C<LD_LIBRARY_PATH> will be set up
-correctly. If the chroot requires the qemu-user-static binary it will be copied
-in. For foreign B<fakechroot> environments, C<LD_LIBRARY_PATH> and
+correctly. For foreign B<fakechroot> environments, C<LD_LIBRARY_PATH> and
 C<QEMU_LD_PREFIX> are set up accordingly. This step is not carried out in
 B<extract> mode and neither for the B<chrootless> variant.
 
@@ -7387,7 +7386,7 @@ Performs cleanup tasks, unless B<--skip=cleanup> is used:
 
 =item * Removes the package lists (unless B<--skip=cleanup/apt/lists>) and apt cache (unless B<--skip=cleanup/apt/cache>). Both removals can be disabled by using B<--skip=cleanup/apt>.
 
-=item * Remove all files that were put into the chroot for setup purposes, like F</etc/apt/apt.conf.d/00mmdebstrap>, the temporary apt config and the qemu-user-static binary. This can be disabled using B<--skip=cleanup/mmdebstrap>.
+=item * Remove all files that were put into the chroot for setup purposes, like F</etc/apt/apt.conf.d/00mmdebstrap> and the temporary apt config. This can be disabled using B<--skip=cleanup/mmdebstrap>.
 
 =item * Remove files that make the result unreproducible and write the empty string to /etc/machine-id if it exists. This can be disabled using B<--skip=cleanup/reproducible>. Note that this will not remove files that make the result unreproducible on machines with differing F</etc/resolv.conf> or F</etc/hostname>. Use a B<--customize-hook> to make those two files reproducible across multiple hosts. See section C<SOURCE_DATE_EPOCH> for more information. The following files will be removed:
 
