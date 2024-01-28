@@ -324,8 +324,8 @@ test "$RELEASE" = jessie &&
 
 set -- "$@" \
 	"--include=init,linux-image-$ARCHITECTURE,python3" \
-	'--customize-hook=echo autopkgtestvm >"$1/etc/hostname"' \
-	'--customize-hook=echo 127.0.0.1 localhost autopkgtestvm >"$1/etc/hosts"' \
+	'--customize-hook=echo host >"$1/etc/hostname"' \
+	'--customize-hook=echo 127.0.0.1 localhost host >"$1/etc/hosts"' \
 	'--customize-hook=passwd --root "$1" --delete root' \
 	'--customize-hook=useradd --root "$1" --home-dir /home/user --create-home user' \
 	'--customize-hook=passwd --root "$1" --delete user' \
