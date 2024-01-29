@@ -1,3 +1,9 @@
+1.4.2 (2024-01-29)
+------------------
+
+ - allow for start-stop-daemon to be in either /sbin or /usr/sbin
+ - mmdebstrap-autopkgtest-build-qemu: fix octal mode computation and hostname
+
 1.4.1 (2024-01-09)
 ------------------
 
