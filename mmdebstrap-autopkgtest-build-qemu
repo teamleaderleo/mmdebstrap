@@ -357,7 +357,7 @@ echo "mmdebstrap $*"
 mmdebstrap "$@" || die "mmdebstrap failed"
 
 unshare -U -r --map-groups=auto chown 0:0 "$IMAGE"
-chmod "$(printf %o "$(( 0666 - 0$(umask) ))")" "$IMAGE"
+chmod "$(printf %o "$(( 0666 & ~0$(umask) ))")" "$IMAGE"
 
 echo "root=LABEL=autopkgtestvm rw console=ttyS0" > "$WORKDIR/cmdline"
 
