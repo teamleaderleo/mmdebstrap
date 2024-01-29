@@ -165,6 +165,7 @@ Contributors
  - Konstantin Demin
  - David Kalnischkies
  - Emilio Pozuelo Monfort
+ - Francesco Poli
  - Jakub Wilk
  - Joe Groocock
  - Nicolas Vigier
