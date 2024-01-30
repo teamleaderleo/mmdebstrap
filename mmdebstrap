@@ -1551,33 +1551,41 @@ sub setup_mounts {
         if (any { $_ eq 'chroot/start-stop-daemon' } @{ $options->{skip} }) {
             info "skipping chroot/start-stop-daemon as requested";
         } else {
+            # $options->{root} must not be part of $ssdloc but must instead be
+            # evaluated at the time the cleanup is run or otherwise, when
+            # performing a pivot-root, the ssd location will still be prefixed
+            # with the chroot path even though we changed root
             my $ssdloc;
             if (-f "$options->{root}/sbin/start-stop-daemon") {
-                $ssdloc = "$options->{root}/sbin/start-stop-daemon";
+                $ssdloc = "/sbin/start-stop-daemon";
             } elsif (-f "$options->{root}/usr/sbin/start-stop-daemon") {
-                $ssdloc = "$options->{root}/usr/sbin/start-stop-daemon";
+                $ssdloc = "/usr/sbin/start-stop-daemon";
             }
             push @cleanup_tasks, sub {
                 return unless length $ssdloc;
-                if (-e "$ssdloc.REAL") {
-                    move("$ssdloc.REAL", "$ssdloc")
-                      or error "cannot move start-stop-daemon: $!";
+                if (-e "$options->{root}/$ssdloc.REAL") {
+                    move(
+                        "$options->{root}/$ssdloc.REAL",
+                        "$options->{root}/$ssdloc"
+                    ) or error "cannot move start-stop-daemon: $!";
                 }
             };
             if (length $ssdloc) {
-                if (-e "$ssdloc.REAL") {
-                    error "$ssdloc.REAL already exists";
+                if (-e "$options->{root}/$ssdloc.REAL") {
+                    error "$options->{root}/$ssdloc.REAL already exists";
                 }
-                move("$ssdloc", "$ssdloc.REAL")
-                  or error "cannot move start-stop-daemon: $!";
-                open my $fh, '>', $ssdloc
+                move(
+                    "$options->{root}/$ssdloc",
+                    "$options->{root}/$ssdloc.REAL"
+                ) or error "cannot move start-stop-daemon: $!";
+                open my $fh, '>', "$options->{root}/$ssdloc"
                   or error "cannot open start-stop-daemon: $!";
                 print $fh "#!/bin/sh\n";
                 print $fh
                   "echo \"Warning: Fake start-stop-daemon called, doing"
                   . " nothing\">&2\n";
                 close $fh;
-                chmod 0755, "$ssdloc"
+                chmod 0755, "$options->{root}/$ssdloc"
                   or error "cannot chmod start-stop-daemon: $!";
             }
         }
