@@ -365,11 +365,11 @@ Variants: custom
 Modes: chrootless
 Needs-APT-Config: true
 
-Test: install-libmagic-mgc-on-arm64
+Test: install-libmagic-mgc-on-foreign
 Variants: custom
 Modes: chrootless
 Skip-If:
- hostarch != "amd64"
+ hostarch not in ["amd64", "arm64"]
  not have_binfmt
 
 Test: install-busybox-based-sub-essential-system

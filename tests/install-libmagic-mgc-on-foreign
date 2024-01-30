@@ -17,13 +17,27 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto
 	prefix="runuser -u ${SUDO_USER:-user} --"
 fi
 
-$prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --architectures=arm64 --include=libmagic-mgc {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
+case "$(dpkg --print-architecture)" in
+	arm64)
+		foreign_arch=amd64
+		;;
+	amd64)
+		foreign_arch=arm64
+		;;
+	*)
+		echo "unsupported native architecture" >&2
+		exit 1
+		;;
+esac
+
+$prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --architectures="$foreign_arch" --include=libmagic-mgc {{ DIST }} /tmp/debian-chroot {{ MIRROR }}
 # delete contents of libmagic-mgc
 rm /tmp/debian-chroot/usr/lib/file/magic.mgc
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/README.Debian
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/changelog.Debian.gz
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/changelog.gz
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/copyright
+rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/"changelog.Debian.$foreign_arch.gz"
 rm /tmp/debian-chroot/usr/share/file/magic.mgc
 rm /tmp/debian-chroot/usr/share/misc/magic.mgc
 # delete real files
