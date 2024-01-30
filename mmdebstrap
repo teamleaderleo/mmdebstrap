@@ -1562,7 +1562,6 @@ sub setup_mounts {
                 if (-e "$ssdloc.REAL") {
                     move("$ssdloc.REAL", "$ssdloc")
                       or error "cannot move start-stop-daemon: $!";
-                    warning "/sbin/start-stop-daemon fake replaced with real";
                 }
             };
             if (length $ssdloc) {
