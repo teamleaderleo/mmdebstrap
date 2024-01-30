@@ -298,6 +298,16 @@ WORKDIR=$(mktemp -d)
 FAT_OFFSET_SECTORS=$((1024*2))
 FAT_SIZE_SECTORS=$((1024*254))
 
+# The image is raw and not in qcow2 format because:
+#  - faster run-time as the "qemu-image convert" step is not needed
+#  - image can be used independent of qemu tooling
+#  - modifying the image just with "mount" instead of requiring qemu-nbd
+#  - sparse images make the file just as small as with qcow2
+#  - trim support is more difficult on qcow2
+#  - snapshots and overlays work just as well with raw images
+#  - users who prefer qcow2 get to choose to run it themselves with their own
+#    custom options like compression
+#
 # Make the image writeable to the first subgid. mmdebstrap will map this gid to
 # the root group. unshare instead will map the current gid to 0 and the first
 # subgid to 1. Therefore mmdebstrap will be able to write to the image.
