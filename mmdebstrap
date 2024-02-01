@@ -5963,8 +5963,6 @@ sub main() {
     my $sigset = POSIX::SigSet->new(SIGINT, SIGHUP, SIGPIPE, SIGTERM);
     POSIX::sigprocmask(SIG_BLOCK, $sigset) or error "Can't block signals: $!";
 
-    my $pid;
-
     # a pipe to transfer the final tarball from the child to the parent
     pipe my $rfh, my $wfh;
 
@@ -5979,163 +5977,107 @@ sub main() {
     #   b) it puts code writing the protocol outside of the helper/listener
     #   c) the forked listener process cannot communicate to its parent
     pipe my $nblkreader, my $nblkwriter or error "pipe failed: $!";
+
+    my $worker = sub {
+        # child
+        local $SIG{'INT'}  = 'DEFAULT';
+        local $SIG{'HUP'}  = 'DEFAULT';
+        local $SIG{'PIPE'} = 'DEFAULT';
+        local $SIG{'TERM'} = 'DEFAULT';
+
+        # unblock all delayed signals (and possibly handle them)
+        POSIX::sigprocmask(SIG_UNBLOCK, $sigset)
+          or error "Can't unblock signals: $!";
+
+        close $rfh;
+        close $parentsock;
+        open(STDOUT, '>&', STDERR) or error "cannot open STDOUT: $!";
+
+        setup($options);
+
+        print $childsock (pack('n', 0) . 'adios');
+        $childsock->flush();
+
+        close $childsock;
+
+        close $nblkreader;
+        if (!$options->{dryrun} && $options->{format} eq 'ext2') {
+            my $numblocks = approx_disk_usage($options->{root});
+            print $nblkwriter "$numblocks\n";
+            $nblkwriter->flush();
+        }
+        close $nblkwriter;
+
+        if ($options->{dryrun}) {
+            info "simulate creating tarball...";
+        } elsif (any { $_ eq $options->{format} } ('tar', 'squashfs', 'ext2'))
+        {
+            info "creating tarball...";
+
+            # redirect tar output to the writing end of the pipe so
+            # that the parent process can capture the output
+            open(STDOUT, '>&', $wfh) or error "cannot open STDOUT: $!";
+
+            # Add ./dev as the first entries of the tar file.
+            # We cannot add them after calling tar, because there is no
+            # way to prevent tar from writing NULL entries at the end.
+            if (any { $_ eq 'output/dev' } @{ $options->{skip} }) {
+                info "skipping output/dev as requested";
+            } else {
+                print $devtar;
+            }
+
+            if ($options->{mode} eq 'unshare') {
+                # pack everything except ./dev
+                0 == system('tar', @taropts, '-C', $options->{root}, '.')
+                  or error "tar failed: $?";
+            } elsif ($options->{mode} eq 'fakechroot') {
+                # By default, FAKECHROOT_EXCLUDE_PATH includes /proc and /sys
+                # which means that the resulting tarball will contain the
+                # permission and ownership information of /proc and /sys from
+                # the outside, which we want to avoid.
+                ## no critic (Variables::RequireLocalizedPunctuationVars)
+                $ENV{FAKECHROOT_EXCLUDE_PATH} = "/dev";
+                # Fakechroot requires tar to run inside the chroot or otherwise
+                # absolute symlinks will include the path to the root directory
+                0 == system('chroot', $options->{root}, 'tar',
+                    @taropts, '-C', '/', '.')
+                  or error "tar failed: $?";
+            } elsif (any { $_ eq $options->{mode} } ('root', 'chrootless')) {
+                # If the chroot directory is not owned by the root user, then
+                # we assume that no measure was taken to fake root permissions.
+                # Since the final tarball should contain entries with root
+                # ownership, we instruct tar to do so.
+                my @owneropts = ();
+                if ((stat $options->{root})[4] != 0) {
+                    push @owneropts, '--owner=0', '--group=0',
+                      '--numeric-owner';
+                }
+                0 == system('tar', @taropts, @owneropts, '-C',
+                    $options->{root}, '.')
+                  or error "tar failed: $?";
+            } else {
+                error "unknown mode: $options->{mode}";
+            }
+
+            info "done";
+        } elsif (any { $_ eq $options->{format} } ('directory', 'null')) {
+            # nothing to do
+        } else {
+            error "unknown format: $options->{format}";
+        }
+
+        exit 0;
+    };
+
+    my $pid;
     if ($options->{mode} eq 'unshare') {
-        $pid = get_unshare_cmd(
-            sub {
-                # child
-                local $SIG{'INT'}  = 'DEFAULT';
-                local $SIG{'HUP'}  = 'DEFAULT';
-                local $SIG{'PIPE'} = 'DEFAULT';
-                local $SIG{'TERM'} = 'DEFAULT';
-
-                # unblock all delayed signals (and possibly handle them)
-                POSIX::sigprocmask(SIG_UNBLOCK, $sigset)
-                  or error "Can't unblock signals: $!";
-
-                close $rfh;
-                close $parentsock;
-                open(STDOUT, '>&', STDERR) or error "cannot open STDOUT: $!";
-
-                setup($options);
-
-                print $childsock (pack('n', 0) . 'adios');
-                $childsock->flush();
-
-                close $childsock;
-
-                close $nblkreader;
-                if (!$options->{dryrun} && $options->{format} eq 'ext2') {
-                    my $numblocks = approx_disk_usage($options->{root});
-                    print $nblkwriter "$numblocks\n";
-                    $nblkwriter->flush();
-                }
-                close $nblkwriter;
-
-                if ($options->{dryrun}) {
-                    info "simulate creating tarball...";
-                } elsif (any { $_ eq $options->{format} }
-                    ('tar', 'squashfs', 'ext2')) {
-                    info "creating tarball...";
-
-                    # redirect tar output to the writing end of the pipe so
-                    # that the parent process can capture the output
-                    open(STDOUT, '>&', $wfh) or error "cannot open STDOUT: $!";
-
-                    # Add ./dev as the first entries of the tar file.
-                    # We cannot add them after calling tar, because there is no
-                    # way to prevent tar from writing NULL entries at the end.
-                    if (any { $_ eq 'output/dev' } @{ $options->{skip} }) {
-                        info "skipping output/dev as requested";
-                    } else {
-                        print $devtar;
-                    }
-
-                    # pack everything except ./dev
-                    0 == system('tar', @taropts, '-C', $options->{root}, '.')
-                      or error "tar failed: $?";
-
-                    info "done";
-                } elsif (any { $_ eq $options->{format} }
-                    ('directory', 'null')) {
-                    # nothing to do
-                } else {
-                    error "unknown format: $options->{format}";
-                }
-
-                exit 0;
-            },
-            \@idmap
-        );
+        $pid = get_unshare_cmd($worker, \@idmap);
     } elsif (any { $_ eq $options->{mode} }
         ('root', 'fakechroot', 'chrootless')) {
         $pid = fork() // error "fork() failed: $!";
         if ($pid == 0) {
-            local $SIG{'INT'}  = 'DEFAULT';
-            local $SIG{'HUP'}  = 'DEFAULT';
-            local $SIG{'PIPE'} = 'DEFAULT';
-            local $SIG{'TERM'} = 'DEFAULT';
-
-            # unblock all delayed signals (and possibly handle them)
-            POSIX::sigprocmask(SIG_UNBLOCK, $sigset)
-              or error "Can't unblock signals: $!";
-
-            close $rfh;
-            close $parentsock;
-            open(STDOUT, '>&', STDERR) or error "cannot open STDOUT: $!";
-
-            setup($options);
-
-            print $childsock (pack('n', 0) . 'adios');
-            $childsock->flush();
-
-            close $childsock;
-
-            close $nblkreader;
-            if (!$options->{dryrun} && $options->{format} eq 'ext2') {
-                my $numblocks = approx_disk_usage($options->{root});
-                print $nblkwriter $numblocks;
-                $nblkwriter->flush();
-            }
-            close $nblkwriter;
-
-            if ($options->{dryrun}) {
-                info "simulate creating tarball...";
-            } elsif (any { $_ eq $options->{format} }
-                ('tar', 'squashfs', 'ext2')) {
-                info "creating tarball...";
-
-                # redirect tar output to the writing end of the pipe so that
-                # the parent process can capture the output
-                open(STDOUT, '>&', $wfh) or error "cannot open STDOUT: $!";
-
-                # Add ./dev as the first entries of the tar file.
-                # We cannot add them after calling tar, because there is no way
-                # to prevent tar from writing NULL entries at the end.
-                if (any { $_ eq 'output/dev' } @{ $options->{skip} }) {
-                    info "skipping output/dev as requested";
-                } else {
-                    print $devtar;
-                }
-
-                if ($options->{mode} eq 'fakechroot') {
-                    # By default, FAKECHROOT_EXCLUDE_PATH includes /proc and
-                    # /sys which means that the resulting tarball will contain
-                    # the permission and ownership information of /proc and
-                    # /sys from the outside, which we want to avoid.
-                    ## no critic (Variables::RequireLocalizedPunctuationVars)
-                    $ENV{FAKECHROOT_EXCLUDE_PATH} = "/dev";
-                    # Fakechroot requires tar to run inside the chroot or
-                    # otherwise absolute symlinks will include the path to the
-                    # root directory
-                    0 == system('chroot', $options->{root}, 'tar',
-                        @taropts, '-C', '/', '.')
-                      or error "tar failed: $?";
-                } elsif (any { $_ eq $options->{mode} } ('root', 'chrootless'))
-                {
-                    # If the chroot directory is not owned by the root user,
-                    # then we assume that no measure was taken to fake root
-                    # permissions. Since the final tarball should contain
-                    # entries with root ownership, we instruct tar to do so.
-                    my @owneropts = ();
-                    if ((stat $options->{root})[4] != 0) {
-                        push @owneropts, '--owner=0', '--group=0',
-                          '--numeric-owner';
-                    }
-                    0 == system('tar', @taropts, @owneropts, '-C',
-                        $options->{root}, '.')
-                      or error "tar failed: $?";
-                } else {
-                    error "unknown mode: $options->{mode}";
-                }
-
-                info "done";
-            } elsif (any { $_ eq $options->{format} } ('directory', 'null')) {
-                # nothing to do
-            } else {
-                error "unknown format: $options->{format}";
-            }
-
-            exit 0;
+            $worker->();
         }
     } else {
         error "unknown mode: $options->{mode}";
