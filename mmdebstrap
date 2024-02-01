@@ -5227,6 +5227,12 @@ sub main() {
         }
     }
 
+    if (defined $options->{qemu} && $options->{mode} eq 'fakechroot') {
+        if (!can_execute 'dpkg-architecture') {
+            error "cannot find dpkg-architecture";
+        }
+    }
+
     {
         $options->{suite} = undef;
         if (scalar @ARGV > 0) {
