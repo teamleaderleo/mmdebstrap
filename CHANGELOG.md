@@ -1,3 +1,8 @@
+1.4.3 (2024-02-01)
+------------------
+
+ - take hard links into account when computing disk usage
+
 1.4.2 (2024-01-29)
 ------------------
 
