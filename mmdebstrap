@@ -7467,7 +7467,7 @@ translated manual packages (but not the untranslated ones), and documentation
 Create a bootable USB Stick that boots into a full Debian desktop:
 
     $ mmdebstrap --aptopt='Apt::Install-Recommends "true"' --customize-hook \
-        'chroot "$1" adduser --gecos user --disabled-password user' \
+        'chroot "$1" adduser --comment user --disabled-password user' \
         --customize-hook='echo 'user:live' | chroot "$1" chpasswd' \
         --customize-hook='echo host > "$1/etc/hostname"' \
         --customize-hook='echo "127.0.0.1 localhost host" > "$1/etc/hosts"' \
