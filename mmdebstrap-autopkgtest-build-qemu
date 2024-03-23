@@ -308,12 +308,15 @@ FAT_SIZE_SECTORS=$((1024*254))
 #  - users who prefer qcow2 get to choose to run it themselves with their own
 #    custom options like compression
 #
+# --map-users=auto --map-user=0     => 0:$UID:1 + 1:$SUBUIDBASE:65535
+# --map-users=auto --map-user=65536 => 0:$SUBUIDBASE:65536 + 65536:$UID:1
+#
 # Make the image writeable to the first subgid. mmdebstrap will map this gid to
 # the root group. unshare instead will map the current gid to 0 and the first
 # subgid to 1. Therefore mmdebstrap will be able to write to the image.
 rm -f "$IMAGE"
 : >"$IMAGE"
-unshare -U -r --map-groups=auto chown 0:1 "$IMAGE"
+unshare --map-user=0 --map-group=0 --map-groups=auto chown 0:1 "$IMAGE"
 chmod 0660 "$IMAGE"
 
 # Make sure that the unshared user is able to access the file.
