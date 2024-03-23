@@ -236,7 +236,11 @@ END
 	esac
 
 	# shellcheck disable=SC2086
-	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --yes install $pkgs
+	APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --yes install $pkgs \
+		|| APT_CONFIG="$rootdir/etc/apt/apt.conf" apt-get --yes install \
+			-oDebug::pkgProblemResolver=true -oDebug::pkgDepCache::Marker=1 \
+			-oDebug::pkgDepCache::AutoInstall=1 \
+			$pkgs
 
 	rm "$rootdir/var/cache/apt/archives/lock"
 	rmdir "$rootdir/var/cache/apt/archives/partial"
