@@ -1,4 +1,13 @@
 #!/bin/sh
+#
+# This script makes sure that the apt sources.list and preferences from outside
+# the chroot also exist inside the chroot by *appending* them to any existing
+# files. If you do not want to keep the original content, add another setup
+# hook before this one which cleans up the files you don't want to keep.
+#
+# If instead of copying sources.list verbatim you want to mangle its contents,
+# consider using python-apt for that. An example can be found in the Debian
+# packaging of mmdebstrap in ./debian/tests/sourcesfilter
 
 set -eu
 
