@@ -30,7 +30,7 @@ export LC_ALL=C.UTF-8
 { echo "$native_arch"; echo "$foreign_arch"; } | cmp /tmp/debian-chroot/var/lib/dpkg/arch -
 rm /tmp/debian-chroot/usr/lib/file/magic.mgc
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/README.Debian
-rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/"changelog.Debian.$foreign_arch.gz"
+rm -f /tmp/debian-chroot/usr/share/doc/libmagic-mgc/"changelog.Debian.$foreign_arch.gz"
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/changelog.Debian.gz
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/changelog.gz
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/copyright

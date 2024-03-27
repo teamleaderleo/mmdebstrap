@@ -37,7 +37,7 @@ rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/README.Debian
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/changelog.Debian.gz
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/changelog.gz
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/copyright
-rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/"changelog.Debian.$foreign_arch.gz"
+rm -f /tmp/debian-chroot/usr/share/doc/libmagic-mgc/"changelog.Debian.$foreign_arch.gz"
 rm /tmp/debian-chroot/usr/share/file/magic.mgc
 rm /tmp/debian-chroot/usr/share/misc/magic.mgc
 # delete real files
