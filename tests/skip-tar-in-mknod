@@ -3,7 +3,7 @@ set -eu
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
 
-[ {{ MODE }} = "unshare" ]
+#[ {{ MODE }} = "unshare" ]
 
 trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
 
@@ -22,7 +22,8 @@ fi
 $prefix {{ CMD }} --mode={{ MODE }} --variant=custom \
 	--skip=update,setup,cleanup,tar-in/mknod \
 	--setup-hook='tar-in ./cache/mmdebstrap-{{ DIST }}-apt.tar /' \
-	'' /tmp/debian-chroot.tar
+	--setup-hook='/sbin/auditctl -w "$1" -p wxa -k mykey' \
+	'' /tmp/debian-chroot.tar || /sbin/ausearch --format text -k mykey
 
 cmp ./cache/mmdebstrap-{{ DIST }}-apt.tar /tmp/debian-chroot.tar \
 	|| diffoscope ./cache/mmdebstrap-{{ DIST }}-apt.tar /tmp/debian-chroot.tar

@@ -457,6 +457,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	if [ ! -e ./mmdebstrap ]; then
 		pkgs="$pkgs,mmdebstrap"
 	fi
+	pkgs="$pkgs,auditd"
 	arches=$HOSTARCH
 	if [ "$RUN_MA_SAME_TESTS" = "yes" ]; then
 		case "$HOSTARCH" in
