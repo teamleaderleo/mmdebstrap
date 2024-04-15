@@ -261,9 +261,21 @@ case "$ARCHITECTURE" in
 	;;
 esac
 
+test_installed() {
+	pkg="$1"
+	if [ "$(dpkg-query -f '${db:Status-Status}' -W "$pkg")" != installed ]; then
+		die "please install $pkg"
+	fi
+}
+
+for pkg in autopkgtest dosfstools e2fsprogs fdisk mount mtools passwd uidmap; do
+	test_installed "$pkg"
+done
+
 if test "$(dpkg-query -f '${db:Status-Status}' -W binutils-multiarch)" = installed; then
 	GNU_PREFIX=
 else
+	test_installed dpkg-dev
 	GNU_ARCHITECTURE="$(dpkg-architecture "-a$ARCHITECTURE" -qDEB_HOST_GNU_TYPE)"
 	GNU_PREFIX="$GNU_ARCHITECTURE-"
 	GNU_SUFFIX="-$(echo "$GNU_ARCHITECTURE" | tr _ -)"
@@ -277,11 +289,7 @@ case $arches in
 	*) die "enable $ARCHITECTURE by running: sudo dpkg --add-architecture $ARCHITECTURE && sudo apt update" ;;
 esac
 
-for pkg in autopkgtest dosfstools e2fsprogs fdisk mount mtools passwd "systemd-boot-efi:$ARCHITECTURE" uidmap; do
-	if [ "$(dpkg-query -f '${db:Status-Status}' -W "$pkg")" != installed ]; then
-		die "please install $pkg"
-	fi
-done
+test_installed "systemd-boot-efi:$ARCHITECTURE"
 
 BOOTSTUB="/usr/lib/systemd/boot/efi/linux${EFIIMG#boot}.stub"
 
