@@ -356,10 +356,11 @@ EXT4_OPTIONS="offset=$EXT4_OFFSET_BYTES,assume_storage_prezeroed=1"
 set -- "$@" \
 	"--customize-hook=download vmlinuz '$WORKDIR/kernel'" \
 	"--customize-hook=download initrd.img '$WORKDIR/initrd'" \
-	'--customize-hook=mount --bind "$1" "$1/mnt"' \
-	'--customize-hook=mount --bind "$1/mnt/mnt" "$1/mnt/dev"' \
+	'--customize-hook=mount --no-mtab --bind "$1" "$1/mnt"' \
+	'--customize-hook=mount --no-mtab --bind "$1/mnt/mnt" "$1/mnt/dev"' \
 	'--customize-hook=/sbin/mkfs.ext4 -d "$1/mnt" -L autopkgtestvm -E '"'$EXT4_OPTIONS' '$IMAGE' '$SIZE'" \
-	'--customize-hook=umount --lazy "$1/mnt"' \
+	'--customize-hook=umount --lazy --no-mtab "$1/mnt/dev"' \
+	'--customize-hook=umount --lazy --no-mtab "$1/mnt"' \
 	"$RELEASE" \
 	/dev/null
 
