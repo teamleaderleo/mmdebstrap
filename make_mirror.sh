@@ -33,7 +33,7 @@ deletecache() {
 		done
 		# deleting artifacts from test "mmdebstrap"
 		for variant in essential apt minbase buildd - standard; do
-			for format in tar ext2 squashfs; do
+			for format in tar ext2 ext4 squashfs; do
 				if [ -e "$dir/mmdebstrap-$dist-$variant.$format" ]; then
 					# attempt to delete for all dists because DEFAULT_DIST might've been different the last time
 					rm "$dir/mmdebstrap-$dist-$variant.$format"
@@ -453,7 +453,7 @@ if [ "$HAVE_QEMU" = "yes" ]; then
 	tmpdir="$(mktemp -d)"
 	trap 'kill "$PROXYPID" || :;cleanuptmpdir; cleanup_newcachedir' EXIT INT TERM
 
-	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,squashfs-tools-ng,genext2fs,linux-image-generic,passwd
+	pkgs=perl-doc,systemd-sysv,perl,arch-test,fakechroot,fakeroot,mount,uidmap,qemu-user-static,qemu-user,dpkg-dev,mini-httpd,libdevel-cover-perl,libtemplate-perl,debootstrap,procps,apt-cudf,aspcud,python3,libcap2-bin,gpg,debootstrap,distro-info-data,iproute2,ubuntu-keyring,apt-utils,squashfs-tools-ng,genext2fs,linux-image-generic,passwd,e2fsprogs,uuid-runtime
 	if [ ! -e ./mmdebstrap ]; then
 		pkgs="$pkgs,mmdebstrap"
 	fi

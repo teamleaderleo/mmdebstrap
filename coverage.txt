@@ -59,7 +59,7 @@ Needs-QEMU: true
 Test: mmdebstrap
 Needs-Root: true
 Modes: root
-Formats: tar squashfs ext2
+Formats: tar squashfs ext2 ext4
 Variants: essential apt minbase buildd - standard
 Skip-If:
  variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
@@ -68,7 +68,7 @@ Skip-If:
 
 Test: check-for-bit-by-bit-identical-format-output
 Modes: unshare fakechroot
-Formats: tar squashfs ext2
+Formats: tar squashfs ext2 ext4
 Variants: essential apt minbase buildd - standard
 Skip-If:
  variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558

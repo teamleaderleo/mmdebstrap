@@ -34,7 +34,7 @@ all_variants = [
     "standard",
 ]
 default_format = "auto"
-all_formats = ["auto", "directory", "tar", "squashfs", "ext2", "null"]
+all_formats = ["auto", "directory", "tar", "squashfs", "ext2", "ext4", "null"]
 
 mirror = os.getenv("mirror", "http://127.0.0.1/debian")
 hostarch = subprocess.check_output(["dpkg", "--print-architecture"]).decode().strip()
