@@ -17,4 +17,8 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto
 	prefix="runuser -u ${SUDO_USER:-user} --"
 fi
 
-$prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --include=dpkg,dash,diffutils,coreutils,libc-bin,sed {{ DIST }} /dev/null {{ MIRROR }}
+# creating /sbin manually because of #1071078
+$prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} \
+	--setup-hook='mkdir "$1/sbin"' \
+	--include=dpkg,dash,diffutils,coreutils,libc-bin,sed \
+	{{ DIST }} /dev/null {{ MIRROR }}
