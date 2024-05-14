@@ -361,6 +361,9 @@ fi
 
 EXT4_OFFSET_BYTES=$(( (FAT_OFFSET_SECTORS + FAT_SIZE_SECTORS) * 512))
 EXT4_OPTIONS="offset=$EXT4_OFFSET_BYTES,assume_storage_prezeroed=1"
+
+# the --no-mtab option to mount is a workaround for https://github.com/util-linux/util-linux/issues/2981
+# revert 8c0ddc32660ca4e98c988966251f9c05d6bcccef once it is no longer needed
 set -- "$@" \
 	"--customize-hook=download vmlinuz '$WORKDIR/kernel'" \
 	"--customize-hook=download initrd.img '$WORKDIR/initrd'" \
