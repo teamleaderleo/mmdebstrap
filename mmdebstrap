@@ -7295,7 +7295,12 @@ B<--skip=tar-in/mknod>.
 =item B<tar-out> I<pathinside> I<outside.tar>
 
 Packs the path I<pathinside> from inside the chroot into a tarball, placing it
-into a certain location I<outside.tar> outside the chroot.
+into a certain location I<outside.tar> outside the chroot. To emulate behaviour
+of C<cp> and to provide control over the path which gets put into the tarball,
+a C<chdir()> is performed to the C<dirname()> of I<pathinside> and then the
+C<basename()> of I<pathinside> is packaged as a tarball. For example, if
+I<pathinside> is C</boot/.> then first a C<chdir()> into C</boot> will be
+performed before packing up the contents of C<.> inside C</boot>.
 
 =item B<download> I<fileinside> I<fileoutside>
 
