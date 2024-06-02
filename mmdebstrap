@@ -1177,6 +1177,8 @@ sub setup_mounts {
 
     eval {
         if (any { $_ eq $options->{mode} } ('root', 'unshare')) {
+            0 == system('mount', "--make-rprivate", "/")
+              or warning("mount --make-rprivate / failed: $?");
             # if more than essential should be installed, make the system look
             # more like a real one by creating or bind-mounting the device
             # nodes
