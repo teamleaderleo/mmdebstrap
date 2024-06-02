@@ -550,6 +550,7 @@ END
 		--customize-hook='copy-in "'"$tmpdir"'/worker.sh" /' \
 		--customize-hook='echo 127.0.0.1 localhost > "$1/etc/hosts"' \
 		--customize-hook='printf "START=1\nDAEMON_OPTS=\"-h 127.0.0.1 -p 80 -u nobody -dd /mnt/cache -i /var/run/mini-httpd.pid -T UTF-8\"\n" > "$1/etc/default/mini-httpd"' \
+		--customize-hook='touch "$1/etc/systemd/system/tmp.mount"' \
 		"$mirror"
 
 	kill $PROXYPID
