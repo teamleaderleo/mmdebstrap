@@ -4455,8 +4455,9 @@ sub approx_disk_usage {
     # image. See https://bugs.debian.org/1005857
     find({ wanted => $scan_installed_size, no_chdir => 1 }, $directory);
 
-    # because the above is only a heuristic we add 10% extra for good measure
-    return int($installed_size * 1.1);
+    # the above is only a heuristic and especially ext4 will consume quite a
+    # few more blocks than the heuristic above is going to compute
+    return int($installed_size * 1.2);
 }
 
 sub main() {
