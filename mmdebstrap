@@ -36,7 +36,8 @@ use File::Find;
 use Cwd qw(abs_path getcwd);
 require "syscall.ph";      ## no critic (Modules::RequireBarewordIncludes)
 require "sys/ioctl.ph";    ## no critic (Modules::RequireBarewordIncludes)
-use Fcntl      qw(S_IFCHR S_IFBLK FD_CLOEXEC F_GETFD F_SETFD);
+use Fcntl
+  qw(S_IFCHR S_IFBLK FD_CLOEXEC F_GETFD F_SETFD LOCK_EX O_RDONLY O_DIRECTORY);
 use List::Util qw(any none);
 use POSIX
   qw(SIGINT SIGHUP SIGPIPE SIGTERM SIG_BLOCK SIG_UNBLOCK strftime isatty);
@@ -5759,6 +5760,7 @@ sub main() {
         $blocksize = 1048576;
     }
 
+    my $rootdir_handle;
     if (any { $_ eq $options->{format} }
         ('tar', 'squashfs', 'ext2', 'ext4', 'null')) {
         if ($options->{format} ne 'null') {
@@ -5789,6 +5791,13 @@ sub main() {
         # directory
         $options->{root} = tempdir('mmdebstrap.XXXXXXXXXX', TMPDIR => 1);
         info "using $options->{root} as tempdir";
+        # add an flock on the temporary directory to prevent cleanup by systemd
+        # see section Age in tmpfiles.d(5)
+        sysopen($rootdir_handle, $options->{root}, O_RDONLY | O_DIRECTORY)
+          or error "Failed to sysopen $options->{root}: $!\n";
+        flock($rootdir_handle, LOCK_EX)
+          or error "Unable to flock $options->{root}: $!\n";
+
         # in unshare and root mode, other users than the current user need to
         # access the rootfs, most prominently, the _apt user. Thus, make the
         # temporary directory world readable.
