@@ -1,3 +1,9 @@
+1.5.1 (2024-06-03)
+------------------
+
+ - in root and unshare mode, run 'mount --make-rprivate /' before bind-mounting
+ - switch apt variant from using 'apt-get dist-upgrade' to apt patterns
+
 1.5.0 (2024-05-14)
 ------------------
 
