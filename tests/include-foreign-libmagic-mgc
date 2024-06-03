@@ -36,7 +36,6 @@ rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/changelog.gz
 rm /tmp/debian-chroot/usr/share/doc/libmagic-mgc/copyright
 rm /tmp/debian-chroot/usr/share/file/magic.mgc
 rm /tmp/debian-chroot/usr/share/misc/magic.mgc
-rm /tmp/debian-chroot/var/lib/apt/extended_states
 rm /tmp/debian-chroot/var/lib/dpkg/info/libmagic-mgc.list
 rm /tmp/debian-chroot/var/lib/dpkg/info/libmagic-mgc.md5sums
 rmdir /tmp/debian-chroot/usr/share/doc/libmagic-mgc/

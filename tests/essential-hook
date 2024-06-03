@@ -17,5 +17,4 @@ tar -C /tmp/debian-chroot --one-file-system -c . | tar -t | sort \
 	| grep -v '^./usr/share/lintian/overrides/tzdata' \
 	| grep -v '^./usr/share/zoneinfo' \
 	| grep -v '^./var/lib/dpkg/info/tzdata.' \
-	| grep -v '^./var/lib/apt/extended_states$' \
 	| diff -u tar1.txt -

@@ -6,4 +6,4 @@ trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
 	--essential-hook='APT_CONFIG=$MMDEBSTRAP_APT_CONFIG apt-get update' \
 	--essential-hook='APT_CONFIG=$MMDEBSTRAP_APT_CONFIG apt-get --yes install apt' \
 	{{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
-tar -tf /tmp/debian-chroot.tar | sort | grep -v ./var/lib/apt/extended_states | diff -u tar1.txt -
+tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -

@@ -6,4 +6,4 @@ trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
 	--include '?narrow(?archive(^{{ DIST }}$),?essential)' \
 	--include apt \
 	{{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
-tar -tf /tmp/debian-chroot.tar | sort | diff -u tar1.txt -
+{ tar -tf /tmp/debian-chroot.tar; echo ./var/lib/apt/extended_states; } | sort | diff -u tar1.txt -
