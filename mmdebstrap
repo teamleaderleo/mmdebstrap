@@ -4293,7 +4293,7 @@ sub get_sourceslist_by_suite {
         # the security mirror changes, starting with bullseye
         # https://lists.debian.org/87r26wqr2a.fsf@43-1.org
         my $bullseye_or_later = 0;
-        if (any { $_ eq $suite } ('stable', 'bullseye', 'bookworm', 'trixie'))
+        if (any { $_ eq $suite } ('oldstable', 'stable', 'bullseye', 'bookworm', 'trixie'))
         {
             $bullseye_or_later = 1;
         }
