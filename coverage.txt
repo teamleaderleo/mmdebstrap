@@ -64,7 +64,7 @@ Variants: essential apt minbase buildd - standard
 Skip-If:
  variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
  mode == "fakechroot" and variant in ["-", "standard"] # no extended attributes
- variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
+ variant == "standard" and dist in ["oldstable", "stable"] and hostarch in ["armel", "armhf", "mipsel"] # #1031276
 
 Test: check-for-bit-by-bit-identical-format-output
 Modes: unshare fakechroot
@@ -73,7 +73,7 @@ Variants: essential apt minbase buildd - standard
 Skip-If:
  variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
  mode == "fakechroot" and variant in ["-", "standard"] # no extended attributes
- variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
+ variant == "standard" and dist in ["oldstable", "stable"] and hostarch in ["armel", "armhf", "mipsel"] # #1031276
 
 Test: tarfilter-idshift
 Needs-QEMU: true
@@ -273,17 +273,13 @@ Test: debootstrap-no-op-options
 Needs-Root: true
 
 Test: verbose
-Variants: - standard
+Variants: standard
 Skip-If:
- variant == "-" and hostarch not in ["armel", "armhf", "mipsel"] # #1031276
- variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
  variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
 
 Test: debug
-Variants: - standard
+Variants: standard
 Skip-If:
- variant == "-" and hostarch not in ["armel", "armhf", "mipsel"] # #1031276
- variant == "standard" and hostarch in ["armel", "armhf", "mipsel"] # #1031276
  variant == "standard" and dist == "oldstable" # #864082, #1004557, #1004558
 
 Test: quiet
