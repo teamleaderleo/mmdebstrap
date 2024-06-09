@@ -17,8 +17,8 @@ if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto
 	prefix="runuser -u ${SUDO_USER:-user} --"
 fi
 
-# creating /sbin manually because of #1071078
+# do not install base-files, so that /proc, /sys and /dev are missing
 $prefix {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} \
-	--setup-hook='mkdir "$1/sbin"' \
+	--setup-hook='for dir in bin lib lib32 lib64 libo32 libx32 sbin; do ln -s "usr/$dir" "$1/$dir"; done' \
 	--include=dpkg,dash,diffutils,coreutils,libc-bin,sed \
 	{{ DIST }} /dev/null {{ MIRROR }}

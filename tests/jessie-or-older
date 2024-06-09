@@ -30,6 +30,7 @@ filter() {
 		--path-exclude=/var/cache/debconf/templates.dat-old \
 		--path-exclude=/var/lib/dpkg/available \
 		--path-exclude=/var/lib/dpkg/diversions \
+		--path-exclude=/var/lib/dpkg/diversions-old \
 		--path-exclude=/var/lib/dpkg/cmethopt \
 		--path-exclude=/var/lib/dpkg/status-old \
 		--path-exclude=/var/lib/shells.state

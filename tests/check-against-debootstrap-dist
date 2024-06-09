@@ -70,6 +70,8 @@ rm /tmp/debian-{{ DIST }}-debootstrap/var/cache/debconf/templates.dat-old \
 	/tmp/debian-{{ DIST }}-mm/var/cache/debconf/templates.dat-old
 rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/status-old \
 	/tmp/debian-{{ DIST }}-mm/var/lib/dpkg/status-old
+rm -f /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/diversions-old \
+	/tmp/debian-{{ DIST }}-mm/var/lib/dpkg/diversions-old
 # remove dpkg files
 rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/available
 rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/dpkg/cmethopt
