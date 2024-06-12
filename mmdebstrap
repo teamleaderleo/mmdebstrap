@@ -5737,6 +5737,9 @@ sub main() {
         if (!can_execute 'mke2fs', '-V') {
             error "need mke2fs for ext4 format";
         }
+        require DynaLoader;
+        my $libarchive = DynaLoader::dl_load_file("libarchive.so.13", 0)
+          or error "need libarchive for ext4 format";
         $blocksize = 4096;
     } elsif ($options->{format} eq 'squashfs') {
         if (!can_execute 'tar2sqfs') {
