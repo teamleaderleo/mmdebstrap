@@ -29,10 +29,11 @@ B<mmdebstrap-autopkgtest-build-qemu> [I<OPTIONS>] B<--boot>=B<efi> I<RELEASE> I<
 B<mmdebstrap-autopkgtest-build-qemu> is a mostly compatible drop-in replacement
 for L<autopkgtest-build-qemu(1)> with two main differences: Firstly, it uses
 L<mmdebstrap(1)> instead of L<vmdb2(1)> and thus is able to create QEMU disk
-images without requiring superuser privileges.  Secondly, it uses
-L<systemd-boot(7)> and thus only supports booting via EFI. For architectures
-for which L<autopkgtest-virt-qemu(1)> does not default to EFI booting you must
-pass B<--boot=efi> when invoking the autopkgtest virt backend.
+images without requiring superuser privileges and with bit-by-bit reproducible
+output. Secondly, it uses L<systemd-boot(7)> and thus only supports booting via
+EFI. For architectures for which L<autopkgtest-virt-qemu(1)> does not default
+to EFI booting you must pass B<--boot=efi> when invoking the autopkgtest virt
+backend.
 
 =head1 POSITIONAL PARAMETERS
 
@@ -109,6 +110,12 @@ all path components or by creating the image in a world-readable directory like
 
 Make sure to add B<--boot=efi> to both the B<mmdebstrap-autopkgtest-build-qemu>
 as well as the B<autopkgtest-virt-qemu> invocation.
+
+Create bit-by-bit reproducible images from a given snapshot.d.o timestamp.
+
+    SOURCE_DATE_EPOCH=1612543740 mmdebstrap-autopkgtest-build-qemu --boot=efi \
+        --mirror=http://snapshot.debian.org/archive/debian/20210205T164900Z/ \
+        unstable /path/to/debian-unstable.img
 
 =head1 SEE ALSO
 
@@ -273,7 +280,7 @@ test_installed() {
 	fi
 }
 
-for pkg in autopkgtest dosfstools e2fsprogs fdisk mount mtools passwd uidmap; do
+for pkg in autopkgtest dosfstools e2fsprogs fdisk mount mtools passwd uidmap libarchive13; do
 	test_installed "$pkg"
 done
 
@@ -320,33 +327,24 @@ FAT_SIZE_SECTORS=$((1024*254))
 #  - snapshots and overlays work just as well with raw images
 #  - users who prefer qcow2 get to choose to run it themselves with their own
 #    custom options like compression
-#
-# --map-users=auto --map-user=0     => 0:$UID:1 + 1:$SUBUIDBASE:65535
-# --map-users=auto --map-user=65536 => 0:$SUBUIDBASE:65536 + 65536:$UID:1
-#
-# Make the image writeable to the first subgid. mmdebstrap will map this gid to
-# the root group. unshare instead will map the current gid to 0 and the first
-# subgid to 1. Therefore mmdebstrap will be able to write to the image.
-rm -f "$IMAGE"
-: >"$IMAGE"
-unshare --map-user=0 --map-group=0 --map-groups=auto chown 0:1 "$IMAGE"
-chmod 0660 "$IMAGE"
-
-# Make sure that the unshared user is able to access the file.
-# Alternatively to using /sbin/mkfs.ext4 could use --format=ext2 which would
-# add an extra copy operation and come with the limitations of ext2.
-# Another solution: https://github.com/tytso/e2fsprogs/pull/118
-if ! mmdebstrap --unshare-helper touch "$IMAGE"; then
-	die "$IMAGE cannot be accessed by the unshared user -- either make all path components up to the image itself world-executable or place the image into a world-readable path like /tmp"
-fi
 
 set -- \
 	--mode=unshare \
+	--format=tar \
 	--variant=important \
 	--architecture="$ARCHITECTURE"
 
-test "$RELEASE" = jessie &&
+case $MIRROR in http://snapshot.debian.org/archive/*|https://snapshot.debian.org/archive/*)
+	set -- "$@" --aptopt='Acquire::Check-Valid-Until "false"';;
+esac
+
+EXT_FEATURES=
+if test "$RELEASE" = jessie; then
+	set -- "$@" --keyring=/usr/share/keyrings/debian-archive-removed-keys.gpg
+	set -- "$@" --aptopt='Apt::Key::gpgvcommand "/usr/libexec/mmdebstrap/gpgvnoexpkeysig"'
 	set -- "$@" --hook-dir=/usr/share/mmdebstrap/hooks/jessie-or-older
+	EXT_FEATURES="^metadata_csum,^metadata_csum_seed,^orphan_file"
+fi
 
 set -- "$@" \
 	"--include=init,$LINUXIMAGE,python3" \
@@ -364,30 +362,35 @@ if test -n "$SCRIPT"; then
 		'--customize-hook=rm -f "$1/userscript"'
 fi
 
-EXT4_OFFSET_BYTES=$(( (FAT_OFFSET_SECTORS + FAT_SIZE_SECTORS) * 512))
-EXT4_OPTIONS="offset=$EXT4_OFFSET_BYTES,assume_storage_prezeroed=1"
-
-# the --no-mtab option to mount is a workaround for https://github.com/util-linux/util-linux/issues/2981
-# revert 8c0ddc32660ca4e98c988966251f9c05d6bcccef once it is no longer needed
 set -- "$@" \
 	"--customize-hook=download vmlinuz '$WORKDIR/kernel'" \
 	"--customize-hook=download initrd.img '$WORKDIR/initrd'" \
-	'--customize-hook=mount --no-mtab --bind "$1" "$1/mnt"' \
-	'--customize-hook=mount --no-mtab --bind "$1/mnt/mnt" "$1/mnt/dev"' \
-	'--customize-hook=/sbin/mkfs.ext4 -d "$1/mnt" -L autopkgtestvm -E '"'$EXT4_OPTIONS' '$IMAGE' '$SIZE'" \
-	'--customize-hook=umount --lazy --no-mtab "$1/mnt/dev"' \
-	'--customize-hook=umount --lazy --no-mtab "$1/mnt"' \
 	"$RELEASE" \
-	/dev/null
+	-
 
 test -n "$MIRROR" && set -- "$@" "$MIRROR"
 test -n "$KEYRING" && set -- "$@" "--keyring=$KEYRING"
 
-echo "mmdebstrap $*"
-mmdebstrap "$@" || die "mmdebstrap failed"
+echo "+ mmdebstrap $*" >&2
+# https://github.com/koalaman/shellcheck/issues/2555
+# shellcheck disable=SC3040
+set -o pipefail
+mmdebstrap "$@" | {
+	set -- -t ext4 -L autopkgtestvm -d -
+	if test -n "$EXT_FEATURES"; then
+		set -- "$@" -O "$EXT_FEATURES"
+	fi
+	EXTOPTS="offset=$(( (FAT_OFFSET_SECTORS + FAT_SIZE_SECTORS) * 512))"
+	if test -n "${SOURCE_DATE_EPOCH:-}"; then
+		uuid="$(uuidgen --sha1 --namespace="$(uuidgen --sha1 --namespace='@dns' --name mister-muffin.de)" --name "$SOURCE_DATE_EPOCH")"
+		set -- "$@" -U "$uuid"
+		EXTOPTS="$EXTOPTS,hash_seed=$uuid"
+	fi
+	set -- "$@" -E "$EXTOPTS" "$IMAGE" "$SIZE"
+	echo "+ mke2fs $*" >&2
+	/sbin/mke2fs "$@"
+}
 
-unshare -U -r --map-groups=auto chown 0:0 "$IMAGE"
-chmod "$(printf %o "$(( 0666 & ~0$(umask) ))")" "$IMAGE"
 
 echo "root=LABEL=autopkgtestvm rw console=ttyS0" > "$WORKDIR/cmdline"
 
@@ -461,4 +464,5 @@ if test -n "$VMFPKG" && test "$(dpkg-query -f '${db:Status-Status}' -W "$VMFPKG"
 	echo "I: you might need to install $VMFPKG to use this image with autopkgtest-virt-qemu" >&2
 fi
 
-echo "I: don't forget to pass --boot=efi when running autopkgtest-virt-qemu with this image" >&2
+echo "I: SUCCESS! Your new image can be found here: $IMAGE" >&2
+echo "I: Don't forget to pass --boot=efi when running autopkgtest-virt-qemu with this image" >&2
