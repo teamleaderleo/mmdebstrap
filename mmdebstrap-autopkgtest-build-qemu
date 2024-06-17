@@ -235,26 +235,31 @@ case "$ARCHITECTURE" in
 		EFIIMG=bootx64.efi
 		QEMUARCH=x86_64
 		VMFPKG=ovmf
+		LINUXIMAGE=linux-image-amd64
 	;;
 	arm64)
 		EFIIMG=bootaa64.efi
 		QEMUARCH=aarch64
 		VMFPKG=qemu-efi-aarch64
+		LINUXIMAGE=linux-image-arm64
 	;;
 	armhf)
 		EFIIMG=bootarm.efi
 		QEMUARCH=arm
 		VMFPKG=qemu-efi-arm
+		LINUXIMAGE=linux-image-armmp
 	;;
 	i386)
 		EFIIMG=bootia32.efi
 		QEMUARCH=i386
 		VMFPKG=ovmf-ia32
+		LINUXIMAGE=linux-image-686-pae
 	;;
 	riscv64)
 		EFIIMG=bootriscv64.efi
 		QEMUARCH=riscv64
 		VMFPKG=
+		LINUXIMAGE=linux-image-riscv64
 	;;
 	*)
 		die "unsupported architecture: $ARCHITECTURE"
@@ -344,7 +349,7 @@ test "$RELEASE" = jessie &&
 	set -- "$@" --hook-dir=/usr/share/mmdebstrap/hooks/jessie-or-older
 
 set -- "$@" \
-	"--include=init,linux-image-$ARCHITECTURE,python3" \
+	"--include=init,$LINUXIMAGE,python3" \
 	'--customize-hook=echo host >"$1/etc/hostname"' \
 	'--customize-hook=echo 127.0.0.1 localhost host >"$1/etc/hosts"' \
 	'--customize-hook=passwd --root "$1" --delete root' \
