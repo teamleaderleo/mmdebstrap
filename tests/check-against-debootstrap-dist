@@ -157,12 +157,18 @@ if [ "{{ VARIANT }}" = "-" ] && [ "{{ DIST}}" = oldstable ]; then
 fi
 
 for log in faillog lastlog; do
-	if ! cmp /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log >&2;then
+	f1="/tmp/debian-{{ DIST }}-debootstrap/var/log/$log"
+	f2="/tmp/debian-{{ DIST }}-mm/var/log/$log"
+	# skip cmp if file is absent in both chroots
+	if [ ! -e "$f1" ] && [ ! -e "$f2" ]; then
+		continue
+	fi
+	if ! cmp "$f1" "$f2" >&2;then
 		# if the files differ, make sure they are all zeroes
-		cmp -n "$(stat -c %s "/tmp/debian-{{ DIST }}-debootstrap/var/log/$log")" "/tmp/debian-{{ DIST }}-debootstrap/var/log/$log" /dev/zero >&2
-		cmp -n "$(stat -c %s "/tmp/debian-{{ DIST }}-mm/var/log/$log")" "/tmp/debian-{{ DIST }}-mm/var/log/$log" /dev/zero >&2
+		cmp -n "$(stat -c %s "$f1")" "$f1" /dev/zero >&2
+		cmp -n "$(stat -c %s "$f2")" "$f2" /dev/zero >&2
 		# then delete them
-		rm /tmp/debian-{{ DIST }}-debootstrap/var/log/$log /tmp/debian-{{ DIST }}-mm/var/log/$log
+		rm "$f1" "$f2"
 	fi
 done
 
