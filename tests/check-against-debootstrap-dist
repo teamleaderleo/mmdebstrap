@@ -172,13 +172,27 @@ for log in faillog lastlog; do
 	fi
 done
 
-# the order in which systemd and cron get installed differ and thus the order
-# of lines in /etc/group and /etc/gshadow differs
 if [ "{{ VARIANT }}" = "-" ]; then
+	# the order in which systemd and cron get installed differ and thus the order
+	# of lines in /etc/group and /etc/gshadow differs
 	for f in group group- gshadow gshadow-; do
 		for d in mm debootstrap; do
 			sort /tmp/debian-{{ DIST }}-$d/etc/$f > /tmp/debian-{{ DIST }}-$d/etc/$f.bak
 			mv /tmp/debian-{{ DIST }}-$d/etc/$f.bak /tmp/debian-{{ DIST }}-$d/etc/$f
+		done
+	done
+	# the order in which systemd and passwd get installed differ and thus
+	# the order of lines in /etc/shadow and /etc/shadow- differs
+	for f in shadow shadow-; do
+		for d in mm debootstrap; do
+			sort /tmp/debian-{{ DIST }}-$d/etc/$f > /tmp/debian-{{ DIST }}-$d/etc/$f.bak
+			mv /tmp/debian-{{ DIST }}-$d/etc/$f.bak /tmp/debian-{{ DIST }}-$d/etc/$f
+		done
+	done
+	# and since the order was different, ignore the *- files
+	for f in shadow- passwd-; do
+		for d in mm debootstrap; do
+			rm /tmp/debian-{{ DIST }}-$d/etc/$f
 		done
 	done
 fi
