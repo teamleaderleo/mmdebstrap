@@ -1,3 +1,8 @@
+1.5.2 (2024-06-26)
+------------------
+
+ - mmdebstrap-autopkgtest-build-qemu produces bit-by-bit reproducible output
+
 1.5.1 (2024-06-03)
 ------------------
 
