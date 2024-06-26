@@ -4293,8 +4293,8 @@ sub get_sourceslist_by_suite {
         # the security mirror changes, starting with bullseye
         # https://lists.debian.org/87r26wqr2a.fsf@43-1.org
         my $bullseye_or_later = 0;
-        if (any { $_ eq $suite } ('oldstable', 'stable', 'bullseye', 'bookworm', 'trixie'))
-        {
+        if (any { $_ eq $suite }
+            ('oldstable', 'stable', 'bullseye', 'bookworm', 'trixie')) {
             $bullseye_or_later = 1;
         }
         my $distro_info = '/usr/share/distro-info/debian.csv';
@@ -6973,13 +6973,29 @@ The above uses C<--map-auto> to map the block of user/group ids for the
 effective user/group to a block starting at user/group ID 0. We also want to
 map the current effective user/group ID into the subuid/subgid range using
 C<--map-user> and C<--map-group>, respectively. But if that uid/gid overlaps
-with the respective range, a "hole" will be removed from the mapping and the
-remaining uid/gid values will get shifted. Thus, we map the current effective
-user/group ID to the highest possible uid/gid, putting them at the end. Since
-that means that the user/group will be "nobody" and not "root" inside the
-namespace, C<--keep-caps> propagate permitted capabilities into the ambient set
-and thus give the user C<CAP_DAC_OVERRIDE> and other capabilities that it
-would've had.
+with the respective range, a "hole" will be removed from the mapping by the
+L<unshare(1)> utility and the remaining uid/gid values will get shifted. Thus,
+we map the current effective user/group ID to the highest possible uid/gid,
+putting them at the end. Since that means that the user/group will be "nobody"
+and not "root" inside the namespace, C<--keep-caps> propagate permitted
+capabilities into the ambient set and thus give the user C<CAP_DAC_OVERRIDE>
+and other capabilities that it would've had. The following does B<NOT> work:
+
+    $ unshare --map-root-user --map-auto ...            # or equavalient:
+    $ unshare --map-user=0 --map-group=0 --map-users=auto --map-groups=auto ...
+
+Using the format of L<lxc-usernsexec(1)>, these options will result in the
+following mapping:
+
+    0:$UID:1 + 1:$SUBUIDBASE:65535
+
+So a hole is punched in the automatically mapped range at the very beginning to
+make space for the user id of the current user as root inside the namespace and
+the remaining uids are shifted. With C<--map-user=65536> the mapping is as
+follows and places the current user at the end of the range, preventing any
+shifting:
+
+    0:$SUBUIDBASE:65536 + 65536:$UID:1
 
 Lastly, if you don't mind using superuser privileges and have systemd-nspawn
 available and you know your subuid/subgid offset (100000 in this example):
