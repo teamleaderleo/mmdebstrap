@@ -430,3 +430,6 @@ Modes: root unshare
 
 Test: skip-tar-in-mknod
 Modes: unshare
+
+Test: zombie-reaping
+Modes: unshare

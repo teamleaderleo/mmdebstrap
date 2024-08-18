@@ -1964,6 +1964,23 @@ sub setup {
 
     my $msg = $@;
 
+    # Wait for (reap) potential zombies and otherwise long-running background
+    # processes or otherwise they might hog resources like /dev/null which can
+    # then not be unmounted resulting in their mountpoints (the regular files)
+    # not being removable and then the removal of device nodes in run_cleanup
+    # (if mmdebstrap is run with --skip=output/dev) will fail.
+    if (any { $_ eq 'zombie-reaping' } @{ $options->{skip} }) {
+        info "skipping zombie-reaping as requested";
+    } else {
+        if (waitpid(-1, POSIX::WNOHANG) >= 0) {
+            info "waiting for background processes to finish...";
+        }
+        while ((my $child = waitpid(-1, 0)) > 0) {
+            my $status = $? >> 8;
+            info "PID $child exited with exit code $status";
+        }
+    }
+
     $cleanup->(0);
     if ($msg) {
         error "setup failed: $msg";
@@ -7238,14 +7255,16 @@ hook. Otherwise, if I<command> is an existing executable file from C<$PATH> or
 if I<command> does not contain any shell metacharacters, then I<command> is
 directly exec-ed with the path to the chroot directory passed as the first
 argument. Otherwise, I<command> is executed under I<sh> and the chroot
-directory can be accessed via I<$1>. Most environment variables set by
-B<mmdebstrap> (like C<DEBIAN_FRONTEND>, C<LC_ALL> and C<PATH>) are preserved.
-Most notably, C<APT_CONFIG> is being unset. If you need the path to
-C<APT_CONFIG> as written by mmdebstrap it can be found in the
-C<MMDEBSTRAP_APT_CONFIG> environment variable. All environment variables set by
-the user are preserved, except for C<TMPDIR> which is cleared. See section
-B<TMPDIR>. Furthermore, C<MMDEBSTRAP_MODE> will store the mode set by
-B<--mode>, C<MMDEBSTRAP_FORMAT> stores the format chosen by B<--format>,
+directory can be accessed via I<$1>. Background (daemon) processes spawned in
+a hook are not guaranteed to persist beyond the hook that created them.
+
+Most environment variables set by B<mmdebstrap> (like C<DEBIAN_FRONTEND>,
+C<LC_ALL> and C<PATH>) are preserved.  Most notably, C<APT_CONFIG> is being
+unset. If you need the path to C<APT_CONFIG> as written by mmdebstrap it can be
+found in the C<MMDEBSTRAP_APT_CONFIG> environment variable. All environment
+variables set by the user are preserved, except for C<TMPDIR> which is cleared.
+See section B<TMPDIR>. Furthermore, C<MMDEBSTRAP_MODE> will store the mode set
+by B<--mode>, C<MMDEBSTRAP_FORMAT> stores the format chosen by B<--format>,
 C<MMDEBSTRAP_HOOK> stores which hook is currently run (setup, extract,
 essential, customize), C<MMDEBSTRAP_ARGV0> stores the name of the binary with
 which B<mmdebstrap> was executed and C<MMDEBSTRAP_VERBOSITY> stores the
@@ -7479,6 +7498,11 @@ This step is not carried out in B<extract> mode.
 
 Unmount everything that was mounted during the B<mount> stage and restores
 F</usr/sbin/policy-rc.d> and F</usr/sbin/start-stop-daemon> if necessary.
+
+=item B<zombie-reaping>
+
+Wait for (reap) still running processes (background processes or zombie
+processes), unless B<--skip=zombie-reaping> is used.
 
 =item B<cleanup>
 
