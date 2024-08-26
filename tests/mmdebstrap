@@ -14,7 +14,7 @@ case {{ FORMAT }} in tar|squashfs|ext2|ext4) : ;; *) exit 1;; esac
 # https://lore.kernel.org/linux-ext4/171484520952.2626447.2160419274451668597@localhost/T/#t
 mv /tmp/mmdebstrap-{{ DIST }}-{{ VARIANT }}.{{ FORMAT }} ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.{{ FORMAT }}
 if [ "{{ FORMAT }}" = tar ]; then
-	printf 'ustar ' | cmp --bytes=6 --ignore-initial=257:0 ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar -
+	printf 'ustar\0' | cmp --bytes=6 --ignore-initial=257:0 ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar -
 elif [ "{{ FORMAT }}" = squashfs ]; then
 	printf 'hsqs' | cmp --bytes=4 ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.squashfs -
 elif [ "{{ FORMAT }}" = ext2 ]; then

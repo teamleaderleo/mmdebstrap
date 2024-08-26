@@ -88,23 +88,1029 @@ our (
 #   3 -> character special
 #   4 -> block special
 #   5 -> directory
-my @devfiles = (
-    # filename  mode      type link target        major  minor
-    ["",        oct(755), 5,   '',                undef, undef],
-    ["console", oct(666), 3,   '',                5,     1],
-    ["fd",      oct(777), 2,   '/proc/self/fd',   undef, undef],
-    ["full",    oct(666), 3,   '',                1,     7],
-    ["null",    oct(666), 3,   '',                1,     3],
-    ["ptmx",    oct(666), 3,   '',                5,     2],
-    ["pts/",    oct(755), 5,   '',                undef, undef],
-    ["random",  oct(666), 3,   '',                1,     8],
-    ["shm/",    oct(755), 5,   '',                undef, undef],
-    ["stderr",  oct(777), 2,   '/proc/self/fd/2', undef, undef],
-    ["stdin",   oct(777), 2,   '/proc/self/fd/0', undef, undef],
-    ["stdout",  oct(777), 2,   '/proc/self/fd/1', undef, undef],
-    ["tty",     oct(666), 3,   '',                5,     0],
-    ["urandom", oct(666), 3,   '',                1,     9],
-    ["zero",    oct(666), 3,   '',                1,     5],
+my @linuxdevfiles = (
+    # file name       mode      type   link target        major  minor  transl.
+    ["./dev/",        oct(755), '5',   undef,             undef, undef, undef],
+    ["./dev/console", oct(666), '3',   undef,             5,     1,     undef],
+    ["./dev/fd",      oct(777), '2',   '/proc/self/fd',   undef, undef, undef],
+    ["./dev/full",    oct(666), '3',   undef,             1,     7,     undef],
+    ["./dev/null",    oct(666), '3',   undef,             1,     3,     undef],
+    ["./dev/ptmx",    oct(666), '3',   undef,             5,     2,     undef],
+    ["./dev/pts/",    oct(755), '5',   undef,             undef, undef, undef],
+    ["./dev/random",  oct(666), '3',   undef,             1,     8,     undef],
+    ["./dev/shm/",    oct(755), '5',   undef,             undef, undef, undef],
+    ["./dev/stderr",  oct(777), '2',   '/proc/self/fd/2', undef, undef, undef],
+    ["./dev/stdin",   oct(777), '2',   '/proc/self/fd/0', undef, undef, undef],
+    ["./dev/stdout",  oct(777), '2',   '/proc/self/fd/1', undef, undef, undef],
+    ["./dev/tty",     oct(666), '3',   undef,             5,     0,     undef],
+    ["./dev/urandom", oct(666), '3',   undef,             1,     9,     undef],
+    ["./dev/zero",    oct(666), '3',   undef,             1,     5,     undef],
+);
+
+my @hurdfiles = (
+# file name           mode      type   link target      major  minor  transl.
+['./dev/',            oct(755), '5',   undef,           undef, undef, undef],
+['./dev/MAKEDEV',     oct(755), '2',   '/sbin/MAKEDEV', undef, undef, undef],
+['./dev/cd0',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:cd0\0"],
+['./dev/cd1',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:cd1\0"],
+['./dev/com0',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/com0\0device\0com0\0"],
+['./dev/com1',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/com1\0device\0com1\0"],
+['./dev/com2',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/com2\0device\0com2\0"],
+['./dev/com3',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/com3\0device\0com3\0"],
+['./dev/cons',        oct(600), '0',   undef,           undef, undef, undef],
+['./dev/console',     oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/console\0device\0console\0"],
+['./dev/disk',        oct(755), '2',   'rumpdisk',      undef, undef, undef],
+['./dev/eth0',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/devnode\0-M\0/dev/net\0eth0\0"],
+['./dev/eth1',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/devnode\0-M\0/dev/net\0eth1\0"],
+['./dev/eth2',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/devnode\0-M\0/dev/net\0eth2\0"],
+['./dev/eth3',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/devnode\0-M\0/dev/net\0eth3\0"],
+['./dev/fd',          oct(666), '0',   undef,           undef, undef,
+                  "/hurd/magic\0--directory\0fd\0"],
+['./dev/fd0',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0fd0\0"],
+['./dev/fd1',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0fd1\0"],
+['./dev/full',        oct(666), '0',   undef,           undef, undef,
+                  "/hurd/null\0--full\0"],
+['./dev/hd0',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0\0"],
+['./dev/hd0s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s1\0"],
+['./dev/hd0s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s10\0"],
+['./dev/hd0s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s11\0"],
+['./dev/hd0s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s12\0"],
+['./dev/hd0s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s13\0"],
+['./dev/hd0s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s14\0"],
+['./dev/hd0s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s15\0"],
+['./dev/hd0s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s16\0"],
+['./dev/hd0s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s2\0"],
+['./dev/hd0s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s3\0"],
+['./dev/hd0s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s4\0"],
+['./dev/hd0s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s5\0"],
+['./dev/hd0s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s6\0"],
+['./dev/hd0s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s7\0"],
+['./dev/hd0s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s8\0"],
+['./dev/hd0s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd0s9\0"],
+['./dev/hd1',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1\0"],
+['./dev/hd1s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s1\0"],
+['./dev/hd1s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s10\0"],
+['./dev/hd1s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s11\0"],
+['./dev/hd1s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s12\0"],
+['./dev/hd1s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s13\0"],
+['./dev/hd1s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s14\0"],
+['./dev/hd1s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s15\0"],
+['./dev/hd1s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s16\0"],
+['./dev/hd1s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s2\0"],
+['./dev/hd1s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s3\0"],
+['./dev/hd1s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s4\0"],
+['./dev/hd1s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s5\0"],
+['./dev/hd1s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s6\0"],
+['./dev/hd1s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s7\0"],
+['./dev/hd1s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s8\0"],
+['./dev/hd1s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd1s9\0"],
+['./dev/hd2',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2\0"],
+['./dev/hd2s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s1\0"],
+['./dev/hd2s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s10\0"],
+['./dev/hd2s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s11\0"],
+['./dev/hd2s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s12\0"],
+['./dev/hd2s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s13\0"],
+['./dev/hd2s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s14\0"],
+['./dev/hd2s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s15\0"],
+['./dev/hd2s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s16\0"],
+['./dev/hd2s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s2\0"],
+['./dev/hd2s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s3\0"],
+['./dev/hd2s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s4\0"],
+['./dev/hd2s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s5\0"],
+['./dev/hd2s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s6\0"],
+['./dev/hd2s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s7\0"],
+['./dev/hd2s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s8\0"],
+['./dev/hd2s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd2s9\0"],
+['./dev/hd3',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3\0"],
+['./dev/hd3s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s1\0"],
+['./dev/hd3s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s10\0"],
+['./dev/hd3s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s11\0"],
+['./dev/hd3s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s12\0"],
+['./dev/hd3s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s13\0"],
+['./dev/hd3s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s14\0"],
+['./dev/hd3s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s15\0"],
+['./dev/hd3s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s16\0"],
+['./dev/hd3s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s2\0"],
+['./dev/hd3s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s3\0"],
+['./dev/hd3s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s4\0"],
+['./dev/hd3s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s5\0"],
+['./dev/hd3s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s6\0"],
+['./dev/hd3s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s7\0"],
+['./dev/hd3s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s8\0"],
+['./dev/hd3s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd3s9\0"],
+['./dev/hd4',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4\0"],
+['./dev/hd4s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s1\0"],
+['./dev/hd4s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s10\0"],
+['./dev/hd4s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s11\0"],
+['./dev/hd4s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s12\0"],
+['./dev/hd4s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s13\0"],
+['./dev/hd4s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s14\0"],
+['./dev/hd4s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s15\0"],
+['./dev/hd4s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s16\0"],
+['./dev/hd4s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s2\0"],
+['./dev/hd4s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s3\0"],
+['./dev/hd4s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s4\0"],
+['./dev/hd4s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s5\0"],
+['./dev/hd4s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s6\0"],
+['./dev/hd4s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s7\0"],
+['./dev/hd4s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s8\0"],
+['./dev/hd4s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd4s9\0"],
+['./dev/hd5',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5\0"],
+['./dev/hd5s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s1\0"],
+['./dev/hd5s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s10\0"],
+['./dev/hd5s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s11\0"],
+['./dev/hd5s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s12\0"],
+['./dev/hd5s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s13\0"],
+['./dev/hd5s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s14\0"],
+['./dev/hd5s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s15\0"],
+['./dev/hd5s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s16\0"],
+['./dev/hd5s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s2\0"],
+['./dev/hd5s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s3\0"],
+['./dev/hd5s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s4\0"],
+['./dev/hd5s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s5\0"],
+['./dev/hd5s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s6\0"],
+['./dev/hd5s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s7\0"],
+['./dev/hd5s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s8\0"],
+['./dev/hd5s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0hd5s9\0"],
+['./dev/kbd',         oct(644), '2',   'cons/kbd',      undef, undef, undef],
+['./dev/klog',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/streamio\0kmsg\0"],
+['./dev/loop0',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/loop1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/loop2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/loop3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/loop4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/loop5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/loop6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/loop7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/lpr0',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/streamio\0lpr0\0"],
+['./dev/lpr1',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/streamio\0lpr1\0"],
+['./dev/lpr2',        oct(660), '0',   undef,           undef, undef,
+                  "/hurd/streamio\0lpr2\0"],
+['./dev/mem',         oct(660), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0--no-cache\0mem\0"],
+['./dev/mouse',       oct(644), '2',   'cons/mouse',    undef, undef, undef],
+['./dev/net',         oct(755), '2',   'netdde',        undef, undef, undef],
+['./dev/netdde',      oct(660), '0',   undef,           undef, undef,
+                  "/hurd/netdde\0"],
+['./dev/null',        oct(666), '0',   undef,           undef, undef,
+                  "/hurd/null\0"],
+['./dev/pseudo-root', oct(640), '4',   undef,           0,     0,
+                  "/hurd/storeio\0pseudo-root\0"],
+['./dev/ptyp0',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp0\0pty-master\0/dev/ttyp0\0"],
+['./dev/ptyp1',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp1\0pty-master\0/dev/ttyp1\0"],
+['./dev/ptyp2',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp2\0pty-master\0/dev/ttyp2\0"],
+['./dev/ptyp3',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp3\0pty-master\0/dev/ttyp3\0"],
+['./dev/ptyp4',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp4\0pty-master\0/dev/ttyp4\0"],
+['./dev/ptyp5',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp5\0pty-master\0/dev/ttyp5\0"],
+['./dev/ptyp6',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp6\0pty-master\0/dev/ttyp6\0"],
+['./dev/ptyp7',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp7\0pty-master\0/dev/ttyp7\0"],
+['./dev/ptyp8',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp8\0pty-master\0/dev/ttyp8\0"],
+['./dev/ptyp9',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyp9\0pty-master\0/dev/ttyp9\0"],
+['./dev/ptypa',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypa\0pty-master\0/dev/ttypa\0"],
+['./dev/ptypb',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypb\0pty-master\0/dev/ttypb\0"],
+['./dev/ptypc',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypc\0pty-master\0/dev/ttypc\0"],
+['./dev/ptypd',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypd\0pty-master\0/dev/ttypd\0"],
+['./dev/ptype',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptype\0pty-master\0/dev/ttype\0"],
+['./dev/ptypf',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypf\0pty-master\0/dev/ttypf\0"],
+['./dev/ptypg',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypg\0pty-master\0/dev/ttypg\0"],
+['./dev/ptyph',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyph\0pty-master\0/dev/ttyph\0"],
+['./dev/ptypi',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypi\0pty-master\0/dev/ttypi\0"],
+['./dev/ptypj',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypj\0pty-master\0/dev/ttypj\0"],
+['./dev/ptypk',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypk\0pty-master\0/dev/ttypk\0"],
+['./dev/ptypl',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypl\0pty-master\0/dev/ttypl\0"],
+['./dev/ptypm',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypm\0pty-master\0/dev/ttypm\0"],
+['./dev/ptypn',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypn\0pty-master\0/dev/ttypn\0"],
+['./dev/ptypo',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypo\0pty-master\0/dev/ttypo\0"],
+['./dev/ptypp',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypp\0pty-master\0/dev/ttypp\0"],
+['./dev/ptypq',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypq\0pty-master\0/dev/ttypq\0"],
+['./dev/ptypr',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypr\0pty-master\0/dev/ttypr\0"],
+['./dev/ptyps',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyps\0pty-master\0/dev/ttyps\0"],
+['./dev/ptypt',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypt\0pty-master\0/dev/ttypt\0"],
+['./dev/ptypu',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypu\0pty-master\0/dev/ttypu\0"],
+['./dev/ptypv',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptypv\0pty-master\0/dev/ttypv\0"],
+['./dev/ptyq0',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq0\0pty-master\0/dev/ttyq0\0"],
+['./dev/ptyq1',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq1\0pty-master\0/dev/ttyq1\0"],
+['./dev/ptyq2',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq2\0pty-master\0/dev/ttyq2\0"],
+['./dev/ptyq3',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq3\0pty-master\0/dev/ttyq3\0"],
+['./dev/ptyq4',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq4\0pty-master\0/dev/ttyq4\0"],
+['./dev/ptyq5',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq5\0pty-master\0/dev/ttyq5\0"],
+['./dev/ptyq6',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq6\0pty-master\0/dev/ttyq6\0"],
+['./dev/ptyq7',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq7\0pty-master\0/dev/ttyq7\0"],
+['./dev/ptyq8',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq8\0pty-master\0/dev/ttyq8\0"],
+['./dev/ptyq9',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyq9\0pty-master\0/dev/ttyq9\0"],
+['./dev/ptyqa',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqa\0pty-master\0/dev/ttyqa\0"],
+['./dev/ptyqb',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqb\0pty-master\0/dev/ttyqb\0"],
+['./dev/ptyqc',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqc\0pty-master\0/dev/ttyqc\0"],
+['./dev/ptyqd',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqd\0pty-master\0/dev/ttyqd\0"],
+['./dev/ptyqe',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqe\0pty-master\0/dev/ttyqe\0"],
+['./dev/ptyqf',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqf\0pty-master\0/dev/ttyqf\0"],
+['./dev/ptyqg',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqg\0pty-master\0/dev/ttyqg\0"],
+['./dev/ptyqh',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqh\0pty-master\0/dev/ttyqh\0"],
+['./dev/ptyqi',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqi\0pty-master\0/dev/ttyqi\0"],
+['./dev/ptyqj',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqj\0pty-master\0/dev/ttyqj\0"],
+['./dev/ptyqk',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqk\0pty-master\0/dev/ttyqk\0"],
+['./dev/ptyql',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyql\0pty-master\0/dev/ttyql\0"],
+['./dev/ptyqm',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqm\0pty-master\0/dev/ttyqm\0"],
+['./dev/ptyqn',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqn\0pty-master\0/dev/ttyqn\0"],
+['./dev/ptyqo',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqo\0pty-master\0/dev/ttyqo\0"],
+['./dev/ptyqp',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqp\0pty-master\0/dev/ttyqp\0"],
+['./dev/ptyqq',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqq\0pty-master\0/dev/ttyqq\0"],
+['./dev/ptyqr',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqr\0pty-master\0/dev/ttyqr\0"],
+['./dev/ptyqs',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqs\0pty-master\0/dev/ttyqs\0"],
+['./dev/ptyqt',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqt\0pty-master\0/dev/ttyqt\0"],
+['./dev/ptyqu',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqu\0pty-master\0/dev/ttyqu\0"],
+['./dev/ptyqv',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ptyqv\0pty-master\0/dev/ttyqv\0"],
+['./dev/random',      oct(644), '0',   undef,           undef, undef,
+                  "/hurd/random\0--seed-file\0/var/lib/random-seed\0"],
+['./dev/rumpdisk',    oct(660), '0',   undef,           undef, undef,
+                  "/hurd/rumpdisk\0"],
+['./dev/sd0',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0\0"],
+['./dev/sd0s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s1\0"],
+['./dev/sd0s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s10\0"],
+['./dev/sd0s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s11\0"],
+['./dev/sd0s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s12\0"],
+['./dev/sd0s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s13\0"],
+['./dev/sd0s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s14\0"],
+['./dev/sd0s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s15\0"],
+['./dev/sd0s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s16\0"],
+['./dev/sd0s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s2\0"],
+['./dev/sd0s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s3\0"],
+['./dev/sd0s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s4\0"],
+['./dev/sd0s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s5\0"],
+['./dev/sd0s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s6\0"],
+['./dev/sd0s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s7\0"],
+['./dev/sd0s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s8\0"],
+['./dev/sd0s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd0s9\0"],
+['./dev/sd1',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1\0"],
+['./dev/sd1s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s1\0"],
+['./dev/sd1s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s10\0"],
+['./dev/sd1s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s11\0"],
+['./dev/sd1s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s12\0"],
+['./dev/sd1s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s13\0"],
+['./dev/sd1s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s14\0"],
+['./dev/sd1s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s15\0"],
+['./dev/sd1s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s16\0"],
+['./dev/sd1s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s2\0"],
+['./dev/sd1s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s3\0"],
+['./dev/sd1s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s4\0"],
+['./dev/sd1s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s5\0"],
+['./dev/sd1s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s6\0"],
+['./dev/sd1s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s7\0"],
+['./dev/sd1s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s8\0"],
+['./dev/sd1s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd1s9\0"],
+['./dev/sd2',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2\0"],
+['./dev/sd2s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s1\0"],
+['./dev/sd2s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s10\0"],
+['./dev/sd2s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s11\0"],
+['./dev/sd2s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s12\0"],
+['./dev/sd2s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s13\0"],
+['./dev/sd2s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s14\0"],
+['./dev/sd2s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s15\0"],
+['./dev/sd2s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s16\0"],
+['./dev/sd2s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s2\0"],
+['./dev/sd2s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s3\0"],
+['./dev/sd2s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s4\0"],
+['./dev/sd2s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s5\0"],
+['./dev/sd2s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s6\0"],
+['./dev/sd2s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s7\0"],
+['./dev/sd2s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s8\0"],
+['./dev/sd2s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd2s9\0"],
+['./dev/sd3',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3\0"],
+['./dev/sd3s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s1\0"],
+['./dev/sd3s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s10\0"],
+['./dev/sd3s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s11\0"],
+['./dev/sd3s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s12\0"],
+['./dev/sd3s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s13\0"],
+['./dev/sd3s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s14\0"],
+['./dev/sd3s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s15\0"],
+['./dev/sd3s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s16\0"],
+['./dev/sd3s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s2\0"],
+['./dev/sd3s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s3\0"],
+['./dev/sd3s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s4\0"],
+['./dev/sd3s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s5\0"],
+['./dev/sd3s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s6\0"],
+['./dev/sd3s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s7\0"],
+['./dev/sd3s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s8\0"],
+['./dev/sd3s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd3s9\0"],
+['./dev/sd4',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4\0"],
+['./dev/sd4s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s1\0"],
+['./dev/sd4s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s10\0"],
+['./dev/sd4s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s11\0"],
+['./dev/sd4s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s12\0"],
+['./dev/sd4s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s13\0"],
+['./dev/sd4s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s14\0"],
+['./dev/sd4s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s15\0"],
+['./dev/sd4s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s16\0"],
+['./dev/sd4s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s2\0"],
+['./dev/sd4s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s3\0"],
+['./dev/sd4s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s4\0"],
+['./dev/sd4s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s5\0"],
+['./dev/sd4s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s6\0"],
+['./dev/sd4s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s7\0"],
+['./dev/sd4s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s8\0"],
+['./dev/sd4s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd4s9\0"],
+['./dev/sd5',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5\0"],
+['./dev/sd5s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s1\0"],
+['./dev/sd5s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s10\0"],
+['./dev/sd5s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s11\0"],
+['./dev/sd5s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s12\0"],
+['./dev/sd5s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s13\0"],
+['./dev/sd5s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s14\0"],
+['./dev/sd5s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s15\0"],
+['./dev/sd5s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s16\0"],
+['./dev/sd5s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s2\0"],
+['./dev/sd5s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s3\0"],
+['./dev/sd5s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s4\0"],
+['./dev/sd5s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s5\0"],
+['./dev/sd5s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s6\0"],
+['./dev/sd5s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s7\0"],
+['./dev/sd5s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s8\0"],
+['./dev/sd5s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0sd5s9\0"],
+['./dev/shm',         oct(644), '2',   '/tmp',          undef, undef, undef],
+['./dev/stderr',      oct(755), '2',   'fd/2',          undef, undef, undef],
+['./dev/stdin',       oct(755), '2',   'fd/0',          undef, undef, undef],
+['./dev/stdout',      oct(755), '2',   'fd/1',          undef, undef, undef],
+['./dev/time',        oct(644), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0--no-cache\0time\0"],
+['./dev/tty',         oct(666), '0',   undef,           undef, undef,
+                  "/hurd/magic\0tty\0"],
+['./dev/tty1',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/tty1\0hurdio\0/dev/vcs/1/console\0"],
+['./dev/tty2',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/tty2\0hurdio\0/dev/vcs/2/console\0"],
+['./dev/tty3',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/tty3\0hurdio\0/dev/vcs/3/console\0"],
+['./dev/tty4',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/tty4\0hurdio\0/dev/vcs/4/console\0"],
+['./dev/tty5',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/tty5\0hurdio\0/dev/vcs/5/console\0"],
+['./dev/tty6',        oct(600), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/tty6\0hurdio\0/dev/vcs/6/console\0"],
+['./dev/ttyp0',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp0\0pty-slave\0/dev/ptyp0\0"],
+['./dev/ttyp1',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp1\0pty-slave\0/dev/ptyp1\0"],
+['./dev/ttyp2',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp2\0pty-slave\0/dev/ptyp2\0"],
+['./dev/ttyp3',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp3\0pty-slave\0/dev/ptyp3\0"],
+['./dev/ttyp4',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp4\0pty-slave\0/dev/ptyp4\0"],
+['./dev/ttyp5',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp5\0pty-slave\0/dev/ptyp5\0"],
+['./dev/ttyp6',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp6\0pty-slave\0/dev/ptyp6\0"],
+['./dev/ttyp7',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp7\0pty-slave\0/dev/ptyp7\0"],
+['./dev/ttyp8',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp8\0pty-slave\0/dev/ptyp8\0"],
+['./dev/ttyp9',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyp9\0pty-slave\0/dev/ptyp9\0"],
+['./dev/ttypa',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypa\0pty-slave\0/dev/ptypa\0"],
+['./dev/ttypb',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypb\0pty-slave\0/dev/ptypb\0"],
+['./dev/ttypc',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypc\0pty-slave\0/dev/ptypc\0"],
+['./dev/ttypd',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypd\0pty-slave\0/dev/ptypd\0"],
+['./dev/ttype',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttype\0pty-slave\0/dev/ptype\0"],
+['./dev/ttypf',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypf\0pty-slave\0/dev/ptypf\0"],
+['./dev/ttypg',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypg\0pty-slave\0/dev/ptypg\0"],
+['./dev/ttyph',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyph\0pty-slave\0/dev/ptyph\0"],
+['./dev/ttypi',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypi\0pty-slave\0/dev/ptypi\0"],
+['./dev/ttypj',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypj\0pty-slave\0/dev/ptypj\0"],
+['./dev/ttypk',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypk\0pty-slave\0/dev/ptypk\0"],
+['./dev/ttypl',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypl\0pty-slave\0/dev/ptypl\0"],
+['./dev/ttypm',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypm\0pty-slave\0/dev/ptypm\0"],
+['./dev/ttypn',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypn\0pty-slave\0/dev/ptypn\0"],
+['./dev/ttypo',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypo\0pty-slave\0/dev/ptypo\0"],
+['./dev/ttypp',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypp\0pty-slave\0/dev/ptypp\0"],
+['./dev/ttypq',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypq\0pty-slave\0/dev/ptypq\0"],
+['./dev/ttypr',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypr\0pty-slave\0/dev/ptypr\0"],
+['./dev/ttyps',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyps\0pty-slave\0/dev/ptyps\0"],
+['./dev/ttypt',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypt\0pty-slave\0/dev/ptypt\0"],
+['./dev/ttypu',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypu\0pty-slave\0/dev/ptypu\0"],
+['./dev/ttypv',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttypv\0pty-slave\0/dev/ptypv\0"],
+['./dev/ttyq0',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq0\0pty-slave\0/dev/ptyq0\0"],
+['./dev/ttyq1',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq1\0pty-slave\0/dev/ptyq1\0"],
+['./dev/ttyq2',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq2\0pty-slave\0/dev/ptyq2\0"],
+['./dev/ttyq3',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq3\0pty-slave\0/dev/ptyq3\0"],
+['./dev/ttyq4',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq4\0pty-slave\0/dev/ptyq4\0"],
+['./dev/ttyq5',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq5\0pty-slave\0/dev/ptyq5\0"],
+['./dev/ttyq6',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq6\0pty-slave\0/dev/ptyq6\0"],
+['./dev/ttyq7',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq7\0pty-slave\0/dev/ptyq7\0"],
+['./dev/ttyq8',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq8\0pty-slave\0/dev/ptyq8\0"],
+['./dev/ttyq9',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyq9\0pty-slave\0/dev/ptyq9\0"],
+['./dev/ttyqa',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqa\0pty-slave\0/dev/ptyqa\0"],
+['./dev/ttyqb',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqb\0pty-slave\0/dev/ptyqb\0"],
+['./dev/ttyqc',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqc\0pty-slave\0/dev/ptyqc\0"],
+['./dev/ttyqd',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqd\0pty-slave\0/dev/ptyqd\0"],
+['./dev/ttyqe',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqe\0pty-slave\0/dev/ptyqe\0"],
+['./dev/ttyqf',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqf\0pty-slave\0/dev/ptyqf\0"],
+['./dev/ttyqg',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqg\0pty-slave\0/dev/ptyqg\0"],
+['./dev/ttyqh',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqh\0pty-slave\0/dev/ptyqh\0"],
+['./dev/ttyqi',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqi\0pty-slave\0/dev/ptyqi\0"],
+['./dev/ttyqj',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqj\0pty-slave\0/dev/ptyqj\0"],
+['./dev/ttyqk',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqk\0pty-slave\0/dev/ptyqk\0"],
+['./dev/ttyql',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyql\0pty-slave\0/dev/ptyql\0"],
+['./dev/ttyqm',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqm\0pty-slave\0/dev/ptyqm\0"],
+['./dev/ttyqn',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqn\0pty-slave\0/dev/ptyqn\0"],
+['./dev/ttyqo',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqo\0pty-slave\0/dev/ptyqo\0"],
+['./dev/ttyqp',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqp\0pty-slave\0/dev/ptyqp\0"],
+['./dev/ttyqq',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqq\0pty-slave\0/dev/ptyqq\0"],
+['./dev/ttyqr',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqr\0pty-slave\0/dev/ptyqr\0"],
+['./dev/ttyqs',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqs\0pty-slave\0/dev/ptyqs\0"],
+['./dev/ttyqt',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqt\0pty-slave\0/dev/ptyqt\0"],
+['./dev/ttyqu',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqu\0pty-slave\0/dev/ptyqu\0"],
+['./dev/ttyqv',       oct(666), '0',   undef,           undef, undef,
+                  "/hurd/term\0/dev/ttyqv\0pty-slave\0/dev/ptyqv\0"],
+['./dev/urandom',     oct(755), '2',   'random',        undef, undef,
+                  "/hurd/random\0--seed-file\0/var/lib/random-seed\0--fast\0"],
+['./dev/vcs',         oct(600), '0',   undef,           undef, undef,
+                  "/hurd/console\0"],
+['./dev/wd0',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:wd0\0"],
+['./dev/wd0s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:1:device:@/dev/disk:wd0\0"],
+['./dev/wd0s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:10:device:@/dev/disk:wd0\0"],
+['./dev/wd0s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:11:device:@/dev/disk:wd0\0"],
+['./dev/wd0s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:12:device:@/dev/disk:wd0\0"],
+['./dev/wd0s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:13:device:@/dev/disk:wd0\0"],
+['./dev/wd0s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:14:device:@/dev/disk:wd0\0"],
+['./dev/wd0s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:15:device:@/dev/disk:wd0\0"],
+['./dev/wd0s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:16:device:@/dev/disk:wd0\0"],
+['./dev/wd0s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:2:device:@/dev/disk:wd0\0"],
+['./dev/wd0s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:3:device:@/dev/disk:wd0\0"],
+['./dev/wd0s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:4:device:@/dev/disk:wd0\0"],
+['./dev/wd0s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:5:device:@/dev/disk:wd0\0"],
+['./dev/wd0s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:6:device:@/dev/disk:wd0\0"],
+['./dev/wd0s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:7:device:@/dev/disk:wd0\0"],
+['./dev/wd0s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:8:device:@/dev/disk:wd0\0"],
+['./dev/wd0s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:9:device:@/dev/disk:wd0\0"],
+['./dev/wd1',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:wd1\0"],
+['./dev/wd1s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:1:device:@/dev/disk:wd1\0"],
+['./dev/wd1s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:10:device:@/dev/disk:wd1\0"],
+['./dev/wd1s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:11:device:@/dev/disk:wd1\0"],
+['./dev/wd1s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:12:device:@/dev/disk:wd1\0"],
+['./dev/wd1s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:13:device:@/dev/disk:wd1\0"],
+['./dev/wd1s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:14:device:@/dev/disk:wd1\0"],
+['./dev/wd1s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:15:device:@/dev/disk:wd1\0"],
+['./dev/wd1s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:16:device:@/dev/disk:wd1\0"],
+['./dev/wd1s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:2:device:@/dev/disk:wd1\0"],
+['./dev/wd1s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:3:device:@/dev/disk:wd1\0"],
+['./dev/wd1s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:4:device:@/dev/disk:wd1\0"],
+['./dev/wd1s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:5:device:@/dev/disk:wd1\0"],
+['./dev/wd1s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:6:device:@/dev/disk:wd1\0"],
+['./dev/wd1s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:7:device:@/dev/disk:wd1\0"],
+['./dev/wd1s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:8:device:@/dev/disk:wd1\0"],
+['./dev/wd1s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:9:device:@/dev/disk:wd1\0"],
+['./dev/wd2',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:wd2\0"],
+['./dev/wd2s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:1:device:@/dev/disk:wd2\0"],
+['./dev/wd2s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:10:device:@/dev/disk:wd2\0"],
+['./dev/wd2s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:11:device:@/dev/disk:wd2\0"],
+['./dev/wd2s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:12:device:@/dev/disk:wd2\0"],
+['./dev/wd2s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:13:device:@/dev/disk:wd2\0"],
+['./dev/wd2s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:14:device:@/dev/disk:wd2\0"],
+['./dev/wd2s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:15:device:@/dev/disk:wd2\0"],
+['./dev/wd2s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:16:device:@/dev/disk:wd2\0"],
+['./dev/wd2s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:2:device:@/dev/disk:wd2\0"],
+['./dev/wd2s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:3:device:@/dev/disk:wd2\0"],
+['./dev/wd2s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:4:device:@/dev/disk:wd2\0"],
+['./dev/wd2s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:5:device:@/dev/disk:wd2\0"],
+['./dev/wd2s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:6:device:@/dev/disk:wd2\0"],
+['./dev/wd2s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:7:device:@/dev/disk:wd2\0"],
+['./dev/wd2s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:8:device:@/dev/disk:wd2\0"],
+['./dev/wd2s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:9:device:@/dev/disk:wd2\0"],
+['./dev/wd3',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:wd3\0"],
+['./dev/wd3s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:1:device:@/dev/disk:wd3\0"],
+['./dev/wd3s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:10:device:@/dev/disk:wd3\0"],
+['./dev/wd3s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:11:device:@/dev/disk:wd3\0"],
+['./dev/wd3s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:12:device:@/dev/disk:wd3\0"],
+['./dev/wd3s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:13:device:@/dev/disk:wd3\0"],
+['./dev/wd3s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:14:device:@/dev/disk:wd3\0"],
+['./dev/wd3s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:15:device:@/dev/disk:wd3\0"],
+['./dev/wd3s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:16:device:@/dev/disk:wd3\0"],
+['./dev/wd3s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:2:device:@/dev/disk:wd3\0"],
+['./dev/wd3s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:3:device:@/dev/disk:wd3\0"],
+['./dev/wd3s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:4:device:@/dev/disk:wd3\0"],
+['./dev/wd3s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:5:device:@/dev/disk:wd3\0"],
+['./dev/wd3s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:6:device:@/dev/disk:wd3\0"],
+['./dev/wd3s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:7:device:@/dev/disk:wd3\0"],
+['./dev/wd3s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:8:device:@/dev/disk:wd3\0"],
+['./dev/wd3s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:9:device:@/dev/disk:wd3\0"],
+['./dev/wd4',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:wd4\0"],
+['./dev/wd4s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:1:device:@/dev/disk:wd4\0"],
+['./dev/wd4s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:10:device:@/dev/disk:wd4\0"],
+['./dev/wd4s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:11:device:@/dev/disk:wd4\0"],
+['./dev/wd4s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:12:device:@/dev/disk:wd4\0"],
+['./dev/wd4s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:13:device:@/dev/disk:wd4\0"],
+['./dev/wd4s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:14:device:@/dev/disk:wd4\0"],
+['./dev/wd4s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:15:device:@/dev/disk:wd4\0"],
+['./dev/wd4s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:16:device:@/dev/disk:wd4\0"],
+['./dev/wd4s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:2:device:@/dev/disk:wd4\0"],
+['./dev/wd4s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:3:device:@/dev/disk:wd4\0"],
+['./dev/wd4s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:4:device:@/dev/disk:wd4\0"],
+['./dev/wd4s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:5:device:@/dev/disk:wd4\0"],
+['./dev/wd4s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:6:device:@/dev/disk:wd4\0"],
+['./dev/wd4s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:7:device:@/dev/disk:wd4\0"],
+['./dev/wd4s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:8:device:@/dev/disk:wd4\0"],
+['./dev/wd4s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:9:device:@/dev/disk:wd4\0"],
+['./dev/wd5',         oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0@/dev/disk:wd5\0"],
+['./dev/wd5s1',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:1:device:@/dev/disk:wd5\0"],
+['./dev/wd5s10',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:10:device:@/dev/disk:wd5\0"],
+['./dev/wd5s11',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:11:device:@/dev/disk:wd5\0"],
+['./dev/wd5s12',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:12:device:@/dev/disk:wd5\0"],
+['./dev/wd5s13',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:13:device:@/dev/disk:wd5\0"],
+['./dev/wd5s14',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:14:device:@/dev/disk:wd5\0"],
+['./dev/wd5s15',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:15:device:@/dev/disk:wd5\0"],
+['./dev/wd5s16',      oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:16:device:@/dev/disk:wd5\0"],
+['./dev/wd5s2',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:2:device:@/dev/disk:wd5\0"],
+['./dev/wd5s3',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:3:device:@/dev/disk:wd5\0"],
+['./dev/wd5s4',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:4:device:@/dev/disk:wd5\0"],
+['./dev/wd5s5',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:5:device:@/dev/disk:wd5\0"],
+['./dev/wd5s6',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:6:device:@/dev/disk:wd5\0"],
+['./dev/wd5s7',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:7:device:@/dev/disk:wd5\0"],
+['./dev/wd5s8',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:8:device:@/dev/disk:wd5\0"],
+['./dev/wd5s9',       oct(640), '0',   undef,           undef, undef,
+                  "/hurd/storeio\0-T\0typed\0part:9:device:@/dev/disk:wd5\0"],
+['./dev/xconsole',    oct(755), '2',   '/run/xconsole', undef, undef, undef],
+['./dev/zero',        oct(666), '0',   undef,           undef, undef,
+                  "/bin/nullauth\0--\0/hurd/storeio\0-Tzero\0"],
+# file name                   mode      type   link tgt   major  minor  transl.
+['./servers/',                oct(755), '5',   undef,     undef, undef, undef],
+['./servers/acpi',            oct(644), '0',   undef,     undef, undef,
+                  "/hurd/acpi\0"],
+['./servers/bus/',            oct(755), '5',   undef,     undef, undef, undef],
+['./servers/bus/pci/',        oct(755), '5',   undef,     undef, undef,
+                  "/hurd/pci-arbiter\0"],
+['./servers/crash',           oct(644), '2',   'crash-dump-core', undef, undef,
+                  undef],
+['./servers/crash-dump-core', oct(644), '0',   undef,     undef, undef,
+                  "/hurd/crash\0--dump-core\0"],
+['./servers/crash-kill',      oct(644), '0',   undef,     undef, undef,
+                  "/hurd/crash\0--kill\0"],
+['./servers/crash-suspend',   oct(644), '0',   undef,     undef, undef,
+                  "/hurd/crash\0--suspend\0"],
+['./servers/default-pager',   oct(755), '0',   undef,     undef, undef,
+                  "/hurd/proxy-defpager\0"],
+['./servers/exec',            oct(644), '0',   undef,     undef, undef,
+                  "/hurd/exec\0"],
+['./servers/password',        oct(644), '0',   undef,     undef, undef,
+                  "/hurd/password\0"],
+['./servers/shutdown',        oct(644), '0',   undef,     undef, undef,
+                  "/hurd/shutdown\0"],
+['./servers/socket/',         oct(755), '5',   undef,     undef, undef, undef],
+['./servers/socket/1',        oct(644), '0',   undef,     undef, undef,
+                  "/hurd/pflocal\0"],
+['./servers/socket/2',        oct(644), '0',   undef,     undef, undef,
+                  "/hurd/pfinet\0-6\0/servers/socket/26\0"],
+['./servers/socket/26',       oct(644), '0',   undef,     undef, undef,
+                  "/hurd/pfinet\0-4\0/servers/socket/2\0"],
+['./servers/socket/inet',     oct(644), '2',   "2",       undef, undef, undef],
+['./servers/socket/inet6',    oct(644), '2',   "26",      undef, undef, undef],
+['./servers/socket/local',    oct(644), '2',   "1",       undef, undef, undef],
+['./servers/startup',         oct(644), '0',   undef,     undef, undef, undef]
 );
 #>>>
 
@@ -1183,55 +2189,56 @@ sub setup_mounts {
             # if more than essential should be installed, make the system look
             # more like a real one by creating or bind-mounting the device
             # nodes
-            foreach my $file (@devfiles) {
-                my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
+            foreach my $file (@linuxdevfiles) {
+                my ($fname, $mode, $type, $linkname, $devmajor, $devminor,
+                    undef)
                   = @{$file};
-                next if $fname eq '';
-                if ($type == 0) {    # normal file
+                next if $fname eq './dev/';
+                if ($type eq '0') {    # normal file
                     error "type 0 not implemented";
-                } elsif ($type == 1) {    # hardlink
+                } elsif ($type eq '1') {    # hardlink
                     error "type 1 not implemented";
-                } elsif ($type == 2) {    # symlink
+                } elsif ($type eq '2') {    # symlink
                     if (!$options->{havemknod}) {
                         # If we had mknod, then the symlink was already created
                         # in the run_setup function.
                         if (!-d "$options->{root}/dev") {
                             warning(
-                                "skipping creation of ./dev/$fname because the"
+                                    "skipping creation of $fname because the"
                                   . " /dev directory is missing in the target"
                             );
                             next;
                         }
-                        if (-e "$options->{root}/dev/$fname") {
+                        if (-e "$options->{root}/$fname") {
                             warning(
-                                "skipping creation of ./dev/$fname because it"
+                                    "skipping creation of $fname because it"
                                   . " already exists in the target");
                             next;
                         }
                         push @cleanup_tasks, sub {
-                            unlink "$options->{root}/dev/$fname"
+                            unlink "$options->{root}/$fname"
                               or warning("cannot unlink ./dev/$fname: $!");
                         };
-                        symlink $linkname, "$options->{root}/dev/$fname"
+                        symlink $linkname, "$options->{root}/$fname"
                           or warning
-                          "cannot create symlink ./dev/$fname -> $linkname";
+                          "cannot create symlink $fname -> $linkname";
                     }
-                } elsif ($type == 3 or $type == 4) {
+                } elsif ($type eq '3' or $type eq '4') {
                     # character/block special
                     if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
                         @{ $options->{skip} }) {
                         info "skipping chroot/mount/dev as requested";
                     } elsif (!$options->{canmount}) {
-                        warning "skipping bind-mounting ./dev/$fname";
+                        warning "skipping bind-mounting $fname";
                     } elsif (!$options->{havemknod}) {
                         if (!-d "$options->{root}/dev") {
                             warning(
-                                "skipping creation of ./dev/$fname because the"
+                                    "skipping creation of $fname because the"
                                   . " /dev directory is missing in the target"
                             );
                             next;
                         }
-                        if ($fname eq "ptmx") {
+                        if ($fname eq "./dev/ptmx") {
                             # We must not bind-mount ptmx from the outside or
                             # otherwise posix_openpt() will fail. Instead
                             # /dev/ptmx must refer to /dev/pts/ptmx either by
@@ -1245,21 +2252,20 @@ sub setup_mounts {
                             };
                             next;
                         }
-                        if (!-e "/dev/$fname") {
-                            warning("skipping creation of ./dev/$fname because"
-                                  . " /dev/$fname does not exist"
+                        if (!-e "/$fname") {
+                            warning("skipping creation of $fname because"
+                                  . " $fname does not exist"
                                   . " on the outside");
                             next;
                         }
-                        if (!-c "/dev/$fname") {
-                            warning("skipping creation of ./dev/$fname because"
-                                  . " /dev/$fname on the outside is not a"
+                        if (!-c "/$fname") {
+                            warning("skipping creation of $fname because"
+                                  . " $fname on the outside is not a"
                                   . " character special file");
                             next;
                         }
-                        open my $fh, '>', "$options->{root}/dev/$fname"
-                          or error
-                          "cannot open $options->{root}/dev/$fname: $!";
+                        open my $fh, '>', "$options->{root}/$fname"
+                          or error "cannot open $options->{root}/$fname: $!";
                         close $fh;
                         my @umountopts = ();
                         if ($options->{mode} eq 'unshare') {
@@ -1267,39 +2273,39 @@ sub setup_mounts {
                         }
                         push @cleanup_tasks, sub {
                             0 == system('umount', @umountopts,
-                                "$options->{root}/dev/$fname")
-                              or warning("umount ./dev/$fname failed: $?");
-                            unlink "$options->{root}/dev/$fname"
-                              or warning("cannot unlink ./dev/$fname: $!");
+                                "$options->{root}/$fname")
+                              or warning("umount $fname failed: $?");
+                            unlink "$options->{root}/$fname"
+                              or warning("cannot unlink $fname: $!");
                         };
-                        0 == system('mount', '-o', 'bind', "/dev/$fname",
-                            "$options->{root}/dev/$fname")
-                          or error "mount ./dev/$fname failed: $?";
+                        0 == system('mount', '-o', 'bind', "/$fname",
+                            "$options->{root}/$fname")
+                          or error "mount $fname failed: $?";
                     }
-                } elsif ($type == 5) {
+                } elsif ($type eq '5') {
                     # directory
                     if (any { $_ =~ '^chroot/mount(?:/dev)?$' }
                         @{ $options->{skip} }) {
                         info "skipping chroot/mount/dev as requested";
                     } elsif (!$options->{canmount}) {
-                        warning "skipping bind-mounting ./dev/$fname";
+                        warning "skipping bind-mounting $fname";
                     } else {
                         if (!-d "$options->{root}/dev") {
                             warning(
-                                "skipping creation of ./dev/$fname because the"
+                                    "skipping creation of $fname because the"
                                   . " /dev directory is missing in the target"
                             );
                             next;
                         }
-                        if (!-e "/dev/$fname" && $fname ne "pts/") {
-                            warning("skipping creation of ./dev/$fname because"
-                                  . " /dev/$fname does not exist"
+                        if (!-e "/$fname" && $fname ne "./dev/pts/") {
+                            warning("skipping creation of $fname because"
+                                  . " $fname does not exist"
                                   . " on the outside");
                             next;
                         }
-                        if (!-d "/dev/$fname" && $fname ne "pts/") {
-                            warning("skipping creation of ./dev/$fname because"
-                                  . " /dev/$fname on the outside is not a"
+                        if (!-d "/$fname" && $fname ne "./dev/pts/") {
+                            warning("skipping creation of $fname because"
+                                  . " $fname on the outside is not a"
                                   . " directory");
                             next;
                         }
@@ -1308,18 +2314,17 @@ sub setup_mounts {
                             # into was already created in the run_setup
                             # function.
                             push @cleanup_tasks, sub {
-                                rmdir "$options->{root}/dev/$fname"
-                                  or warning("cannot rmdir ./dev/$fname: $!");
+                                rmdir "$options->{root}/$fname"
+                                  or warning("cannot rmdir $fname: $!");
                             };
-                            if (-e "$options->{root}/dev/$fname") {
-                                if (!-d "$options->{root}/dev/$fname") {
-                                    error
-                                      "./dev/$fname already exists but is not"
+                            if (-e "$options->{root}/$fname") {
+                                if (!-d "$options->{root}/$fname") {
+                                    error "$fname already exists but is not"
                                       . " a directory";
                                 }
                             } else {
                                 my $num_created
-                                  = make_path "$options->{root}/dev/$fname",
+                                  = make_path "$options->{root}/$fname",
                                   { error => \my $err };
                                 if ($err && @$err) {
                                     error(
@@ -1332,11 +2337,11 @@ sub setup_mounts {
                                         ));
                                 } elsif ($num_created == 0) {
                                     error(  "cannot create $options->{root}"
-                                          . "/dev/$fname");
+                                          . "$fname");
                                 }
                             }
-                            chmod $mode, "$options->{root}/dev/$fname"
-                              or error "cannot chmod ./dev/$fname: $!";
+                            chmod $mode, "$options->{root}/$fname"
+                              or error "cannot chmod $fname: $!";
                         }
                         my @umountopts = ();
                         if ($options->{mode} eq 'unshare') {
@@ -1344,10 +2349,10 @@ sub setup_mounts {
                         }
                         push @cleanup_tasks, sub {
                             0 == system('umount', @umountopts,
-                                "$options->{root}/dev/$fname")
-                              or warning("umount ./dev/$fname failed: $?");
+                                "$options->{root}/$fname")
+                              or warning("umount $fname failed: $?");
                         };
-                        if ($fname eq "pts/") {
+                        if ($fname eq "./dev/pts/") {
                             # We cannot just bind-mount /dev/pts from the host
                             # as doing so will make posix_openpt() fail.
                             # Instead, we need to mount a new devpts.
@@ -1369,9 +2374,9 @@ sub setup_mounts {
                                 'noexec,nosuid,uid=5,mode=620,ptmxmode=666'
                             ) or error "mount /dev/pts failed";
                         } else {
-                            0 == system('mount', '-o', 'bind', "/dev/$fname",
-                                "$options->{root}/dev/$fname")
-                              or error "mount ./dev/$fname failed: $?";
+                            0 == system('mount', '-o', 'bind', "/$fname",
+                                "$options->{root}/$fname")
+                              or error "mount $fname failed: $?";
                         }
                     }
                 } else {
@@ -2269,38 +3274,37 @@ sub run_setup() {
     }
 
     if ($options->{havemknod}) {
-        foreach my $file (@devfiles) {
-            my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
+        foreach my $file (@linuxdevfiles) {
+            my ($fname, $mode, $type, $linkname, $devmajor, $devminor, undef)
               = @{$file};
-            if ($type == 0) {    # normal file
+            if ($type eq '0') {    # normal file
                 error "type 0 not implemented";
-            } elsif ($type == 1) {    # hardlink
+            } elsif ($type eq '1') {    # hardlink
                 error "type 1 not implemented";
-            } elsif ($type == 2) {    # symlink
+            } elsif ($type eq '2') {    # symlink
                 if (    $options->{mode} eq 'fakechroot'
                     and $linkname =~ /^\/proc/) {
                     # there is no /proc in fakechroot mode
                     next;
                 }
-                symlink $linkname, "$options->{root}/dev/$fname"
-                  or error "cannot create symlink ./dev/$fname";
+                symlink $linkname, "$options->{root}/$fname"
+                  or error "cannot create symlink $fname";
                 next;    # chmod cannot work on symlinks
-            } elsif ($type == 3) {    # character special
-                0 == system('mknod', "$options->{root}/dev/$fname", 'c',
+            } elsif ($type eq '3') {    # character special
+                0 == system('mknod', "$options->{root}/$fname", 'c',
                     $devmajor, $devminor)
                   or error "mknod failed: $?";
-            } elsif ($type == 4) {    # block special
-                0 == system('mknod', "$options->{root}/dev/$fname", 'b',
+            } elsif ($type eq '4') {    # block special
+                0 == system('mknod', "$options->{root}/$fname", 'b',
                     $devmajor, $devminor)
                   or error "mknod failed: $?";
-            } elsif ($type == 5) {    # directory
-                if (-e "$options->{root}/dev/$fname") {
-                    if (!-d "$options->{root}/dev/$fname") {
-                        error
-                          "./dev/$fname already exists but is not a directory";
+            } elsif ($type eq '5') {    # directory
+                if (-e "$options->{root}/$fname") {
+                    if (!-d "$options->{root}/$fname") {
+                        error "$fname already exists but is not a directory";
                     }
                 } else {
-                    my $num_created = make_path "$options->{root}/dev/$fname",
+                    my $num_created = make_path "$options->{root}/$fname",
                       { error => \my $err };
                     if ($err && @$err) {
                         error(
@@ -2310,14 +3314,14 @@ sub run_setup() {
                                   @$err
                             ));
                     } elsif ($num_created == 0) {
-                        error "cannot create $options->{root}/dev/$fname";
+                        error "cannot create $options->{root}/$fname";
                     }
                 }
             } else {
                 error "unsupported type: $type";
             }
-            chmod $mode, "$options->{root}/dev/$fname"
-              or error "cannot chmod ./dev/$fname: $!";
+            chmod $mode, "$options->{root}/$fname"
+              or error "cannot chmod $fname: $!";
         }
     }
 
@@ -3258,14 +4262,15 @@ sub run_cleanup() {
         # same as debootstrap and create a directory including device nodes.
         if ($options->{format} ne 'directory' && any { $_ eq 'output/dev' }
             @{ $options->{skip} }) {
-            foreach my $file (@devfiles) {
-                my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
+            foreach my $file (@linuxdevfiles) {
+                my ($fname, $mode, $type, $linkname, $devmajor, $devminor,
+                    undef)
                   = @{$file};
-                if (!-e "$options->{root}/dev/$fname") {
+                if (!-e "$options->{root}/$fname") {
                     next;
                 }
                 # do not remove ./dev itself
-                if ($fname eq "") {
+                if ($fname eq "./dev/") {
                     next;
                 }
                 if ($type == 0) {    # normal file
@@ -3274,11 +4279,11 @@ sub run_cleanup() {
                     error "type 1 not implemented";
                 } elsif (any { $_ eq $type } (2, 3, 4))
                 {                         # symlink, char, block
-                    unlink "$options->{root}/dev/$fname"
-                      or error "failed to unlink ./dev/$fname: $!";
+                    unlink "$options->{root}/$fname"
+                      or error "failed to unlink $fname: $!";
                 } elsif ($type == 5) {    # directory
-                    rmdir "$options->{root}/dev/$fname"
-                      or error "failed to unlink ./dev/$fname: $!";
+                    rmdir "$options->{root}/$fname"
+                      or error "failed to unlink $fname: $!";
                 } else {
                     error "unsupported type: $type";
                 }
@@ -4430,7 +5435,7 @@ sub approx_disk_usage {
     my $scan_installed_size = sub {
         if ($File::Find::name eq "$directory/dev") {
             # add all entries of @devfiles once
-            $installed_size += scalar @devfiles;
+            $installed_size += scalar @linuxdevfiles;
             return;
         } elsif ($File::Find::name =~ /^$directory\/dev\//) {
             # ignore everything below /dev
@@ -5963,39 +6968,85 @@ sub main() {
     # well.
     my $devtar = '';
     if (any { $_ eq $options->{format} } ('tar', 'squashfs', 'ext2', 'ext4')) {
-        foreach my $file (@devfiles) {
-            my ($fname, $mode, $type, $linkname, $devmajor, $devminor)
+        my @entries = ();
+
+        my @paxentries;
+        if ($options->{nativearch} eq "hurd-i386") {
+            @paxentries = @hurdfiles;
+        } else {
+            @paxentries = @linuxdevfiles;
+        }
+
+        foreach my $paxentry (@paxentries) {
+            my ($name, $mode, $type, $linktarget, $major, $minor, $content)
+              = @{$paxentry};
+            if (defined $content) {
+                $content = "SCHILY.xattr.gnu.translator=$content";
+
+             # In the beginning the decimal length of the field is recorded.
+             # But the length includes the length of the number itself.
+             # Luckily we only need to support decimal numbers with two digits.
+                if ((length $content) + 4 > 99 || (length $content) + 4 < 10) {
+                    exit 1;    # not supported yet
+                }
+                my $len      = (length $content) + 4;
+                my $dirname  = dirname $name;
+                my $basename = basename $name;
+                push @entries,
+                  [
+                    "$dirname/PaxHeaders/$basename",
+                    0, 'x', undef, undef, undef, "$len $content\n"
+                  ];
+            }
+            push @entries,
+              [$name, $mode, $type, $linktarget, $major, $minor, undef];
+        }
+
+        foreach my $file (@entries) {
+            my ($fname, $mode, $type, $linktarget, $devmajor, $devminor,
+                $content)
               = @{$file};
-            if (length "./dev/$fname" > 100) {
+            if (length "$fname" > 100) {
                 error "tar entry cannot exceed 100 characters";
             }
-            if ($type == 3
+            if ($type eq '3'
                 and any { $_ eq 'output/mknod' } @{ $options->{skip} }) {
-                info "skipping output/mknod as requested for ./dev/$fname";
+                info "skipping output/mknod as requested for $fname";
                 next;
             }
+            my $size  = defined $content ? length $content : 0;
+            my $etime = $type eq 'x'     ? 0               : $mtime;
             my $entry = pack(
-                'a100 a8 a8 a8 a12 a12 A8 a1 a100 a8 a32 a32 a8 a8 a155 x12',
-                "./dev/$fname",
+                # name mode uid gid size mtime type linktarget
+                'a100 a8 a8 a8 a12 a12 A8 a1 a100 '
+                  # magic version username groupname major minor prefix
+                  . 'a6 a2 a32 a32 a8 a8 a155 x12',
+                $fname,
                 sprintf('%07o',  $mode),
                 sprintf('%07o',  0),        # uid
                 sprintf('%07o',  0),        # gid
-                sprintf('%011o', 0),        # size
-                sprintf('%011o', $mtime),
+                sprintf('%011o', $size),    # size
+                sprintf('%011o', $etime),
                 '',                         # checksum
-                $type,
-                $linkname,
-                "ustar  ",
+                $type,                      # type
+                $linktarget // '',          # linktarget
+                "ustar",                    # magic
+                "00",                       # version
                 '',                         # username
                 '',                         # groupname
                 defined($devmajor) ? sprintf('%07o', $devmajor) : '',
                 defined($devminor) ? sprintf('%07o', $devminor) : '',
                 '',                         # prefix
             );
+
             # compute and insert checksum
             substr($entry, 148, 7)
               = sprintf("%06o\0", unpack("%16C*", $entry));
             $devtar .= $entry;
+
+            if (length $content) {
+                $devtar .= (pack 'a512', $content);
+            }
         }
     } elsif (any { $_ eq $options->{format} } ('directory', 'null')) {
         # nothing to do
@@ -6017,7 +7068,8 @@ sub main() {
     );
     # only exclude ./dev if device nodes are written out (the default)
     if (none { $_ eq 'output/dev' } @{ $options->{skip} }) {
-        push @taropts, '--exclude=./dev';
+        push @taropts, '--exclude=./dev', '--exclude=./servers',
+          '--exclude=./servers/*';
     }
     # tar2sqfs and genext2fs do not support extended attributes
     if ($options->{format} eq "squashfs") {
