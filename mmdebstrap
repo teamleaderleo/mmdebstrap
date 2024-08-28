@@ -5127,6 +5127,7 @@ sub get_suite_by_vendor {
         'ubuntu' => {},
         'tanglu' => {},
         'kali'   => {},
+        'elxr'   => {},
     );
 
     # pre-fill with some known values
@@ -5147,6 +5148,9 @@ sub get_suite_by_vendor {
     }
     foreach my $suite ('kali-dev', 'kali-rolling', 'kali-bleeding-edge') {
         $suite_by_vendor{'kali'}->{$suite} = 0;
+    }
+    foreach my $suite ('aria') {
+        $suite_by_vendor{'elxr'}->{$suite} = 0;
     }
     foreach
       my $suite ('trusty', 'xenial', 'zesty', 'artful', 'bionic', 'cosmic') {
@@ -5196,6 +5200,9 @@ sub get_suite_by_vendor {
             } elsif ($target eq "kali"
                 and not exists $suite_by_vendor{'kali'}->{$suite}) {
                 $suite_by_vendor{'kali'}->{$suite} = 0;
+            } elsif ($target eq "elxr"
+                and not exists $suite_by_vendor{'elxr'}->{$suite}) {
+                $suite_by_vendor{'elxr'}->{$suite} = 0;
             }
         }
         closedir($dh);
@@ -5250,6 +5257,8 @@ sub get_keyring_by_suite {
             return '/usr/share/keyrings/tanglu-archive-keyring.gpg';
         } elsif ($vendor eq 'kali') {
             return '/usr/share/keyrings/kali-archive-keyring.gpg';
+        } elsif ($vendor eq 'elxr') {
+            return '/usr/share/keyrings/elxr-archive-keyring.gpg';
         } else {
             error "unknown vendor: $vendor";
         }
@@ -5286,6 +5295,7 @@ sub get_sourceslist_by_suite {
     my @ubuntustable = keys %{ $suite_by_vendor->{'ubuntu'} };
     my @tanglustable = keys %{ $suite_by_vendor->{'tanglu'} };
     my @kali         = keys %{ $suite_by_vendor->{'kali'} };
+    my @elxr	     = keys %{ $suite_by_vendor->{'elxr'} };
 
     my $mirror    = 'http://deb.debian.org/debian';
     my $secmirror = 'http://security.debian.org/debian-security';
@@ -5323,6 +5333,8 @@ sub get_sourceslist_by_suite {
         $mirror = 'http://archive.tanglu.org/tanglu';
     } elsif (any { $_ eq $suite } @kali) {
         $mirror = 'https://http.kali.org/kali';
+    } elsif (any { $_ eq $suite } @elxr) {
+        $mirror = 'https://mirror.elxr.dev';
     }
     my $sourceslist = '';
     $sourceslist .= "deb$signedby $mirror $suite $compstr\n";
