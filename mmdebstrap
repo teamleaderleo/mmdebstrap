@@ -6612,7 +6612,7 @@ sub main() {
 
     if ($options->{target} eq '-') {
         if (POSIX::isatty STDOUT) {
-            error "stdout is a an interactive tty";
+            error "stdout is an interactive tty";
         }
     } else {
         my $abs_path = abs_path($options->{target});
