@@ -6,7 +6,7 @@ if [ ! -e /mmdebstrap-testenv ]; then
 	exit 1
 fi
 # remove qemu just to be sure
-apt-get remove --yes qemu-user-static binfmt-support qemu-user
+apt-get remove --yes qemu-user-binfmt binfmt-support qemu-user
 {{ CMD }} --mode={{ MODE }} --variant=apt --architectures=i386 {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
 # we ignore differences between architectures by ignoring some files
 # and renaming others
