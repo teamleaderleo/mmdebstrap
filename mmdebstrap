@@ -7073,6 +7073,10 @@ sub main() {
         '--numeric-owner',
         '--one-file-system',
         '--format=pax',
+        # If POSIXLY_CORRECT were set in the environment, the ustar header
+        # name would include the process id. This forces tar to always use
+        # %d/PaxHeaders/%f even if the POSIXLY_CORRECT environment variable is
+        # set. atime and ctime are deleted for improved reproducibility.
         '--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime',
         '-c',
         '--exclude=./lost+found'
