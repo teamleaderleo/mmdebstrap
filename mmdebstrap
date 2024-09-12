@@ -4190,11 +4190,16 @@ sub run_cleanup() {
             # this file if possible. Having an empty file in place is useful
             # because it allows a temporary file to be bind-mounted over the
             # real file, in case the image is used read-only.
-            unlink "$options->{root}/etc/machine-id"
-              or error "cannot unlink /etc/machine-id: $!";
-            open my $fh, '>', "$options->{root}/etc/machine-id"
-              or error "failed to open(): $!";
-            close $fh;
+            if (any { $_ eq 'cleanup/reproducible/machine-id' }
+                @{ $options->{skip} }) {
+                info "skipping cleanup/reproducible/machine-id as requested";
+            } else {
+                unlink "$options->{root}/etc/machine-id"
+                  or error "cannot unlink /etc/machine-id: $!";
+                open my $fh, '>', "$options->{root}/etc/machine-id"
+                  or error "failed to open(): $!";
+                close $fh;
+            }
         }
     }
 
