@@ -6615,6 +6615,12 @@ sub main() {
             error "stdout is an interactive tty";
         }
     } else {
+        if (!-e dirname($options->{target})) {
+            error "path leading to $options->{target} does not exist";
+        }
+        if (!-d dirname($options->{target})) {
+            error "parent of $options->{target} is not a directory";
+        }
         my $abs_path = abs_path($options->{target});
         if (!defined $abs_path) {
             error "unable to get absolute path of target directory"
