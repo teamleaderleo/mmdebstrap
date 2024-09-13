@@ -1,3 +1,11 @@
+1.5.3 (2024-09-13)
+------------------
+
+ - tidy up any zombie processes
+ - chrootless hurd-i386
+ - add --skip=cleanup/reproducible/machine-id
+ - m-a-b-q: replace test_installed by dpkg-checkbuilddeps
+
 1.5.2 (2024-06-26)
 ------------------
 
