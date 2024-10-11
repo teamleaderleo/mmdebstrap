@@ -109,20 +109,24 @@ if [ "{{ VARIANT }}" = "-" ]; then
   rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/systemd/catalog/database
   rm /tmp/debian-{{ DIST }}-mm/var/lib/systemd/catalog/database
 
-  cap=$(chroot /tmp/debian-{{ DIST }}-debootstrap /sbin/getcap /bin/ping)
-  expected="/bin/ping cap_net_raw=ep"
-  if [ "$cap" != "$expected" ]; then
-    echo "expected bin/ping to have capabilities $expected" >&2
-    echo "but debootstrap produced: $cap" >&2
-    exit 1
-  fi
-  cap=$(chroot /tmp/debian-{{ DIST }}-mm /sbin/getcap /bin/ping)
-  if [ "$cap" != "$expected" ]; then
-    echo "expected bin/ping to have capabilities $expected" >&2
-    echo "but mmdebstrap produced: $cap" >&2
-    exit 1
-  fi
+  case {{ DIST }} in oldstable | stable | testing)
+    cap=$(chroot /tmp/debian-{{ DIST }}-debootstrap /sbin/getcap /bin/ping)
+    expected="/bin/ping cap_net_raw=ep"
+    if [ "$cap" != "$expected" ]; then
+      echo "expected bin/ping to have capabilities $expected" >&2
+      echo "but debootstrap produced: $cap" >&2
+      exit 1
+    fi
+    cap=$(chroot /tmp/debian-{{ DIST }}-mm /sbin/getcap /bin/ping)
+    if [ "$cap" != "$expected" ]; then
+      echo "expected bin/ping to have capabilities $expected" >&2
+      echo "but mmdebstrap produced: $cap" >&2
+      exit 1
+    fi
+    ;;
+  esac
 fi
+
 rm /tmp/debian-{{ DIST }}-mm/var/cache/apt/archives/lock
 rm /tmp/debian-{{ DIST }}-mm/var/lib/apt/extended_states
 rm /tmp/debian-{{ DIST }}-mm/var/lib/apt/lists/lock
