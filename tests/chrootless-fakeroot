@@ -8,14 +8,14 @@ trap "rm -f /tmp/chrootless.tar /tmp/root.tar" EXIT INT TERM
 
 prefix=
 if [ "$(id -u)" -eq 0 ] && [ "{{ MODE }}" != "root" ] && [ "{{ MODE }}" != "auto" ]; then
-	if ! id "${SUDO_USER:-user}" >/dev/null 2>&1; then
-		if [ ! -e /mmdebstrap-testenv ]; then
-			echo "this test modifies the system and should only be run inside a container" >&2
-			exit 1
-		fi
-		useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
-	fi
-	prefix="runuser -u ${SUDO_USER:-user} --"
+  if ! id "${SUDO_USER:-user}" >/dev/null 2>&1; then
+    if [ ! -e /mmdebstrap-testenv ]; then
+      echo "this test modifies the system and should only be run inside a container" >&2
+      exit 1
+    fi
+    useradd --home-dir "/home/${SUDO_USER:-user}" --create-home "${SUDO_USER:-user}"
+  fi
+  prefix="runuser -u ${SUDO_USER:-user} --"
 fi
 
 MMTARFILTER=
@@ -28,16 +28,16 @@ MMTARFILTER=
 # be preserved under fakeroot
 # this applies to 'z' lines in files in /usr/lib/tmpfiles.d/
 for INCLUDE in '' 'apt' 'apt,build-essential' 'systemd-sysv'; do
-	{{ CMD }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
-		${INCLUDE:+--include="$INCLUDE"} \
-		{{ DIST }} - {{ MIRROR }} \
-		| "$MMTARFILTER" --path-exclude="/var/log/journal" --path-exclude="/etc/credstore*" \
-		>/tmp/root.tar
-	$prefix fakeroot {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
-		${INCLUDE:+--include="$INCLUDE"} \
-		{{ DIST }} - {{ MIRROR }} \
-		| "$MMTARFILTER" --path-exclude="/var/log/journal" --path-exclude="/etc/credstore*" \
-		> /tmp/chrootless.tar
-	cmp /tmp/root.tar /tmp/chrootless.tar || diffoscope /tmp/root.tar /tmp/chrootless.tar
-	rm /tmp/chrootless.tar /tmp/root.tar
+  {{ CMD }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
+    ${INCLUDE:+--include="$INCLUDE"} \
+    {{ DIST }} - {{ MIRROR }} \
+    | "$MMTARFILTER" --path-exclude="/var/log/journal" --path-exclude="/etc/credstore*" \
+      >/tmp/root.tar
+  $prefix fakeroot {{ CMD }} --mode={{ MODE }} --variant={{ VARIANT }} --hook-dir=./hooks/merged-usr \
+    ${INCLUDE:+--include="$INCLUDE"} \
+    {{ DIST }} - {{ MIRROR }} \
+    | "$MMTARFILTER" --path-exclude="/var/log/journal" --path-exclude="/etc/credstore*" \
+      >/tmp/chrootless.tar
+  cmp /tmp/root.tar /tmp/chrootless.tar || diffoscope /tmp/root.tar /tmp/chrootless.tar
+  rm /tmp/chrootless.tar /tmp/root.tar
 done

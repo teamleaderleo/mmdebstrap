@@ -362,6 +362,21 @@ def main():
             check=False,
             stdout=subprocess.PIPE,
         ).stdout.decode()
+        shfmt = subprocess.run(
+            [
+                "shfmt",
+                "--posix",
+                "--binary-next-line",
+                "--case-indent",
+                "--indent",
+                "2",
+                "--simplify",
+                "-d",
+                "shared/test.sh",
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+        ).stdout.decode()
         argv = None
         match test:
             case "qemu":
@@ -411,9 +426,11 @@ def main():
         acc_time_per_test[name].append(walltime)
         print(separator, file=sys.stderr)
         print(f"duration: {walltime}", file=sys.stderr)
-        if proc.returncode != 0 or shellcheck != "":
+        if proc.returncode != 0 or shellcheck != "" or shfmt != "":
             if shellcheck != "":
                 print(shellcheck)
+            if shfmt != "":
+                print(shfmt)
             failed.append(formated_test_name)
             print("result: FAILURE", file=sys.stderr)
         else:

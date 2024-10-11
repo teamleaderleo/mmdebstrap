@@ -28,23 +28,23 @@
 set -eu
 
 find_gpgv_status_fd() {
-	while [ "$#" -gt 0 ]; do
-		if [ "$1" = '--status-fd' ]; then
-			echo "$2"
-			return 0
-		fi
-		shift
-	done
-	# default fd is stdout
-	echo 1
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = '--status-fd' ]; then
+      echo "$2"
+      return 0
+    fi
+    shift
+  done
+  # default fd is stdout
+  echo 1
 }
 GPGSTATUSFD="$(find_gpgv_status_fd "$@")"
 
 case $GPGSTATUSFD in
-	''|*[!0-9]*)
-		echo "invalid --status-fd argument" >&2
-		exit 1
-		;;
+  '' | *[!0-9]*)
+    echo "invalid --status-fd argument" >&2
+    exit 1
+    ;;
 esac
 
 # we need eval because we cannot redirect a variable fd

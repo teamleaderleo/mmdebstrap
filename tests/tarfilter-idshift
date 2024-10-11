@@ -4,7 +4,7 @@ export LC_ALL=C.UTF-8
 
 trap "rm -f /tmp/mkpaxtar.pl /tmp/orig.tar /tmp/file /tmp/expected /tmp/filtered.tar" EXIT INT TERM
 
-cat << 'END' > /tmp/mkpaxtar.pl
+cat <<'END' >/tmp/mkpaxtar.pl
 #!/usr/bin/env perl
 
 use strict;
@@ -80,31 +80,31 @@ MMTARFILTER=
 [ -x /usr/bin/mmtarfilter ] && MMTARFILTER=/usr/bin/mmtarfilter
 [ -x ./tarfilter ] && MMTARFILTER=./tarfilter
 
-perl /tmp/mkpaxtar.pl | "$MMTARFILTER" > /tmp/orig.tar
+perl /tmp/mkpaxtar.pl | "$MMTARFILTER" >/tmp/orig.tar
 # make sure that xattrs are set in the original tarball
 tar --xattrs --xattrs-include='*' --directory /tmp/ -xf /tmp/orig.tar ./file
-echo "/tmp/file cap_net_raw=ep" > /tmp/expected
+echo "/tmp/file cap_net_raw=ep" >/tmp/expected
 getcap /tmp/file | diff -u /tmp/expected - >&2
 # make sure that the file content is as expected
 printf test | diff -u /tmp/file - >&2
 # make sure that uid/gid are as expected in the original tarball
-echo "0 0 644" > /tmp/expected
+echo "0 0 644" >/tmp/expected
 stat --format="%u %g %a" /tmp/file | diff -u /tmp/expected - >&2
 rm /tmp/file
 # tarball must be bit by-bit-identical after round-trip
-"$MMTARFILTER" --idshift 0 < /tmp/orig.tar > /tmp/filtered.tar
+"$MMTARFILTER" --idshift 0 </tmp/orig.tar >/tmp/filtered.tar
 cmp /tmp/orig.tar /tmp/filtered.tar
 
 # now shift uid/gid
-"$MMTARFILTER" --idshift 100000 < /tmp/orig.tar > /tmp/filtered.tar
+"$MMTARFILTER" --idshift 100000 </tmp/orig.tar >/tmp/filtered.tar
 # make sure that uid/gid are as expected in the filtered tarball
 tar --xattrs --xattrs-include='*' --directory /tmp/ -xf /tmp/filtered.tar ./file
-echo "100000 100000 644" > /tmp/expected
+echo "100000 100000 644" >/tmp/expected
 stat --format="%u %g %a" /tmp/file | diff -u /tmp/expected - >&2
 rm /tmp/file
 
 # now shift uid/gid back to create a round-trip
-"$MMTARFILTER" --idshift -100000 < /tmp/filtered.tar > /tmp/filtered2.tar
+"$MMTARFILTER" --idshift -100000 </tmp/filtered.tar >/tmp/filtered2.tar
 
 # the result must be identical to the original and will thus also include the
 # correct xattr information
