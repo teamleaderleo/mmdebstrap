@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+
+trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
+
+{{ CMD }} --variant={{ VARIANT }} --verbose \
+  --setup-hook='echo deb {{ MIRROR }} {{ DIST }} main >> "$1"/etc/apt/sources.list' \
+  '' /tmp/debian-chroot.tar
+
+cmp ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar /tmp/debian-chroot.tar \
+  || diffoscope ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar /tmp/debian-chroot.tar

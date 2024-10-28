@@ -5265,6 +5265,10 @@ sub get_sourceslist_by_suite {
     my $compstr         = shift;
     my $suite_by_vendor = shift;
 
+    if (!$suite) {
+        error "get_sourceslist_by_suite cannot operate with an empty suite";
+    }
+
     my @debstable    = keys %{ $suite_by_vendor->{'debian'} };
     my @ubuntustable = keys %{ $suite_by_vendor->{'ubuntu'} };
     my @tanglustable = keys %{ $suite_by_vendor->{'tanglu'} };
@@ -6525,6 +6529,10 @@ sub main() {
                               };
                         }
                     } elsif ($arg =~ /:\/\//) {
+                        if (!$options->{suite}) {
+                            error(  "cannot create sources.list entry for URI"
+                                  . "with empty suite");
+                        }
                         my $content = join ' ',
                           (
                             "deb$signedby",
@@ -6580,6 +6588,9 @@ sub main() {
                         error "invalid mirror: $arg";
                     }
                 }
+            } elsif (!length($options->{suite})) {
+                warning
+                  "cannot guess apt sources.list entry with empty suite name";
             } else {
                 my $sourceslist
                   = get_sourceslist_by_suite($options->{suite},
