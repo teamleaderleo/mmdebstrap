@@ -1,3 +1,8 @@
+1.5.4 (2024-10-28)
+------------------
+
+ - do not generate apt sources.list entry if SUITE is empty
+
 1.5.3 (2024-09-13)
 ------------------
 
