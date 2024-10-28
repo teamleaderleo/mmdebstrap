@@ -8661,6 +8661,16 @@ Create a tarball for use with C<sbuild --chroot-mode=unshare>:
 
     $ mmdebstrap --variant=buildd unstable ~/.cache/sbuild/unstable-amd64.tar
 
+Create a buildd tarball for EOL distro:
+
+    $ mmdebstrap --include=apt --variant=buildd --aptopt \
+        'Apt::Key::gpgvcommand "/usr/libexec/mmdebstrap/gpgvnoexpkeysig"' \
+        --aptopt='Acquire::Check-Valid-Until "false"' \
+        --keyring=/usr/share/keyrings/debian-archive-removed-keys.gpg \
+        --hook-dir=/usr/share/mmdebstrap/hooks/maybe-jessie-or-older \
+        jessie ~/.cache/sbuild/jessie-arm64.tar \
+        http://archive.debian.org/debian
+
 Instead of a tarball, a squashfs image can be created:
 
     $ mmdebstrap unstable unstable-chroot.squashfs
