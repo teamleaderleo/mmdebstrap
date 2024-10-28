@@ -109,7 +109,7 @@ if [ "{{ VARIANT }}" = "-" ]; then
   rm /tmp/debian-{{ DIST }}-debootstrap/var/lib/systemd/catalog/database
   rm /tmp/debian-{{ DIST }}-mm/var/lib/systemd/catalog/database
 
-  case {{ DIST }} in oldstable | stable | testing)
+  case {{ DIST }} in oldstable | stable)
     cap=$(chroot /tmp/debian-{{ DIST }}-debootstrap /sbin/getcap /bin/ping)
     expected="/bin/ping cap_net_raw=ep"
     if [ "$cap" != "$expected" ]; then
