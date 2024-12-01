@@ -6391,7 +6391,7 @@ sub main() {
                 }
                 # initialize gpg trustdb with empty one
                 {
-                    0 == system(@gpgcmd, '--update-trustdb')
+                    0 == system(@gpgcmd, '--check-trustdb')
                       or error "gpg failed to initialize trustdb:: $?";
                 }
                 if (!-d $options->{apttrustedparts}) {
