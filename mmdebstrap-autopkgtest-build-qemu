@@ -222,6 +222,10 @@ while test "$#" -gt 0; do
     --efi)
       opt_boot efi
       ;;
+    --)
+      shift
+      break
+      ;;
     --*)
       usage_error "unrecognized argument $1"
       ;;
@@ -324,7 +328,8 @@ set -- \
   --mode=unshare \
   --format=tar \
   --variant=important \
-  --architecture="$ARCHITECTURE"
+  --architecture="$ARCHITECTURE" \
+  "$@"
 
 case $MIRROR in http://snapshot.debian.org/archive/* | https://snapshot.debian.org/archive/*)
   set -- "$@" --aptopt='Acquire::Check-Valid-Until "false"'
