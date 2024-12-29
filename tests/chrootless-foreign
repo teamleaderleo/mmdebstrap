@@ -26,9 +26,6 @@ fi
 [ "$(id -u)" -eq 0 ]
 [ -e "/proc/sys/fs/binfmt_misc/qemu-$(deb2qemu "$arch")" ]
 
-# we need --hook-dir=./hooks/merged-usr because usrmerge does not understand
-# DPKG_ROOT
-#
 # dpkg is unable to install architecture arch:all packages with a
 # dependency on an arch:any package (perl-modules-5.34 in this case)
 # inside foreign architecture chrootless chroots, because dpkg will use
@@ -38,12 +35,12 @@ for INCLUDE in '' 'apt' 'systemd-sysv'; do
   echo 1 >"/proc/sys/fs/binfmt_misc/qemu-$(deb2qemu "$arch")"
   arch-test "$arch"
   {{ CMD }} --mode=root --architecture="$arch" --variant={{ VARIANT }} \
-    --hook-dir=./hooks/merged-usr ${INCLUDE:+--include="$INCLUDE"} \
+    ${INCLUDE:+--include="$INCLUDE"} \
     {{ DIST }} "/tmp/root.tar" {{ MIRROR }}
   echo 0 >"/proc/sys/fs/binfmt_misc/qemu-$(deb2qemu "$arch")"
   arch-test "$arch" && exit 1
   {{ CMD }} --mode=chrootless --architecture="$arch" --variant={{ VARIANT }} \
-    --hook-dir=./hooks/merged-usr ${INCLUDE:+--include="$INCLUDE"} \
+    ${INCLUDE:+--include="$INCLUDE"} \
     --skip=check/chrootless {{ DIST }} "/tmp/chrootless.tar" {{ MIRROR }}
   # when creating a foreign architecture chroot, the tarballs are not
   # bit-by-bit identical but contain a few remaining differences:
