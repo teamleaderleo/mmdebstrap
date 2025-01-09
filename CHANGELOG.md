@@ -1,3 +1,9 @@
+1.5.5 (2025-01-09)
+------------------
+
+ - do not run dpkg-preconfigure via DPkg::Pre-Install-Pkgs hook
+ - m-a-b-q: support passing args to mmdebstrap
+
 1.5.4 (2024-10-28)
 ------------------
 
