@@ -435,3 +435,4 @@ Test: zombie-reaping
 Modes: unshare
 
 Test: empty-suite
+Needs-APT-Config: true
