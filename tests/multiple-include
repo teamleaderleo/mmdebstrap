@@ -8,7 +8,8 @@ rm -r /tmp/debian-chroot/usr/share/doc/debian
 rm -r /tmp/debian-chroot/usr/share/doc/doc-debian
 rm /tmp/debian-chroot/usr/share/lintian/overrides/tzdata
 rm /tmp/debian-chroot/etc/localtime
-rm /tmp/debian-chroot/etc/timezone
+# tzdata 2024b-5 does not create /etc/timezone anymore #822733
+case {{ DIST }} in oldstable | stable) rm /tmp/debian-chroot/etc/timezone ;; esac
 rm -r /tmp/debian-chroot/usr/share/doc/tzdata
 rm -r /tmp/debian-chroot/usr/share/zoneinfo
 for p in doc-debian tzdata; do
