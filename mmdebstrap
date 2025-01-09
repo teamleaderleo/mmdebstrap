@@ -3101,6 +3101,14 @@ sub run_setup() {
     # don't have a good way to figure out whether apt is using an external
     # solver or not short of parsing the --aptopt options.
     print $conf "pkgCacheGen::ForceEssential \",\";\n";
+    # Avoid running dpkg-preconfigure. This is not a problem unless in in
+    # chrootless mode, which apt-extracttemplates does not and can not
+    # support because it cannot know that this is a chrootless installation.
+    # We always turn it off for equivalent behavior in all modes. Running
+    # dpkg-preconfigure should not be needed as we also have set
+    # DEBIAN_FRONTEND=noninteractive and DEBCONF_NONINTERACTIVE_SEEN=true and
+    # should thus never see debconf prompts. See #1091442 for details.
+    print $conf "#clear DPkg::Pre-Install-Pkgs;\n";
 
     close $conf;
 
