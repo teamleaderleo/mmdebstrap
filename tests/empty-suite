@@ -3,11 +3,14 @@ set -eu
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
 
-trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
+trap "rm -f /tmp/debian-chroot1.tar /tmp/debian-chroot2.tar" EXIT INT TERM
 
-{{ CMD }} --variant={{ VARIANT }} --verbose \
+{{ CMD }} --variant={{ VARIANT }} \
+  {{ DIST }} /tmp/debian-chroot1.tar {{ MIRROR }}
+
+{{ CMD }} --variant={{ VARIANT }} \
   --setup-hook='echo deb {{ MIRROR }} {{ DIST }} main >> "$1"/etc/apt/sources.list' \
-  '' /tmp/debian-chroot.tar
+  '' /tmp/debian-chroot2.tar
 
-cmp ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar /tmp/debian-chroot.tar \
-  || diffoscope ./cache/mmdebstrap-{{ DIST }}-{{ VARIANT }}.tar /tmp/debian-chroot.tar
+cmp /tmp/debian-chroot1.tar /tmp/debian-chroot2.tar \
+  || diffoscope /tmp/debian-chroot1.tar /tmp/debian-chroot2.tar
