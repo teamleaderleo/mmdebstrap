@@ -6803,6 +6803,7 @@ sub main() {
     if (any { $_ eq $options->{format} }
         ('tar', 'squashfs', 'ext2', 'ext4', 'null')) {
         if ($options->{format} ne 'null') {
+            #<<< perltidy 20220613 formatting
             if (any { $_ eq $options->{variant} } ('extract', 'custom')
                   and $options->{mode} eq 'fakechroot') {
                 info "creating a tarball, squashfs, ext2 or ext4 image in"
@@ -6810,6 +6811,7 @@ sub main() {
                   . " custom variants because there might be no tar inside the"
                   . " chroot";
             }
+            #>>>
             # try to fail early if target tarball or squashfs image cannot be
             # opened for writing
             if ($options->{target} ne '-') {
@@ -6840,12 +6842,14 @@ sub main() {
         # in unshare and root mode, other users than the current user need to
         # access the rootfs, most prominently, the _apt user. Thus, make the
         # temporary directory world readable.
+        #<<< perltidy 20220613 formatting
         if (
             any { $_ eq $options->{mode} } ('unshare', 'root')
               or ($EFFECTIVE_USER_ID == 0 and $options->{mode} eq 'chrootless')
         ) {
             chmod 0755, $options->{root} or error "cannot chmod root: $!";
         }
+        #>>>
     } elsif ($options->{format} eq 'directory') {
         # user does not seem to have specified a tarball as output, thus work
         # directly in the supplied directory
@@ -7331,9 +7335,11 @@ sub main() {
                     error "cannot copy to standard output: $!";
                 }
             } else {
+                #<<< perltidy 20220613 formatting
                 if (any { $_ eq $options->{format} }
                     ('squashfs', 'ext2', 'ext4')
                       or defined $tar_compressor) {
+                #>>>
                     my @argv = ();
                     if ($options->{format} eq 'squashfs') {
                         push @argv, 'tar2sqfs',
