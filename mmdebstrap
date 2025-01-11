@@ -3108,7 +3108,11 @@ sub run_setup() {
     # dpkg-preconfigure should not be needed as we also have set
     # DEBIAN_FRONTEND=noninteractive and DEBCONF_NONINTERACTIVE_SEEN=true and
     # should thus never see debconf prompts. See #1091442 for details.
-    print $conf "#clear DPkg::Pre-Install-Pkgs;\n";
+    {
+        open my $tmp, '>', "$options->{root}/etc/apt/apt.conf.d/99debconf"
+          or error "cannot open /etc/apt/apt.conf.d/99debconf: $!";
+        print $tmp "#clear DPkg::Pre-Install-Pkgs;\n";
+    }
 
     close $conf;
 
@@ -4164,6 +4168,8 @@ sub run_cleanup() {
         # clean up temporary configuration file
         unlink "$options->{root}/etc/apt/apt.conf.d/00mmdebstrap"
           or warning "failed to unlink /etc/apt/apt.conf.d/00mmdebstrap: $!";
+        unlink "$options->{root}/etc/apt/apt.conf.d/99debconf"
+          or warning "failed to unlink /etc/apt/apt.conf.d/99debconf: $!";
 
         if (defined $ENV{APT_CONFIG} && -e $ENV{APT_CONFIG}) {
             unlink $ENV{APT_CONFIG}
