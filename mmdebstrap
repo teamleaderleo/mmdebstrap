@@ -5548,9 +5548,9 @@ sub main() {
     # obtain the correct defaults for the keyring locations that apt knows
     # about
     my $apttrusted
-      = `eval \$(apt-config shell v Dir::Etc::trusted/f); printf \$v`;
+      = `eval \$(apt-config shell v Dir::Etc::trusted/f); printf %s \$v`;
     my $apttrustedparts
-      = `eval \$(apt-config shell v Dir::Etc::trustedparts/d); printf \$v`;
+      = `eval \$(apt-config shell v Dir::Etc::trustedparts/d); printf %s \$v`;
 
     chomp(my $hostarch = `dpkg --print-architecture`);
     my $options = {
@@ -5871,7 +5871,7 @@ sub main() {
     }
 
     # setting PATH for chroot, ldconfig, start-stop-daemon...
-    my $defaultpath = `eval \$(apt-config shell v DPkg::Path); printf \$v`;
+    my $defaultpath = `eval \$(apt-config shell v DPkg::Path); printf %s \$v`;
     if (length $ENV{PATH}) {
         ## no critic (Variables::RequireLocalizedPunctuationVars)
         $ENV{PATH} = "$ENV{PATH}:$defaultpath";
@@ -8462,8 +8462,8 @@ its core, what B<mmdebstrap> does can be put into a 14 line shell script:
     Apt::Architecture "$(dpkg --print-architecture)";
     Apt::Architectures "$(dpkg --print-architecture)";
     Dir "$(cd "$2" && pwd)";
-    Dir::Etc::Trusted "$(eval "$(apt-config shell v Dir::Etc::Trusted/f)"; printf "$v")";
-    Dir::Etc::TrustedParts "$(eval "$(apt-config shell v Dir::Etc::TrustedParts/d)"; printf "$v")";
+    Dir::Etc::Trusted "$(eval "$(apt-config shell v Dir::Etc::Trusted/f)"; printf %s "$v")";
+    Dir::Etc::TrustedParts "$(eval "$(apt-config shell v Dir::Etc::TrustedParts/d)"; printf %s "$v")";
     END
     echo "deb http://deb.debian.org/debian/ $1 main" > "$2/etc/apt/sources.list"
     APT_CONFIG="$2/apt.conf" apt-get update
