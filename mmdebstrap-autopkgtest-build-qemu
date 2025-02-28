@@ -95,6 +95,12 @@ explicitly select --boot=efi, operation will fail.
 
 Passes an additional B<--keyring> parameter to B<mmdebstrap>.
 
+=item B<--sshkey>=F<sshkey>
+
+Install the given ssh public key file into the virtual machine image for the root user.
+This option also causes the ssh server to be installed.
+By default, no key or server is installed.
+
 =back
 
 =head1 EXAMPLES
@@ -131,7 +137,7 @@ die() {
   exit 1
 }
 usage() {
-  die "usage: $0 [--architecture=|--apt-proxy=|--keyring=|--mirror=|--script=|--size=] --boot=efi <RELEASE> <IMAGE>"
+  die "usage: $0 [--architecture=|--apt-proxy=|--keyring=|--sshkey=|--mirror=|--script=|--size=] --boot=efi <RELEASE> <IMAGE>"
 }
 usage_error() {
   echo "error: $*" 1>&2
@@ -146,6 +152,7 @@ KEYRING=
 RELEASE=
 SIZE=25G
 SCRIPT=
+SSHKEY=
 
 # consumed by setup-testbed
 export AUTOPKGTEST_BUILD_QEMU=1
@@ -171,6 +178,9 @@ opt_apt_proxy() {
 }
 opt_keyring() {
   KEYRING="$1"
+}
+opt_sshkey() {
+	SSHKEY=$1
 }
 opt_mirror() {
   # consumed by setup-testbed
@@ -202,14 +212,14 @@ positional_7() {
 
 while test "$#" -gt 0; do
   case "$1" in
-    --architecture=* | --arch=* | --boot=* | --keyring=* | --mirror=* | --script=* | --size=*)
+    --architecture=* | --arch=* | --boot=* | --keyring=* | --sshkey=* | --mirror=* | --script=* | --size=*)
       optname="${1%%=*}"
       "opt_${optname#--}" "${1#*=}"
       ;;
     --apt-proxy=*)
       opt_apt_proxy "${1#*=}"
       ;;
-    --architecture | --arch | --boot | --keyring | --mirror | --script | --size)
+    --architecture | --arch | --boot | --keyring | --sshkey | --mirror | --script | --size)
       test "$#" -ge 2 || usage_error "missing argument for $1"
       "opt_${1#--}" "$2"
       shift
@@ -296,6 +306,10 @@ esac
 test "$(dpkg-query -f '${db:Status-Status}' -W "dpkg-dev")" = installed \
   || die "please install dpkg-dev"
 
+if test -n "$SSHKEY" && ! test -f "$SSHKEY"; then
+	die "error: ssh keyfile '$SSHKEY' not found"
+fi
+
 dpkg-checkbuilddeps -d "autopkgtest, dosfstools, e2fsprogs, fdisk, mount, mtools, passwd, uidmap, libarchive13, systemd-boot-efi:$ARCHITECTURE $BINUTILS" /dev/null \
   || die "please install the required packages listed above"
 
@@ -358,6 +372,14 @@ if test -n "$SCRIPT"; then
     "--customize-hook=upload '$SCRIPT' /userscript" \
     "--chrooted-customize-hook=sh /userscript" \
     '--customize-hook=rm -f "$1/userscript"'
+fi
+
+# add ssh key for root
+if test -n "$SSHKEY"; then
+	set -- "$@" \
+		--include=openssh-server \
+		'--customize-hook=mkdir -m700 -p "$1/root/.ssh"' \
+		"--customize-hook=upload $SSHKEY /root/.ssh/authorized_keys"
 fi
 
 set -- "$@" \
