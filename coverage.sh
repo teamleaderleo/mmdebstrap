@@ -26,7 +26,7 @@ if [ -e "$MMSCRIPT" ]; then
   rm "$TMPFILE"
 
   if [ "$(sed -e '/^__END__$/,$d' "$MMSCRIPT" | wc --max-line-length)" -gt 79 ]; then
-    echo "exceeded maximum line length of 79 characters" >&2
+    echo "$MMSCRIPT exceeded maximum line length of 79 characters" >&2
     exit 1
   fi
 
