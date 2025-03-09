@@ -47,5 +47,10 @@ case $GPGSTATUSFD in
     ;;
 esac
 
+if ! command -v gpgv >&2; then
+  eval 'echo "[GNUPG:] ERROR gpgv executable not found" >&'"$GPGSTATUSFD"
+  exit 1
+fi
+
 # we need eval because we cannot redirect a variable fd
 eval 'exec gpgv "$@" '"$GPGSTATUSFD"'>&1 | sed "s/^\[GNUPG:\] EXPKEYSIG /[GNUPG:] GOODSIG /" >&'"$GPGSTATUSFD"
