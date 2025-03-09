@@ -7,7 +7,7 @@ while [ "$#" -gt 0 ]; do
   key="$1"
   case "$key" in
     SUDO)
-      SUDO=sudo
+      SUDO="sudo --preserve-env"
       ;;
     *)
       echo "Unknown argument: $key"
@@ -33,6 +33,7 @@ ret=0
         ret=0
         (
           exec 3>&- 4>&-
+          # shellcheck disable=SC2086
           env --chdir=./shared $SUDO sh -x ./test.sh 2>&1
         ) || ret=$?
         echo $ret >&3

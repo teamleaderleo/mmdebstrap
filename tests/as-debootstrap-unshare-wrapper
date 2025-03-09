@@ -28,11 +28,14 @@ fi
 # https://bugs.debian.org/1031105
 # https://salsa.debian.org/installer-team/debootstrap/-/merge_requests/90
 AUTOPROXY=
-eval "$(apt-config shell AUTOPROXY Acquire::http::Proxy-Auto-Detect)"
-if [ -n "$AUTOPROXY" ] && [ -x "$AUTOPROXY" ] && [ -e /tmp/.auto-apt-proxy-0 ]; then
-  TMP_APT_CONFIG=$(mktemp)
-  echo 'Dir "/dev/null";' >"$TMP_APT_CONFIG"
-  chmod 644 "$TMP_APT_CONFIG"
+# allow an empty http_proxy variable to disable this
+if [ -n "${http_proxy-}" ]; then
+  eval "$(apt-config shell AUTOPROXY Acquire::http::Proxy-Auto-Detect)"
+  if [ -n "$AUTOPROXY" ] && [ -x "$AUTOPROXY" ] && [ -e /tmp/.auto-apt-proxy-0 ]; then
+    TMP_APT_CONFIG=$(mktemp)
+    echo 'Dir "/dev/null";' >"$TMP_APT_CONFIG"
+    chmod 644 "$TMP_APT_CONFIG"
+  fi
 fi
 
 $prefix {{ CMD }} --variant=custom --mode={{ MODE }} \
