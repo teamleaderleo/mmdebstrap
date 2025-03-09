@@ -6146,6 +6146,7 @@ sub main() {
             armhf    => 'arm',
             hppa     => 'hppa',
             i386     => 'i386',
+            loong64  => 'loongarch64',
             m68k     => 'm68k',
             mips     => 'mips',
             mips64   => 'mips64',
