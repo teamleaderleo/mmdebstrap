@@ -40,7 +40,8 @@ use Fcntl
   qw(S_IFCHR S_IFBLK FD_CLOEXEC F_GETFD F_SETFD LOCK_EX O_RDONLY O_DIRECTORY);
 use List::Util qw(any none);
 use POSIX
-  qw(SIGINT SIGHUP SIGPIPE SIGTERM SIG_BLOCK SIG_UNBLOCK strftime isatty);
+  qw(SIGINT SIGHUP SIGPIPE SIGTERM SIG_BLOCK SIG_UNBLOCK strftime isatty
+  WIFEXITED WEXITSTATUS WIFSIGNALED WTERMSIG);
 use Carp;
 use Term::ANSIColor;
 use Socket;
@@ -1963,10 +1964,7 @@ sub run_progress {
     }
 
     close($pipe);
-    my $fail = 0;
-    if ($? != 0 or $has_error) {
-        $fail = 1;
-    }
+    my $proc_exit = $?;
 
     waitpid $pid2, 0;
     $? == 0 or error "progress parsing failed";
@@ -1977,11 +1975,29 @@ sub run_progress {
 
     # only print failure after progress output finished or otherwise it
     # might interfere with the remaining output
-    if ($fail) {
+    if ($proc_exit != 0 or $has_error) {
         if ($verbosity_level >= 1) {
             print STDERR $output;
         }
-        error((join ' ', $get_exec->('<$fd>')) . ' failed');
+        my $what = '';
+        if ($proc_exit != 0) {
+            if (POSIX::WIFEXITED($proc_exit)) {
+                my $exit = POSIX::WEXITSTATUS($proc_exit);
+                $what
+                  .= "process exited with $exit and error in console output";
+            } elsif (POSIX::WIFSIGNALED($proc_exit)) {
+                my $sig = POSIX::WTERMSIG($proc_exit);
+                $what = "process was killed by signal $sig";
+            } else {
+                $what = "process failed with unknown status code";
+            }
+            if ($has_error) {
+                $what .= " and error in console output";
+            }
+        } else {
+            $what .= "error in console output";
+        }
+        error((join ' ', $get_exec->('<$fd>')) . " failed: $what");
     }
     return;
 }
