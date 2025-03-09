@@ -26,12 +26,7 @@ fi
 [ "$(id -u)" -eq 0 ]
 [ -e "/proc/sys/fs/binfmt_misc/qemu-$(deb2qemu "$arch")" ]
 
-# dpkg is unable to install architecture arch:all packages with a
-# dependency on an arch:any package (perl-modules-5.34 in this case)
-# inside foreign architecture chrootless chroots, because dpkg will use
-# its own architecture as the native architecture, see #825385 and #1020533
-# So we are not testing the installation of apt,build-essential here.
-for INCLUDE in '' 'apt' 'systemd-sysv'; do
+for INCLUDE in '' 'apt' 'apt,build-essential' 'systemd-sysv'; do
   echo 1 >"/proc/sys/fs/binfmt_misc/qemu-$(deb2qemu "$arch")"
   arch-test "$arch"
   {{ CMD }} --mode=root --architecture="$arch" --variant={{ VARIANT }} \
