@@ -180,7 +180,7 @@ opt_keyring() {
   KEYRING="$1"
 }
 opt_sshkey() {
-	SSHKEY=$1
+  SSHKEY=$1
 }
 opt_mirror() {
   # consumed by setup-testbed
@@ -307,7 +307,7 @@ test "$(dpkg-query -f '${db:Status-Status}' -W "dpkg-dev")" = installed \
   || die "please install dpkg-dev"
 
 if test -n "$SSHKEY" && ! test -f "$SSHKEY"; then
-	die "error: ssh keyfile '$SSHKEY' not found"
+  die "error: ssh keyfile '$SSHKEY' not found"
 fi
 
 dpkg-checkbuilddeps -d "autopkgtest, dosfstools, e2fsprogs, fdisk, mount, mtools, passwd, uidmap, libarchive13, systemd-boot-efi:$ARCHITECTURE $BINUTILS" /dev/null \
@@ -376,10 +376,10 @@ fi
 
 # add ssh key for root
 if test -n "$SSHKEY"; then
-	set -- "$@" \
-		--include=openssh-server \
-		'--customize-hook=mkdir -m700 -p "$1/root/.ssh"' \
-		"--customize-hook=upload $SSHKEY /root/.ssh/authorized_keys"
+  set -- "$@" \
+    --include=openssh-server \
+    '--customize-hook=mkdir -m700 -p "$1/root/.ssh"' \
+    "--customize-hook=upload $SSHKEY /root/.ssh/authorized_keys"
 fi
 
 set -- "$@" \
