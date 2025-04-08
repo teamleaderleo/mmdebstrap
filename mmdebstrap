@@ -2886,6 +2886,9 @@ sub setup {
     }
 
     if (-e $options->{apttrusted} && !-r $options->{apttrusted}) {
+        # FIXME: obtain the keyring file with the permissions of the user
+        # outside of the unshared namespace
+        # FIXME: apt no longer sets Dir::Etc::trusted by default
         warning "cannot read $options->{apttrusted}";
     }
     if (-e $options->{apttrustedparts} && !-r $options->{apttrustedparts}) {
