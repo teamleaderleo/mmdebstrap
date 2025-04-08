@@ -1,3 +1,10 @@
+1.5.7 (2025-04-08)
+------------------
+
+ - support for elxr Debian derivative
+ - support loong64
+ - mmdebstrap-autopkgtest-build-qemu: add --sshkey=...
+
 1.5.6 (2025-01-11)
 ------------------
 
