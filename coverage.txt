@@ -436,3 +436,6 @@ Modes: unshare
 
 Test: empty-suite
 Needs-APT-Config: true
+
+Test: numeric-uid-gid
+Needs-QEMU: true

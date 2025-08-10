@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+export SOURCE_DATE_EPOCH={{ SOURCE_DATE_EPOCH }}
+
+trap "rm -f /tmp/debian-chroot.tar" EXIT INT TERM
+
+if [ ! -e /mmdebstrap-testenv ]; then
+  echo "this test modifies the system and should only be run inside a container" >&2
+  exit 1
+fi
+# create a new user with known uid
+useradd --home-dir /home/user --create-home --uid 1000 user
+# create a subuid file with a numeric entry instead of using the username
+echo 1000:100000:65536 >/etc/subuid
+runuser -u user -- {{ CMD }} --mode=unshare --variant=apt {{ DIST }} /tmp/debian-chroot.tar {{ MIRROR }}
+cmp ./cache/mmdebstrap-{{ DIST }}-apt.tar /tmp/debian-chroot.tar

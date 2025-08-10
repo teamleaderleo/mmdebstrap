@@ -1455,14 +1455,14 @@ sub read_subuid_subgid {
     }
     while (my $line = <$fh>) {
         ($n, $subid, $num_subid) = split(/:/, $line, 3);
-        last if ($n eq $username);
+        last if ($n eq $username || $n eq $REAL_USER_ID);
     }
     close $fh;
     if (!length $subid) {
         maybe_warn("/etc/subuid is empty");
         return;
     }
-    if ($n ne $username) {
+    if ($n ne $username && $n ne $REAL_USER_ID) {
         maybe_warn("no entry in /etc/subuid for $username");
         return;
     }
@@ -1493,14 +1493,14 @@ sub read_subuid_subgid {
     }
     while (my $line = <$fh>) {
         ($n, $subid, $num_subid) = split(/:/, $line, 3);
-        last if ($n eq $username);
+        last if ($n eq $username || $n eq $REAL_USER_ID);
     }
     close $fh;
     if (!length $subid) {
         maybe_warn("/etc/subgid is empty");
         return;
     }
-    if ($n ne $username) {
+    if ($n ne $username && $n ne $REAL_USER_ID) {
         maybe_warn("no entry in /etc/subgid for $username");
         return;
     }
