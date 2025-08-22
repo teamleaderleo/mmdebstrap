@@ -7042,7 +7042,7 @@ sub main() {
         my @entries = ();
 
         my @paxentries;
-        if ($options->{nativearch} eq "hurd-i386") {
+        if ($options->{nativearch} =~ /^hurd-/) {
             @paxentries = @hurdfiles;
         } else {
             @paxentries = @linuxdevfiles;
