@@ -7621,7 +7621,7 @@ I<TARGET> is C<->, an uncompressed tarball will be sent to standard output.
 Without the B<--format> option, I<TARGET> will be used to choose the format.
 See the section B<FORMATS> for more information.
 
-The I<MIRROR> option may either be provided as a URI, in apt one-line format,
+The I<MIRROR> options may either be provided as a URI, in apt one-line format,
 as a path to a file in apt's one-line or deb822-format, or C<->.  If no
 I<MIRROR> option is provided, then L<http://deb.debian.org/debian> is used as
 the default. If I<SUITE> does not refer to "unstable" or "testing", then
