@@ -1,0 +1,138 @@
+name: Unit 14 sync canonical upstream
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-14-make-mirror-update-cache
+    paths:
+      - .github/workflows/unit-14-sync-canonical-upstream.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-build-test:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM_URL: https://gitlab.mister-muffin.de/josch/mmdebstrap.git
+      UPSTREAM_BRANCH: main
+      SNAPSHOT_BRANCH: linux-fieldwork/upstream-main-snapshot
+      CANDIDATE_BRANCH: linux-fieldwork/unit-14-make-mirror-update-cache-upstream-main
+      EXPECTED_BASE_BLOB: 6c4be092edcf23b56b63a3befe238c099c45f590
+      EXPECTED_PATCH_SHA256: 980720d262d0f5d4a568be54851e144652ae6d882a8ad0e8aa228c8ffed2ae42
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: linux-fieldwork/unit-14-make-mirror-update-cache
+          fetch-depth: 0
+
+      - name: Preserve carrier inputs
+        run: |
+          cp linux-fieldwork/0001-update-cache-worker-lifecycle.patch /tmp/unit-14.patch
+          cp linux-fieldwork/run-unit-14-candidate-matrix.py /tmp/run-unit-14-candidate-matrix.py
+
+      - name: Clone current canonical upstream
+        run: |
+          set -eu
+          git clone --branch "$UPSTREAM_BRANCH" --single-branch "$UPSTREAM_URL" /tmp/mmdebstrap-upstream
+          cd /tmp/mmdebstrap-upstream
+          git rev-parse HEAD >/tmp/unit-14-upstream-head
+          git hash-object make_mirror.sh >/tmp/unit-14-base-blob
+
+      - name: Verify source identity and publish canonical snapshot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          cd /tmp/mmdebstrap-upstream
+          base_blob=$(cat /tmp/unit-14-base-blob)
+          if [ "$base_blob" != "$EXPECTED_BASE_BLOB" ]; then
+            echo "canonical make_mirror.sh changed: $base_blob" >&2
+            echo "expected: $EXPECTED_BASE_BLOB" >&2
+            exit 1
+          fi
+          git remote add controlled "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force controlled "HEAD:refs/heads/$SNAPSHOT_BRANCH"
+
+      - name: Apply composed candidate and run static gates
+        run: |
+          set -eu
+          cd /tmp/mmdebstrap-upstream
+          patch_sha256=$(sha256sum /tmp/unit-14.patch | awk '{print $1}')
+          test "$patch_sha256" = "$EXPECTED_PATCH_SHA256"
+          patch --dry-run --fuzz=0 -p1 </tmp/unit-14.patch
+          patch --fuzz=0 -p1 </tmp/unit-14.patch
+          /bin/sh -n make_mirror.sh
+          git diff --check -- make_mirror.sh
+          if sed -n '/^update_cache() (/,/^)/p' make_mirror.sh | grep -q PROXYPID; then
+            echo 'update_cache still references parent-owned PROXYPID' >&2
+            exit 1
+          fi
+          grep -F 'record_update_cache_cleanup_signal 130' make_mirror.sh >/dev/null
+          grep -F 'record_update_cache_cleanup_signal 131' make_mirror.sh >/dev/null
+          grep -F 'record_update_cache_cleanup_signal 143' make_mirror.sh >/dev/null
+          grep -F 'update_cache_finish 0' make_mirror.sh >/dev/null
+
+      - name: Run exact-candidate lifecycle matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/teamleaderleo/linux-fieldwork.git /tmp/linux-fieldwork
+          UNIT14_SOURCE=/tmp/mmdebstrap-upstream/make_mirror.sh \
+          LINUX_FIELDWORK_REPO=/tmp/linux-fieldwork \
+            python3 /tmp/run-unit-14-candidate-matrix.py 2>&1 | tee /tmp/unit-14-matrix.txt
+
+      - name: Commit and publish canonical-ancestry candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          cd /tmp/mmdebstrap-upstream
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'cheerleaderleo@outlook.com'
+          git add make_mirror.sh
+          git commit -m 'make_mirror: make update_cache cleanup worker-owned'
+          candidate_head=$(git rev-parse HEAD)
+          candidate_blob=$(git hash-object make_mirror.sh)
+          printf '%s\n' "$candidate_head" >/tmp/unit-14-candidate-head
+          printf '%s\n' "$candidate_blob" >/tmp/unit-14-candidate-blob
+          git push --force controlled "HEAD:refs/heads/$CANDIDATE_BRANCH"
+
+      - name: Commit durable canonical-sync receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          upstream_head=$(cat /tmp/unit-14-upstream-head)
+          base_blob=$(cat /tmp/unit-14-base-blob)
+          candidate_head=$(cat /tmp/unit-14-candidate-head)
+          candidate_blob=$(cat /tmp/unit-14-candidate-blob)
+          cat >linux-fieldwork/unit-14-canonical-sync-receipt.md <<EOF
+          # Unit 14 canonical upstream sync receipt
+
+          Result: PASS
+          Canonical upstream: \`$UPSTREAM_URL\`
+          Canonical branch: \`$UPSTREAM_BRANCH\`
+          Exact upstream head: \`$upstream_head\`
+          Exact base source blob: \`$base_blob\`
+          Controlled snapshot branch: \`$SNAPSHOT_BRANCH\`
+          Candidate branch: \`$CANDIDATE_BRANCH\`
+          Candidate head: \`$candidate_head\`
+          Candidate source blob: \`$candidate_blob\`
+          Patch SHA-256: \`$EXPECTED_PATCH_SHA256\`
+          Runner: \`ubuntu-latest\`
+          Dynamic cases: 10 candidate-facing lifecycle tests
+
+          The job cloned current canonical Forgejo \`main\`, preserved its real history on the controlled snapshot branch, required the expected \`make_mirror.sh\` blob, applied the composed patch with zero fuzz, passed shell syntax and diff checks, enforced worker/proxy ownership assertions, ran the exact-candidate lifecycle matrix, and published a one-commit candidate atop canonical upstream history.
+
+          ## Matrix output
+
+          \`\`\`text
+          $(cat /tmp/unit-14-matrix.txt)
+          \`\`\`
+          EOF
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'cheerleaderleo@outlook.com'
+          git add linux-fieldwork/unit-14-canonical-sync-receipt.md
+          git commit -m 'unit 14: record canonical upstream candidate pass'
+          git push origin HEAD:linux-fieldwork/unit-14-make-mirror-update-cache
