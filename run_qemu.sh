@@ -36,15 +36,15 @@ finish() {
   fi
 
   trap '' INT TERM
-  if [ "$rv" -eq 0 ] && [ "$cleanup_signal_status" -ne 0 ]; then
-    rv=$cleanup_signal_status
-  fi
 
   if [ "$rv" -ne 0 ]; then
     exit "$rv"
   fi
   if [ "$guest" -ne 0 ]; then
     exit "$guest"
+  fi
+  if [ "$cleanup_signal_status" -ne 0 ]; then
+    exit "$cleanup_signal_status"
   fi
   exit "$cleanup_status"
 }
