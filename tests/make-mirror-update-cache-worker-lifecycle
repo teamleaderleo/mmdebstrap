@@ -1,0 +1,261 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+
+if [ -e ../make_mirror.sh ]; then
+  source_file=../make_mirror.sh
+else
+  source_file=make_mirror.sh
+fi
+
+python3 - "$source_file" <<'PY'
+from __future__ import annotations
+
+import os
+import pathlib
+import shlex
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+source_path = pathlib.Path(sys.argv[1]).resolve()
+source = source_path.read_text(encoding="utf-8")
+
+syntax = subprocess.run(
+    ["/bin/sh", "-n", str(source_path)],
+    check=False,
+    text=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    timeout=30,
+)
+if syntax.returncode != 0:
+    raise AssertionError(syntax.stdout + syntax.stderr)
+
+
+def extract(name: str) -> str:
+    start = source.index(f"  {name}() {{\n")
+    end = source.index("\n  }\n", start) + len("\n  }\n")
+    return source[start:end]
+
+
+initialization = "  update_cache_cleanup_signal_status=0\n"
+if source.count(initialization) != 1:
+    raise AssertionError("cleanup-signal status initialization changed")
+
+functions = "\n".join(
+    [
+        initialization.rstrip("\n"),
+        extract("record_update_cache_cleanup_signal"),
+        extract("update_cache_finish"),
+        extract("update_cache_exit_cleanup"),
+        extract("update_cache_signal_exit"),
+    ]
+)
+traps = (
+    "  trap 'update_cache_exit_cleanup' EXIT\n"
+    "  trap 'update_cache_signal_exit 130' INT\n"
+    "  trap 'update_cache_signal_exit 131' QUIT\n"
+    "  trap 'update_cache_signal_exit 143' TERM\n"
+)
+for line in traps.splitlines(keepends=True):
+    if source.count(line) != 1:
+        raise AssertionError(f"candidate trap changed: {line.rstrip()}")
+
+update_start = source.index("update_cache() (\n")
+update_end = source.index("\n)\n", update_start)
+if "PROXYPID" in source[update_start:update_end]:
+    raise AssertionError("update_cache references the parent-owned proxy")
+
+
+def quote(value: pathlib.Path) -> str:
+    return shlex.quote(str(value))
+
+
+def wait_for(path: pathlib.Path, process: subprocess.Popen[str]) -> None:
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if path.exists():
+            return
+        if process.poll() is not None:
+            stdout, stderr = process.communicate()
+            raise AssertionError(
+                f"process exited before {path.name}: {process.returncode}\n"
+                f"stdout={stdout}\nstderr={stderr}"
+            )
+        time.sleep(0.01)
+    process.kill()
+    process.wait(timeout=5)
+    raise AssertionError(f"timed out waiting for {path}")
+
+
+def write_case(
+    root: pathlib.Path,
+    label: str,
+    *,
+    mode: str,
+    host_status: int = 0,
+    cleanup_failure: bool = False,
+) -> pathlib.Path:
+    runtime = root / label
+    runtime.mkdir()
+    script = runtime / "case.sh"
+    script.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        f"runtime={quote(runtime)}\n"
+        f"host_status={host_status}\n"
+        f"cleanup_failure={'yes' if cleanup_failure else 'no'}\n"
+        "cleanupapt() {\n"
+        "  printf 'start\\n' >>\"$runtime/cleanup.log\"\n"
+        "  : >\"$runtime/cleanup-ready\"\n"
+        "  while [ ! -e \"$runtime/cleanup-release\" ]; do :; done\n"
+        "  printf 'end\\n' >>\"$runtime/cleanup.log\"\n"
+        "  rm -f \"$runtime/apt-state\"\n"
+        "  if [ \"$cleanup_failure\" = yes ]; then return 74; fi\n"
+        "}\n"
+        + functions
+        + "\n"
+        + traps
+        + "touch \"$runtime/apt-state\"\n"
+        + (
+            "update_cache_finish \"$host_status\"\n"
+            if mode == "ordinary"
+            else (
+                ": >\"$runtime/work-ready\"\n"
+                "while :; do :; done\n"
+            )
+        )
+        + "printf 'later\\n' >\"$runtime/later\"\n",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+    return script
+
+
+def run_case(
+    script: pathlib.Path,
+    *,
+    first_signal: signal.Signals | None,
+    second_signal: signal.Signals | None = None,
+    explicit: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    process = subprocess.Popen(
+        ["/bin/sh", str(script)],
+        cwd=script.parent,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    if explicit:
+        wait_for(script.parent / "work-ready", process)
+        if first_signal is None:
+            raise AssertionError("explicit case requires a signal")
+        os.kill(process.pid, first_signal)
+        wait_for(script.parent / "cleanup-ready", process)
+    else:
+        wait_for(script.parent / "cleanup-ready", process)
+        if first_signal is not None:
+            os.kill(process.pid, first_signal)
+
+    if second_signal is not None:
+        time.sleep(0.05)
+        if process.poll() is None:
+            os.kill(process.pid, second_signal)
+
+    time.sleep(0.05)
+    if process.poll() is None:
+        (script.parent / "cleanup-release").touch()
+    stdout, stderr = process.communicate(timeout=5)
+    return subprocess.CompletedProcess(
+        process.args,
+        process.returncode,
+        stdout,
+        stderr,
+    )
+
+
+def assert_result(
+    script: pathlib.Path,
+    result: subprocess.CompletedProcess[str],
+    expected: int,
+) -> None:
+    if result.returncode != expected:
+        raise AssertionError(
+            f"expected {expected}, got {result.returncode}\n"
+            f"stdout={result.stdout}\nstderr={result.stderr}"
+        )
+    events = (script.parent / "cleanup.log").read_text(
+        encoding="utf-8"
+    ).splitlines()
+    if events != ["start", "end"]:
+        raise AssertionError(f"incomplete or duplicate cleanup: {events}")
+    if (script.parent / "apt-state").exists():
+        raise AssertionError("APT state survived cleanup")
+    if (script.parent / "later").exists():
+        raise AssertionError("later work executed after finalization")
+
+
+with tempfile.TemporaryDirectory(prefix="update-cache-native-") as temporary:
+    root = pathlib.Path(temporary)
+
+    for index, (first, second, expected) in enumerate(
+        (
+            (signal.SIGINT, signal.SIGTERM, 130),
+            (signal.SIGQUIT, signal.SIGTERM, 131),
+            (signal.SIGTERM, signal.SIGINT, 143),
+        )
+    ):
+        script = write_case(root, f"ordinary-signal-{index}", mode="ordinary")
+        result = run_case(
+            script,
+            first_signal=first,
+            second_signal=second,
+        )
+        assert_result(script, result, expected)
+
+    script = write_case(
+        root,
+        "explicit-term-cleanup-failure",
+        mode="explicit",
+        cleanup_failure=True,
+    )
+    result = run_case(
+        script,
+        first_signal=signal.SIGTERM,
+        second_signal=signal.SIGINT,
+        explicit=True,
+    )
+    assert_result(script, result, 143)
+
+    script = write_case(root, "host-failure", mode="ordinary", host_status=42)
+    result = run_case(script, first_signal=signal.SIGTERM)
+    assert_result(script, result, 42)
+
+    script = write_case(
+        root,
+        "signal-over-cleanup",
+        mode="ordinary",
+        cleanup_failure=True,
+    )
+    result = run_case(script, first_signal=signal.SIGTERM)
+    assert_result(script, result, 143)
+
+    script = write_case(
+        root,
+        "cleanup-failure",
+        mode="ordinary",
+        cleanup_failure=True,
+    )
+    result = run_case(script, first_signal=None)
+    assert_result(script, result, 74)
+
+    script = write_case(root, "clean-rerun", mode="ordinary")
+    result = run_case(script, first_signal=None)
+    assert_result(script, result, 0)
+
+print("make_mirror update_cache worker lifecycle: PASS")
+PY

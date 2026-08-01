@@ -439,3 +439,5 @@ Needs-APT-Config: true
 
 Test: numeric-uid-gid
 Needs-QEMU: true
+
+Test: make-mirror-update-cache-worker-lifecycle
