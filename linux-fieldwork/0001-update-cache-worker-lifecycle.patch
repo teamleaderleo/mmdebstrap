@@ -1,0 +1,67 @@
+diff --git a/make_mirror.sh b/make_mirror.sh
+--- a/make_mirror.sh
++++ b/make_mirror.sh
+@@ -153,10 +153,54 @@ update_cache() (
+   rootdir="$newcachedir/apt"
+   mkdir -p "$rootdir"
+ 
++  update_cache_cleanup_signal_status=0
++
++  record_update_cache_cleanup_signal() {
++    if [ "$update_cache_cleanup_signal_status" -eq 0 ]; then
++      update_cache_cleanup_signal_status=$1
++    fi
++    trap '' INT QUIT TERM
++  }
++
++  update_cache_finish() {
++    status=$1
++    if [ "$update_cache_cleanup_signal_status" -eq 0 ]; then
++      trap 'record_update_cache_cleanup_signal 130' INT
++      trap 'record_update_cache_cleanup_signal 131' QUIT
++      trap 'record_update_cache_cleanup_signal 143' TERM
++    else
++      trap '' INT QUIT TERM
++    fi
++    trap - EXIT
++    cleanup_status=0
++    cleanupapt || cleanup_status=$?
++    trap '' INT QUIT TERM
++    if [ "$status" -ne 0 ]; then
++      exit "$status"
++    fi
++    if [ "$update_cache_cleanup_signal_status" -ne 0 ]; then
++      exit "$update_cache_cleanup_signal_status"
++    fi
++    exit "$cleanup_status"
++  }
++
++  update_cache_exit_cleanup() {
++    update_cache_finish "$?"
++  }
++
++  update_cache_signal_exit() {
++    update_cache_cleanup_signal_status=$1
++    trap '' INT QUIT TERM
++    update_cache_finish "$1"
++  }
++
+   # we only set this trap here and overwrite the previous trap, because
+   # the update_cache function is run as part of a pipe and thus in its
+   # own process which will EXIT after it finished
+-  trap 'kill "$PROXYPID" || :;cleanupapt' EXIT INT TERM
++  trap 'update_cache_exit_cleanup' EXIT
++  trap 'update_cache_signal_exit 130' INT
++  trap 'update_cache_signal_exit 131' QUIT
++  trap 'update_cache_signal_exit 143' TERM
+ 
+   for p in /etc/apt/apt.conf.d /etc/apt/sources.list.d /etc/apt/preferences.d /var/cache/apt/archives /var/lib/apt/lists/partial /var/lib/dpkg; do
+     mkdir -p "$rootdir/$p"
+@@ -254,6 +298,2 @@ update_cache() (
+-  cleanupapt
+-
+-  # this function is run in its own process, so we unset all traps before
+-  # returning
+-  trap "-" EXIT INT TERM
++  update_cache_finish 0
+ )
