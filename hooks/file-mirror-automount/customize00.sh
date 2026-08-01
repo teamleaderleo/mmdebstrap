@@ -8,13 +8,42 @@ if [ "${MMDEBSTRAP_VERBOSITY:-1}" -ge 3 ]; then
 	set -x
 fi
 
-rootdir="$1"
+rootdir="$(realpath -e -- "$1")"
+case "$rootdir" in
+	/) echo "E: refusing filesystem root as generated root" >&2; exit 1 ;;
+esac
+marker="$rootdir/run/mmdebstrap/file-mirror-automount"
 
-if [ ! -e "$rootdir/run/mmdebstrap/file-mirror-automount" ]; then
+if [ ! -e "$marker" ]; then
 	exit 0
 fi
 
-xargsopts="--null --no-run-if-empty -I {} --max-args=1"
+cleanup_entry='set -eu
+rootdir=$1
+mode=$2
+entry=$3
+case "$entry" in
+	""|/*|*/) echo "E: unsafe file-mirror marker entry: $entry" >&2; exit 1 ;;
+esac
+case "/$entry/" in
+	*"/../"*|*"/./"*|*"//"*) echo "E: unsafe file-mirror marker entry: $entry" >&2; exit 1 ;;
+esac
+target=$(realpath -m -- "$rootdir/$entry")
+case "$target" in
+	"$rootdir"/*) : ;;
+	*) echo "E: file-mirror marker escapes root: $entry" >&2; exit 1 ;;
+esac
+case $mode in
+	validate) : ;;
+	root|unshare)
+		echo "    $target" >&2
+		umount "$target"
+		;;
+	*)
+		echo "    $target" >&2
+		rm -r "$target"
+		;;
+esac'
 
 case $MMDEBSTRAP_MODE in
 	root|unshare)
@@ -23,19 +52,10 @@ case $MMDEBSTRAP_MODE in
 		echo "removing the following directories:" >&2 ;;
 esac
 
-< "$rootdir/run/mmdebstrap/file-mirror-automount" \
-	xargs $xargsopts echo "    $rootdir/{}"
+< "$marker" xargs --null --no-run-if-empty --max-args=1 \
+	sh -c "$cleanup_entry" sh "$rootdir" validate
+< "$marker" xargs --null --no-run-if-empty --max-args=1 \
+	sh -c "$cleanup_entry" sh "$rootdir" "$MMDEBSTRAP_MODE"
 
-case $MMDEBSTRAP_MODE in
-	root|unshare)
-		< "$rootdir/run/mmdebstrap/file-mirror-automount" \
-			xargs $xargsopts umount "$rootdir/{}"
-		;;
-	*)
-		< "$rootdir/run/mmdebstrap/file-mirror-automount" \
-			xargs $xargsopts rm -r "$rootdir/{}"
-		;;
-esac
-
-rm "$rootdir/run/mmdebstrap/file-mirror-automount"
+rm "$marker"
 rmdir --ignore-fail-on-non-empty "$rootdir/run/mmdebstrap"
