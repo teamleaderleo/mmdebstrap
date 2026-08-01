@@ -7,16 +7,49 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  patch-and-syntax:
+  build-source-branch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify exact base and zero-fuzz patch
-        run: sh linux-fieldwork/apply-unit-14.sh --check
-      - name: Apply candidate and run static gates
-        run: sh linux-fieldwork/apply-unit-14.sh --apply
-      - name: Show candidate diff
-        run: git diff -- make_mirror.sh
+        with:
+          fetch-depth: 0
+      - name: Preserve exact patch carrier
+        run: cp linux-fieldwork/0001-update-cache-worker-lifecycle.patch /tmp/unit-14.patch
+      - name: Build and publish source-only candidate
+        env:
+          SOURCE_BRANCH: linux-fieldwork/unit-14-make-mirror-update-cache-source
+          EXPECTED_BASE_BLOB: 6c4be092edcf23b56b63a3befe238c099c45f590
+          EXPECTED_PATCH_SHA256: 980720d262d0f5d4a568be54851e144652ae6d882a8ad0e8aa228c8ffed2ae42
+        run: |
+          set -eu
+          git fetch origin master
+          git switch --create "$SOURCE_BRANCH" origin/master
+
+          base_blob=$(git hash-object make_mirror.sh)
+          test "$base_blob" = "$EXPECTED_BASE_BLOB"
+
+          patch_sha256=$(sha256sum /tmp/unit-14.patch | awk '{print $1}')
+          test "$patch_sha256" = "$EXPECTED_PATCH_SHA256"
+
+          patch --dry-run --fuzz=0 -p1 </tmp/unit-14.patch
+          patch --fuzz=0 -p1 </tmp/unit-14.patch
+          /bin/sh -n make_mirror.sh
+          git diff --check -- make_mirror.sh
+
+          if sed -n '/^update_cache() (/,/^)/p' make_mirror.sh | grep -q PROXYPID; then
+            echo 'update_cache still references parent-owned PROXYPID' >&2
+            exit 1
+          fi
+          grep -F 'record_update_cache_cleanup_signal 130' make_mirror.sh >/dev/null
+          grep -F 'record_update_cache_cleanup_signal 131' make_mirror.sh >/dev/null
+          grep -F 'record_update_cache_cleanup_signal 143' make_mirror.sh >/dev/null
+          grep -F 'update_cache_finish 0' make_mirror.sh >/dev/null
+
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'cheerleaderleo@outlook.com'
+          git add make_mirror.sh
+          git commit -m 'make_mirror: make update_cache cleanup worker-owned'
+          git push origin "HEAD:refs/heads/$SOURCE_BRANCH"
