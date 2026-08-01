@@ -1,0 +1,43 @@
+diff --git a/mmdebstrap b/mmdebstrap
+--- a/mmdebstrap
++++ b/mmdebstrap
+@@ -3904,6 +3904,22 @@ sub get_tar_compressor {
+     return \@chrootcmd;
+ }
+ 
++sub chrootless_env_path {
++    my $path = '/usr/bin/env';
++
++    if (!-e $path) {
++        error "chrootless environment wrapper does not exist: $path";
++    }
++    if (!-f $path) {
++        error "chrootless environment wrapper is not a regular file: $path";
++    }
++    if (!-x $path) {
++        error "chrootless environment wrapper is not executable: $path";
++    }
++
++    return $path;
++}
++
+ sub chrootless_dpkg_environment {
+     my $root     = shift;
+     my $dpkgpath = shift;
+@@ -4061,6 +4077,6 @@ sub run_essential() {
+         run_dpkg_progress({
+                 ARGV => [
+-                    'env',
++                    chrootless_env_path(),
+                     chrootless_dpkg_environment(
+                         $options->{root}, $options->{dpkgpath}
+                     ),
+@@ -4169,7 +4185,7 @@ sub run_install() {
+               = chrootless_dpkg_environment($options->{root},
+                 $options->{dpkgpath});
+             my @chrootless_opts = (
+-                '-oDir::Bin::dpkg=env',
++                '-oDir::Bin::dpkg=' . chrootless_env_path(),
+                 (map { '-oDPkg::Options::=' . $_ } @dpkg_environment),
+                 '-oDPkg::Options::=dpkg',
+                 '-oDPkg::Chroot-Directory=',
