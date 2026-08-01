@@ -1,0 +1,96 @@
+name: Linux Fieldwork unit 06
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-06-chrootless-maintainer-boundary-runner
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-series:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      CANDIDATE_BRANCH: linux-fieldwork/unit-06-chrootless-maintainer-boundary
+    steps:
+      - name: Check out runner branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact ordered series and create source commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner_root=$GITHUB_WORKSPACE
+          artifact_dir=$RUNNER_TEMP/unit06-artifacts
+          candidate_dir=$RUNNER_TEMP/unit06-candidate
+          mkdir -p "$artifact_dir"
+
+          git fetch origin "$CANDIDATE_BRANCH"
+          git worktree add -B unit06-candidate "$candidate_dir" "origin/$CANDIDATE_BRANCH"
+          cd "$candidate_dir"
+
+          base=$(git rev-parse HEAD)
+          printf 'base=%s\n' "$base" | tee "$artifact_dir/identities.txt"
+          test "$base" = 574048f2a720057b75e56622003932f344dc700a
+
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'linux-fieldwork@users.noreply.github.com'
+
+          index=0
+          while IFS= read -r patch_name; do
+            test -n "$patch_name" || continue
+            index=$((index + 1))
+            patch_file="$runner_root/.linux-fieldwork/patches/$patch_name"
+            dry_log="$artifact_dir/${patch_name%.patch}.dry-run.log"
+
+            {
+              printf '\n=== %s ===\n' "$patch_name"
+              patch --dry-run --fuzz=0 -p1 < "$patch_file"
+            } 2>&1 | tee "$dry_log"
+
+            if grep -Eiq '(offset|fuzz)' "$dry_log"; then
+              echo "patch did not apply at exact recorded locations: $patch_name" >&2
+              exit 1
+            fi
+
+            git apply --check --verbose "$patch_file"
+            git apply "$patch_file"
+            git diff --check
+            git add mmdebstrap
+
+            case "$index" in
+              1) message='chrootless: sanitize maintainer-script environment' ;;
+              2) message='chrootless: use target-contained TMPDIR' ;;
+              3) message='chrootless: use configured DPkg::Path' ;;
+              4) message='chrootless: use absolute env wrapper' ;;
+              *) echo "unexpected patch count" >&2; exit 1 ;;
+            esac
+            git commit -m "$message"
+          done < "$runner_root/.linux-fieldwork/patches/series"
+
+          test "$index" -eq 4
+          test "$(git rev-list --count "$base"..HEAD)" -eq 4
+
+          perl -c mmdebstrap 2>&1 | tee "$artifact_dir/perl-c.log"
+          pod2man ./mmdebstrap >/dev/null
+          git diff --check "$base"..HEAD
+          git log --reverse --format='%H %s' "$base"..HEAD | tee -a "$artifact_dir/identities.txt"
+          printf 'head=%s\n' "$(git rev-parse HEAD)" | tee -a "$artifact_dir/identities.txt"
+          git diff --stat "$base"..HEAD | tee "$artifact_dir/diff-stat.txt"
+          git diff "$base"..HEAD > "$artifact_dir/final.diff"
+          git format-patch --stdout "$base"..HEAD > "$artifact_dir/final.patch"
+
+          git push origin "HEAD:refs/heads/$CANDIDATE_BRANCH"
+
+      - name: Upload application receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-fieldwork-unit06-application
+          path: ${{ runner.temp }}/unit06-artifacts
+          if-no-files-found: error
