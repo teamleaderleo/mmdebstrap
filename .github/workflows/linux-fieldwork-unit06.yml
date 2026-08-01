@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - linux-fieldwork/unit-06-chrootless-maintainer-boundary-runner
+  pull_request:
+    branches:
+      - linux-fieldwork/unit-06-chrootless-maintainer-boundary-runner
   workflow_dispatch:
 
 permissions:
