@@ -6,6 +6,7 @@ set -eu
 : "${cachedir:=./shared/cache}"
 : "${MMDEBSTRAP_TESTS_DEBUG:=no}"
 tmpdir="$(mktemp -d)"
+cleanup_signal_status=0
 
 finish() {
   rv=$1
@@ -34,6 +35,11 @@ finish() {
     }
   fi
 
+  trap '' INT TERM
+  if [ "$rv" -eq 0 ] && [ "$cleanup_signal_status" -ne 0 ]; then
+    rv=$cleanup_signal_status
+  fi
+
   if [ "$rv" -ne 0 ]; then
     exit "$rv"
   fi
@@ -43,9 +49,16 @@ finish() {
   exit "$cleanup_status"
 }
 
+record_cleanup_signal() {
+  if [ "$cleanup_signal_status" -eq 0 ]; then
+    cleanup_signal_status=$1
+  fi
+}
+
 cleanup_exit() {
   rv=$?
-  trap '' INT TERM
+  trap 'record_cleanup_signal 130' INT
+  trap 'record_cleanup_signal 143' TERM
   trap - EXIT
   finish "$rv"
 }
