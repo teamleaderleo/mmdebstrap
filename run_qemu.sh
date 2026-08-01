@@ -45,13 +45,15 @@ finish() {
 
 cleanup_exit() {
   rv=$?
-  trap - INT TERM EXIT
+  trap '' INT TERM
+  trap - EXIT
   finish "$rv"
 }
 
 cleanup_signal() {
   rv=$1
-  trap - INT TERM EXIT
+  trap '' INT TERM
+  trap - EXIT
   finish "$rv"
 }
 
