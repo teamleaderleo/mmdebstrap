@@ -63,7 +63,7 @@ diff --git a/mmdebstrap b/mmdebstrap
      if (length $ENV{PATH}) {
          ## no critic (Variables::RequireLocalizedPunctuationVars)
          $ENV{PATH} = "$ENV{PATH}:$defaultpath";
-@@ -8327,10 +8335,13 @@ By default, B<mmdebstrap> refuses to start chrootless mode when the
+@@ -8323,10 +8331,13 @@ By default, B<mmdebstrap> refuses to start chrootless mode when the
  caller environment contains names commonly used for credentials or host
  session endpoints. The check reports names but never values. It can be
  disabled with B<--skip=check/chrootless/environment>. Package maintainer
