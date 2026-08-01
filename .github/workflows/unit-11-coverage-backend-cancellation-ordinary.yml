@@ -30,6 +30,7 @@ jobs:
           sudo apt-get install --yes \
             dctrl-tools \
             libperl-critic-perl \
+            perl-doc \
             perltidy \
             python3-debian \
             python3-venv \
