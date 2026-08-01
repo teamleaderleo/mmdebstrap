@@ -28,18 +28,23 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes \
-            black \
             dctrl-tools \
             libperl-critic-perl \
             perltidy \
             python3-debian \
+            python3-venv \
             shellcheck \
             shfmt
+          python3 -m venv "$RUNNER_TEMP/black-venv"
+          "$RUNNER_TEMP/black-venv/bin/pip" install --disable-pip-version-check \
+            'black==26.5.1'
+          "$RUNNER_TEMP/black-venv/bin/black" --version
 
       - name: Run project-native ordinary source slice twice
         shell: bash
         run: |
           set -euo pipefail
+          export PATH="$RUNNER_TEMP/black-venv/bin:$PATH"
           base_commit="77ec9be5417ee44c96343d2347145585da1b1f94"
           source_commit="431614b3af58ba4f70791aa1d42cf5b71c965dd2"
           expected_candidate_blob="9e31f21cf37228257b5e0705d9ecb13b7a66e40f"
@@ -73,6 +78,7 @@ jobs:
             echo "target_source_commit=$source_commit"
             echo "runner_head=$(git rev-parse HEAD)"
             echo "target_candidate_blob=$(git hash-object coverage.py)"
+            echo "black_version=$(black --version | tr '\n' ' ')"
             echo "ordinary_entrypoint=coverage.sh help man version"
             echo "ordinary_slice=success"
           } | tee unit-11-ordinary-identity.txt
