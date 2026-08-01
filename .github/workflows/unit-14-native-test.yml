@@ -1,0 +1,106 @@
+name: Unit 14 upstream-native regression
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-14-make-mirror-update-cache
+    paths:
+      - linux-fieldwork/tests/make-mirror-update-cache-worker-lifecycle
+      - .github/workflows/unit-14-native-test.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  native-regression:
+    runs-on: ubuntu-latest
+    env:
+      CANDIDATE_BRANCH: linux-fieldwork/unit-14-make-mirror-update-cache-upstream-main
+      TEST_NAME: make-mirror-update-cache-worker-lifecycle
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: linux-fieldwork/unit-14-make-mirror-update-cache
+          fetch-depth: 0
+
+      - name: Preserve native test
+        run: cp "linux-fieldwork/tests/$TEST_NAME" /tmp/unit-14-native-test
+
+      - name: Check out canonical-ancestry candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          git clone --branch "$CANDIDATE_BRANCH" --single-branch \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            /tmp/mmdebstrap-candidate
+
+      - name: Install native test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck shfmt
+
+      - name: Add and register native regression
+        run: |
+          set -eu
+          cd /tmp/mmdebstrap-candidate
+          cp /tmp/unit-14-native-test "tests/$TEST_NAME"
+          chmod +x "tests/$TEST_NAME"
+          if ! grep --quiet --line-regexp --fixed-strings "Test: $TEST_NAME" coverage.txt; then
+            printf '\nTest: %s\n' "$TEST_NAME" >>coverage.txt
+          fi
+          test "$(grep --count --line-regexp --fixed-strings "Test: $TEST_NAME" coverage.txt)" -eq 1
+          test -f "tests/$TEST_NAME"
+
+      - name: Run native formatting and lifecycle gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/mmdebstrap-candidate
+          sh -n "tests/$TEST_NAME"
+          shellcheck --exclude=SC2050,SC2194,SC2016 "tests/$TEST_NAME"
+          shfmt --posix --binary-next-line --case-indent --indent 2 --simplify -d "tests/$TEST_NAME"
+          sh "tests/$TEST_NAME" 2>&1 | tee /tmp/unit-14-native-test.txt
+          git diff --check
+
+      - name: Commit native regression to candidate
+        run: |
+          set -eu
+          cd /tmp/mmdebstrap-candidate
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'cheerleaderleo@outlook.com'
+          git add coverage.txt "tests/$TEST_NAME"
+          git commit -m 'tests: cover make_mirror update_cache worker lifecycle'
+          candidate_head=$(git rev-parse HEAD)
+          printf '%s\n' "$candidate_head" >/tmp/unit-14-native-candidate-head
+          git push origin "HEAD:refs/heads/$CANDIDATE_BRANCH"
+
+      - name: Commit durable native-test receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_head=$(cat /tmp/unit-14-native-candidate-head)
+          cat >linux-fieldwork/unit-14-native-test-receipt.md <<EOF
+          # Unit 14 upstream-native regression receipt
+
+          Result: PASS
+          Candidate branch: \`$CANDIDATE_BRANCH\`
+          Candidate head: \`$candidate_head\`
+          Registered test: \`tests/$TEST_NAME\`
+          Test metadata: \`coverage.txt\`
+          Runner: \`ubuntu-latest\`
+
+          The native shell regression passed \`sh -n\`, shellcheck, upstream shfmt options, direct execution, and \`git diff --check\`. It extracted the actual candidate finalizer and handlers from \`make_mirror.sh\`, then exercised cleanup-time INT/QUIT/TERM, later-signal suppression, explicit-signal precedence, host-failure precedence, cleanup-failure precedence, state removal, and a clean rerun.
+
+          ## Output
+
+          \`\`\`text
+          $(cat /tmp/unit-14-native-test.txt)
+          \`\`\`
+          EOF
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'cheerleaderleo@outlook.com'
+          git add linux-fieldwork/unit-14-native-test-receipt.md
+          git commit -m 'unit 14: record upstream-native regression pass'
+          git push origin HEAD:linux-fieldwork/unit-14-make-mirror-update-cache
