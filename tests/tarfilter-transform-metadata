@@ -1,0 +1,250 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C.UTF-8
+
+MMTARFILTER=
+[ -x /usr/bin/mmtarfilter ] && MMTARFILTER=/usr/bin/mmtarfilter
+[ -x ../tarfilter ] && MMTARFILTER=../tarfilter
+[ -x ./tarfilter ] && MMTARFILTER=./tarfilter
+[ -n "$MMTARFILTER" ]
+
+python3 - "$MMTARFILTER" <<'PY'
+from __future__ import annotations
+
+import io
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+from typing import Iterable
+
+TARFILTER = pathlib.Path(sys.argv[1]).resolve()
+
+
+def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        **kwargs,
+    )
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def archive_bytes(entries: Iterable[tuple[tarfile.TarInfo, bytes | None]]) -> bytes:
+    output = io.BytesIO()
+    with tarfile.open(fileobj=output, mode="w", format=tarfile.PAX_FORMAT) as archive:
+        for member, payload in entries:
+            archive.addfile(member, io.BytesIO(payload) if payload is not None else None)
+    return output.getvalue()
+
+
+def regular(name: str, payload: bytes = b"payload\n") -> tuple[tarfile.TarInfo, bytes]:
+    member = tarfile.TarInfo(name)
+    member.size = len(payload)
+    member.mtime = 946684800
+    return member, payload
+
+
+def hardlink(name: str, target: str) -> tuple[tarfile.TarInfo, None]:
+    member = tarfile.TarInfo(name)
+    member.type = tarfile.LNKTYPE
+    member.linkname = target
+    member.mtime = 946684800
+    return member, None
+
+
+def symlink(name: str, target: str) -> tuple[tarfile.TarInfo, None]:
+    member = tarfile.TarInfo(name)
+    member.type = tarfile.SYMTYPE
+    member.linkname = target
+    member.mtime = 946684800
+    return member, None
+
+
+def filter_archive(
+    data: bytes,
+    expression: str | None = None,
+    *extra: str,
+) -> subprocess.CompletedProcess[bytes]:
+    command = [sys.executable, str(TARFILTER)]
+    if expression is not None:
+        command.append(f"--transform={expression}")
+    command.extend(extra)
+    return run(command, input=data)
+
+
+def snapshot(data: bytes) -> dict[str, tuple[str, str, dict[str, str]]]:
+    result: dict[str, tuple[str, str, dict[str, str]]] = {}
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
+        for member in archive:
+            if member.islnk():
+                kind = "hard"
+            elif member.issym():
+                kind = "sym"
+            elif member.isdir():
+                kind = "dir"
+            else:
+                kind = "file"
+            result[member.name] = (kind, member.linkname, dict(member.pax_headers))
+    return result
+
+
+def gnu_transform(
+    expression: str,
+    root: pathlib.Path,
+    *,
+    links: bool = False,
+    name: str = "a/a/a/a",
+) -> bytes:
+    source = root / "source"
+    source.mkdir(parents=True)
+    target = source / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"payload\n")
+    names = [name]
+    if links:
+        os.link(target, source / "hard")
+        os.symlink(name, source / "sym")
+        names.extend(["hard", "sym"])
+    archive = root / "gnu.tar"
+    completed = run(
+        [
+            "tar",
+            "--format=pax",
+            f"--transform={expression}",
+            "-cf",
+            str(archive),
+            "-C",
+            str(source),
+            *names,
+        ],
+        text=True,
+    )
+    require(completed.returncode == 0, completed.stderr)
+    return archive.read_bytes()
+
+
+def extract(data: bytes, root: pathlib.Path) -> None:
+    archive = root.parent / f"{root.name}.tar"
+    archive.write_bytes(data)
+    root.mkdir()
+    completed = run(["tar", "-xf", str(archive), "-C", str(root)], text=True)
+    require(completed.returncode == 0, completed.stderr)
+
+
+require(shutil.which("tar") is not None, "GNU tar is required")
+
+simple = archive_bytes([regular("a/a")])
+replacement_cases = {
+    "s/a/b/": "b/a",
+    "s/a/b/g": "b/b",
+    "s/a/[&]/": "[a]/a",
+    r"s#a#x\#y#": "x#y/a",
+}
+with tempfile.TemporaryDirectory(prefix="tarfilter-transform-") as temporary:
+    work = pathlib.Path(temporary)
+    for index, (expression, expected) in enumerate(replacement_cases.items()):
+        candidate = filter_archive(simple, expression)
+        require(candidate.returncode == 0, candidate.stderr.decode("utf-8", "replace"))
+        require(list(snapshot(candidate.stdout)) == [expected], expression)
+        reference = gnu_transform(expression, work / f"replacement-{index}", name="a/a")
+        require(snapshot(candidate.stdout).keys() == snapshot(reference).keys(), expression)
+
+links = archive_bytes(
+    [
+        regular("prefix/target"),
+        hardlink("prefix/hard", "prefix/target"),
+        symlink("prefix/sym", "prefix/target"),
+    ]
+)
+with tempfile.TemporaryDirectory(prefix="tarfilter-targets-") as temporary:
+    work = pathlib.Path(temporary)
+    for index, expression in enumerate(("s,^prefix/,,", "s,^prefix/,,S")):
+        candidate = filter_archive(links, expression)
+        require(candidate.returncode == 0, candidate.stderr.decode("utf-8", "replace"))
+        reference = gnu_transform(
+            expression,
+            work / f"scope-{index}",
+            links=True,
+            name="prefix/target",
+        )
+        candidate_map = {
+            key: value[:2] for key, value in snapshot(candidate.stdout).items()
+        }
+        reference_map = {
+            key: value[:2] for key, value in snapshot(reference).items()
+        }
+        require(candidate_map == reference_map, expression)
+    transformed = filter_archive(links, "s,^prefix/,,")
+    extract(transformed.stdout, work / "extract")
+    require(
+        os.stat(work / "extract/target").st_ino
+        == os.stat(work / "extract/hard").st_ino,
+        "hard-link identity changed",
+    )
+    require(os.readlink(work / "extract/sym") == "target", "symlink target changed")
+
+leaf = "x" * 120
+strip_input = archive_bytes(
+    [
+        regular(f"prefix/{leaf}"),
+        hardlink("prefix/peer", f"prefix/{leaf}"),
+    ]
+)
+with tempfile.TemporaryDirectory(prefix="tarfilter-pax-") as temporary:
+    work = pathlib.Path(temporary)
+    candidate = filter_archive(strip_input, None, "--strip-components=1")
+    require(candidate.returncode == 0, candidate.stderr.decode("utf-8", "replace"))
+    members = snapshot(candidate.stdout)
+    require(set(members) == {leaf, "peer"}, str(members))
+    require(members["peer"][1] == leaf, "hard-link strip mismatch")
+    require(members[leaf][2].get("path") == leaf, "PAX path was not regenerated")
+    require(
+        members["peer"][2].get("linkpath") == leaf,
+        "PAX linkpath was not regenerated",
+    )
+    extract(candidate.stdout, work / "extract")
+    require(
+        os.stat(work / f"extract/{leaf}").st_ino
+        == os.stat(work / "extract/peer").st_ino,
+        "stripped hard-link identity changed",
+    )
+
+occurrence_input = archive_bytes([regular("a/a/a/a")])
+numeric_cases = {
+    "s/a/b/2": "a/b/a/a",
+    "s/a/b/2g": "a/b/b/b",
+    "s/a/b/g2": "a/b/b/b",
+    "s/a/b/0": "b/a/a/a",
+    "s/a/b/0g": "b/b/b/b",
+    "s/a/b/22": "a/a/a/a",
+    "s/a/b/2g3": "a/a/b/b",
+    "s/A/b/i2g": "a/b/b/b",
+}
+with tempfile.TemporaryDirectory(prefix="tarfilter-occurrence-") as temporary:
+    work = pathlib.Path(temporary)
+    for index, (expression, expected) in enumerate(numeric_cases.items()):
+        candidate = filter_archive(occurrence_input, expression)
+        require(candidate.returncode == 0, candidate.stderr.decode("utf-8", "replace"))
+        require(list(snapshot(candidate.stdout)) == [expected], expression)
+        reference = gnu_transform(expression, work / f"numeric-{index}")
+        require(
+            {key: value[:2] for key, value in snapshot(candidate.stdout).items()}
+            == {key: value[:2] for key, value in snapshot(reference).items()},
+            expression,
+        )
+    for expression in ("s/a/b/٢", "s/a/b/²", "s/a/b/０"):
+        candidate = filter_archive(occurrence_input, expression)
+        require(candidate.returncode != 0, f"accepted non-ASCII selector {expression}")
+
+print("tarfilter transform metadata: PASS")
+PY
