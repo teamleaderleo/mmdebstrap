@@ -1,7 +1,7 @@
 diff --git a/mmdebstrap b/mmdebstrap
 --- a/mmdebstrap
 +++ b/mmdebstrap
-@@ -3904,6 +3904,22 @@ sub get_tar_compressor {
+@@ -3902,6 +3902,22 @@ sub get_tar_compressor {
      return \@chrootcmd;
  }
  
@@ -32,7 +32,7 @@ diff --git a/mmdebstrap b/mmdebstrap
                      chrootless_dpkg_environment(
                          $options->{root}, $options->{dpkgpath}
                      ),
-@@ -4169,7 +4185,7 @@ sub run_install() {
+@@ -4170,7 +4186,7 @@ sub run_install() {
                = chrootless_dpkg_environment($options->{root},
                  $options->{dpkgpath});
              my @chrootless_opts = (
