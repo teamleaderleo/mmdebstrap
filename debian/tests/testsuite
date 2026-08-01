@@ -151,10 +151,10 @@ exit(1)
 END
 
 # add entries to /etc/subuid and /etc/subgid if they don't exist yet
-if [ ! -e /etc/subuid ] || ! grep "$AUTOPKGTEST_NORMAL_USER" /etc/subuid; then
+if [ ! -e /etc/subuid ] || ! cut -s -d: -f1 /etc/subuid | grep -Fxq -- "$AUTOPKGTEST_NORMAL_USER"; then
 	echo "$AUTOPKGTEST_NORMAL_USER:100000:65536" >> /etc/subuid
 fi
-if [ ! -e /etc/subgid ] || ! grep "$AUTOPKGTEST_NORMAL_USER" /etc/subgid; then
+if [ ! -e /etc/subgid ] || ! cut -s -d: -f1 /etc/subgid | grep -Fxq -- "$AUTOPKGTEST_NORMAL_USER"; then
 	echo "$AUTOPKGTEST_NORMAL_USER:100000:65536" >> /etc/subgid
 fi
 
