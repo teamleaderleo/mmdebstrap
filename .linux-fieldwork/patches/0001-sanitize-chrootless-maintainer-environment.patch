@@ -141,7 +141,7 @@ diff --git a/mmdebstrap b/mmdebstrap
      } else {
          error "unknown mode: $options->{mode}";
      }
-@@ -8195,7 +8305,22 @@ tracking system. B<WARNING>: if this option is used carelessly with packages
+@@ -8191,7 +8301,22 @@ tracking system. B<WARNING>: if this option is used carelessly with packages
  that do not support C<DPKG_ROOT>, this mode can result in undesired changes to
  the system running B<mmdebstrap> because maintainer-scripts will be run without
  L<chroot(1)>. Make sure to run this mode without superuser privileges and/or
@@ -165,7 +165,7 @@ diff --git a/mmdebstrap b/mmdebstrap
  
      mmdebstrap --variant=apt --include=mmdebstrap \
          --customize-hook='chroot "$1" mmdebstrap --mode=chrootless
-@@ -8527,6 +8652,8 @@ Upon startup, several checks are carried out, like:
+@@ -8523,6 +8648,8 @@ Upon startup, several checks are carried out, like:
  
  =item * do not allow chrootless mode as root (without fakeroot) unless inside a chroot. This check can be disabled using B<--skip=check/chrootless>
  
