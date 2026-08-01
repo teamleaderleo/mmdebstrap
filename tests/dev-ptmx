@@ -119,7 +119,7 @@ END
 # use script to create a fake tty
 # run all tests as root and as a normal user (the latter requires ptmxmode=666)
 script -qfec "$prefix {{ CMD }} --mode={{ MODE }} --variant=apt \
-	--include=gcc,libc6-dev,python3,passwd \
+	--include=bsdutils,gcc,libc6-dev,python3,passwd \
 	--customize-hook='chroot \"\$1\" useradd --home-dir /home/user --create-home user' \
 	--customize-hook='chroot \"\$1\" python3 -c \"import pty; print(pty.openpty())\"' \
 	--customize-hook='chroot \"\$1\" runuser -u user -- python3 -c \"import pty; print(pty.openpty())\"' \
