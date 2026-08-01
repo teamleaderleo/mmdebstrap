@@ -1,0 +1,164 @@
+name: Unit 11 coverage backend cancellation runner
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-11-coverage-backend-cancellation-runner
+    paths:
+      - coverage.py
+      - .github/workflows/unit-11-coverage-backend-cancellation-runner.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-equivalence-and-null:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out controlled candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact clean source and run packet matrix twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_commit="77ec9be5417ee44c96343d2347145585da1b1f94"
+          source_commit="431614b3af58ba4f70791aa1d42cf5b71c965dd2"
+          packet_commit="d232e4fdd67cf0592e129a60534e984dcbec6bfe"
+          expected_base_blob="9a522484aef05deae514a98e4b6adf5feb6c886d"
+          expected_candidate_blob="9e31f21cf37228257b5e0705d9ecb13b7a66e40f"
+          packet="$RUNNER_TEMP/linux-fieldwork-unit-11"
+          materialized="$RUNNER_TEMP/materialized-candidate"
+
+          git merge-base --is-ancestor "$source_commit" HEAD
+          test "$(git hash-object coverage.py)" = "$expected_candidate_blob"
+          test -z "$(git diff --name-only "$source_commit" -- . ':!.github/workflows/unit-11-coverage-backend-cancellation-runner.yml')"
+          test "$(git rev-parse "$base_commit:coverage.py")" = "$expected_base_blob"
+
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/teamleaderleo/linux-fieldwork.git "$packet"
+          git -C "$packet" checkout --detach "$packet_commit"
+
+          mkdir -p "$materialized"
+          git show "$base_commit:coverage.py" >"$materialized/coverage.py"
+          patch --batch --forward --fuzz=0 -p1 -d "$materialized" \
+            -i "$packet/upstream-packets/units/11-coverage-backend-cancellation/patches/0001-coverage-own-selected-backend-group.patch"
+          cmp "$materialized/coverage.py" coverage.py
+          python3 -m py_compile coverage.py
+
+          git show "$base_commit:coverage.py" \
+            >"$packet/upstream/mmdebstrap/coverage.py"
+          git show "$base_commit:run_null.sh" \
+            >"$packet/upstream/mmdebstrap/run_null.sh"
+
+          for pass in first immediate-rerun; do
+            (
+              cd "$packet"
+              python3 upstream-packets/units/11-coverage-backend-cancellation/scripts/test_current_import.py -v
+            ) 2>&1 | tee "unit-11-target-${pass}.log"
+          done
+
+          {
+            echo "target_base=$base_commit"
+            echo "target_source_commit=$source_commit"
+            echo "runner_head=$(git rev-parse HEAD)"
+            echo "target_candidate_blob=$(git hash-object coverage.py)"
+            echo "packet_commit=$packet_commit"
+            echo "packet_patch_blob=$(git -C "$packet" hash-object upstream-packets/units/11-coverage-backend-cancellation/patches/0001-coverage-own-selected-backend-group.patch)"
+            echo "candidate_equivalence=success"
+          } | tee unit-11-target-identity.txt
+
+      - name: Upload exact target null receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-11-target-null-gate
+          path: |
+            unit-11-target-identity.txt
+            unit-11-target-*.log
+          if-no-files-found: error
+
+  refined-topology:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out controlled candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run exact refined null, QEMU-wrapper, and sudo matrix twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_commit="77ec9be5417ee44c96343d2347145585da1b1f94"
+          source_commit="431614b3af58ba4f70791aa1d42cf5b71c965dd2"
+          refined_commit="8253ab2ef6fed22b34fc5f5d6d20cda75c25e2c7"
+          expected_candidate_blob="9e31f21cf37228257b5e0705d9ecb13b7a66e40f"
+          historical="$RUNNER_TEMP/linux-fieldwork-pr339"
+
+          git merge-base --is-ancestor "$source_commit" HEAD
+          test "$(git hash-object coverage.py)" = "$expected_candidate_blob"
+
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/teamleaderleo/linux-fieldwork.git "$historical"
+          git -C "$historical" fetch --no-tags --depth=1 origin "$refined_commit"
+          git -C "$historical" checkout --detach FETCH_HEAD
+
+          git show "$base_commit:coverage.py" \
+            >"$historical/upstream/mmdebstrap/coverage.py"
+          git show "$base_commit:run_null.sh" \
+            >"$historical/upstream/mmdebstrap/run_null.sh"
+          git show "$base_commit:run_qemu.sh" \
+            >"$historical/upstream/mmdebstrap/run_qemu.sh"
+
+          test "$(git -C "$historical" hash-object tests/test_mmdebstrap_coverage_parent_sigint.py)" \
+            = 9bedaa7cd2368f8679de9948d9fecb3fe75c6bd2
+          test "$(git -C "$historical" hash-object tests/test_mmdebstrap_coverage_process_group.py)" \
+            = 1649c10f8d6639bd26a42b9ab3587b64d84e072c
+          test "$(git -C "$historical" hash-object tests/test_mmdebstrap_coverage_qemu_process_group.py)" \
+            = 0c2a050faf8e98320fc0c4fe4634d46bdf7f0dfa
+          test "$(git -C "$historical" hash-object tests/test_mmdebstrap_coverage_sudo_process_group.py)" \
+            = 8cc7cffb129595a5e4b967385616fbeede4814db
+
+          python3 -m py_compile \
+            "$historical/upstream/mmdebstrap/coverage.py" \
+            "$historical/tests/test_mmdebstrap_coverage_parent_sigint.py" \
+            "$historical/tests/test_mmdebstrap_coverage_process_group.py" \
+            "$historical/tests/test_mmdebstrap_coverage_qemu_process_group.py" \
+            "$historical/tests/test_mmdebstrap_coverage_sudo_process_group.py"
+
+          modules=(
+            tests.test_mmdebstrap_coverage_process_group
+            tests.test_mmdebstrap_coverage_qemu_process_group
+            tests.test_mmdebstrap_coverage_sudo_process_group
+          )
+          for pass in first immediate-rerun; do
+            (
+              cd "$historical"
+              python3 -m unittest -v "${modules[@]}"
+            ) 2>&1 | tee "unit-11-target-refined-${pass}.log"
+          done
+
+          {
+            echo "target_base=$base_commit"
+            echo "target_source_commit=$source_commit"
+            echo "runner_head=$(git rev-parse HEAD)"
+            echo "target_candidate_blob=$(git hash-object coverage.py)"
+            echo "refined_commit=$refined_commit"
+            echo "refined_qemu_test_blob=$(git -C "$historical" hash-object tests/test_mmdebstrap_coverage_qemu_process_group.py)"
+          } | tee unit-11-target-refined-identity.txt
+
+      - name: Upload exact target refined receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-11-target-refined-topology-gate
+          path: |
+            unit-11-target-refined-identity.txt
+            unit-11-target-refined-*.log
+          if-no-files-found: error
