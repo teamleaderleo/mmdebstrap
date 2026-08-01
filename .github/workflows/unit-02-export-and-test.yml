@@ -1,0 +1,66 @@
+name: Unit 02 export and test
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-02-caching-proxy-complete-repair
+
+permissions:
+  contents: write
+
+jobs:
+  export-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out clean source branch
+        uses: actions/checkout@v4
+        with:
+          ref: linux-fieldwork/unit-02-caching-proxy-complete-repair-source
+          path: source
+          fetch-depth: 0
+
+      - name: Check out Linux Fieldwork packet
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/linux-fieldwork
+          ref: upstream/unit-02-caching-proxy-complete-repair
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Verify base, export candidate, and run retained matrix
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          test "$(git -C source rev-parse HEAD)" = 77ec9be5417ee44c96343d2347145585da1b1f94
+          test "$(git -C source hash-object caching_proxy.py)" = e57a8516a0c76167894b05fc56be0e3165535488
+
+          candidate_root="$RUNNER_TEMP/unit-02-candidate"
+          python3 fieldwork/investigations/caching-proxy-complete-stack/compose.py \
+            --repo-root fieldwork \
+            --destination "$candidate_root"
+          candidate="$candidate_root/upstream/mmdebstrap/caching_proxy.py"
+
+          python3 -m py_compile "$candidate"
+          python3 -O -m py_compile "$candidate"
+          cp "$candidate" source/caching_proxy.py
+          cmp "$candidate" source/caching_proxy.py
+          git -C source diff --check
+
+          python3 -m unittest -v \
+            fieldwork/tests/test_caching_proxy_complete_stack.py
+
+      - name: Publish clean candidate source branch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git -C source config user.name 'Linux Fieldwork'
+          git -C source config user.email 'cheerleaderleo@outlook.com'
+          if git -C source diff --quiet -- caching_proxy.py; then
+            echo 'candidate source already current'
+            exit 0
+          fi
+          git -C source add caching_proxy.py
+          git -C source commit -m 'caching_proxy: validate and publish cache entries safely'
+          git -C source push origin HEAD:linux-fieldwork/unit-02-caching-proxy-complete-repair-source
