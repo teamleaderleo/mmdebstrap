@@ -7,6 +7,7 @@ set -eu
 : "${MMDEBSTRAP_TESTS_DEBUG:=no}"
 tmpdir="$(mktemp -d)"
 cleanup_signal_status=0
+cleanup_phase=running
 
 finish() {
   rv=$1
@@ -56,23 +57,25 @@ record_cleanup_signal() {
 }
 
 cleanup_exit() {
-  rv=$?
-  trap 'record_cleanup_signal 130' INT
-  trap 'record_cleanup_signal 143' TERM
+  rv=$? cleanup_phase=exit
+  trap 'trap "" INT TERM; record_cleanup_signal 130' INT
+  trap 'trap "" INT TERM; record_cleanup_signal 143' TERM
   trap - EXIT
   finish "$rv"
 }
 
 cleanup_signal() {
-  rv=$1
-  trap '' INT TERM
+  if [ "$cleanup_phase" = exit ]; then
+    record_cleanup_signal "$1"
+    return
+  fi
   trap - EXIT
-  finish "$rv"
+  finish "$1"
 }
 
 trap cleanup_exit EXIT
-trap 'cleanup_signal 130' INT
-trap 'cleanup_signal 143' TERM
+trap 'trap "" INT TERM; cleanup_signal 130' INT
+trap 'trap "" INT TERM; cleanup_signal 143' TERM
 
 echo 1 >shared/exitstatus.txt
 if [ -e shared/output.txt ]; then
