@@ -5,6 +5,7 @@ import email.utils
 import os
 import sys
 import shutil
+import signal
 import subprocess
 import argparse
 import time
@@ -410,13 +411,17 @@ def main():
             print(f"skipping because of --format={args.format}", file=sys.stderr)
             continue
         before = time.time()
-        proc = subprocess.Popen(argv)
+        proc = subprocess.Popen(argv, start_new_session=True)
         try:
             proc.wait()
         except KeyboardInterrupt:
-            proc.terminate()
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             proc.wait()
-            break
+            print("interrupted by SIGINT", file=sys.stderr)
+            raise SystemExit(130)
         after = time.time()
         walltime = timedelta(seconds=int(after - before))
         formated_test_name = format_test(
