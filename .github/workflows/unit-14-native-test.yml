@@ -24,83 +24,87 @@ jobs:
           ref: linux-fieldwork/unit-14-make-mirror-update-cache
           fetch-depth: 0
 
-      - name: Preserve native test
-        run: cp "linux-fieldwork/tests/$TEST_NAME" /tmp/unit-14-native-test
-
-      - name: Check out canonical-ancestry candidate
+      - name: Run classified native gate
+        id: native
+        continue-on-error: true
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -eu
-          git clone --branch "$CANDIDATE_BRANCH" --single-branch \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            /tmp/mmdebstrap-candidate
+          set +e
+          (
+            set -euo pipefail
+            cp "linux-fieldwork/tests/$TEST_NAME" /tmp/unit-14-native-test
+            git clone --branch "$CANDIDATE_BRANCH" --single-branch \
+              "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+              /tmp/mmdebstrap-candidate
 
-      - name: Install native test tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes shellcheck shfmt
+            if ! command -v shellcheck >/dev/null || ! command -v shfmt >/dev/null; then
+              sudo apt-get update
+              sudo apt-get install --yes shellcheck shfmt
+            fi
 
-      - name: Add and register native regression
+            cd /tmp/mmdebstrap-candidate
+            cp /tmp/unit-14-native-test "tests/$TEST_NAME"
+            chmod +x "tests/$TEST_NAME"
+            if ! grep --quiet --line-regexp --fixed-strings "Test: $TEST_NAME" coverage.txt; then
+              printf '\nTest: %s\n' "$TEST_NAME" >>coverage.txt
+            fi
+            test "$(grep --count --line-regexp --fixed-strings "Test: $TEST_NAME" coverage.txt)" -eq 1
+
+            sh -n "tests/$TEST_NAME"
+            shellcheck --exclude=SC2050,SC2194,SC2016 "tests/$TEST_NAME"
+            shfmt --posix --binary-next-line --case-indent --indent 2 --simplify -d "tests/$TEST_NAME"
+            sh "tests/$TEST_NAME"
+            git diff --check
+
+            git config user.name 'Linux Fieldwork'
+            git config user.email 'cheerleaderleo@outlook.com'
+            git add coverage.txt "tests/$TEST_NAME"
+            git commit -m 'tests: cover make_mirror update_cache worker lifecycle'
+            git rev-parse HEAD >/tmp/unit-14-native-candidate-head
+            git push origin "HEAD:refs/heads/$CANDIDATE_BRANCH"
+          ) >/tmp/unit-14-native-test.txt 2>&1
+          status=$?
+          printf '%s\n' "$status" >/tmp/unit-14-native-status
+          cat /tmp/unit-14-native-test.txt
+          exit "$status"
+
+      - name: Commit durable classified receipt
+        if: always()
+        shell: bash
         run: |
-          set -eu
-          cd /tmp/mmdebstrap-candidate
-          cp /tmp/unit-14-native-test "tests/$TEST_NAME"
-          chmod +x "tests/$TEST_NAME"
-          if ! grep --quiet --line-regexp --fixed-strings "Test: $TEST_NAME" coverage.txt; then
-            printf '\nTest: %s\n' "$TEST_NAME" >>coverage.txt
+          set -euo pipefail
+          status=$(cat /tmp/unit-14-native-status 2>/dev/null || printf '125')
+          if [ "$status" -eq 0 ]; then
+            result=PASS
+            candidate_head=$(cat /tmp/unit-14-native-candidate-head)
+          else
+            result=FAIL
+            candidate_head=$(git ls-remote origin "refs/heads/$CANDIDATE_BRANCH" | awk '{print $1}')
           fi
-          test "$(grep --count --line-regexp --fixed-strings "Test: $TEST_NAME" coverage.txt)" -eq 1
-          test -f "tests/$TEST_NAME"
-
-      - name: Run native formatting and lifecycle gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd /tmp/mmdebstrap-candidate
-          sh -n "tests/$TEST_NAME"
-          shellcheck --exclude=SC2050,SC2194,SC2016 "tests/$TEST_NAME"
-          shfmt --posix --binary-next-line --case-indent --indent 2 --simplify -d "tests/$TEST_NAME"
-          sh "tests/$TEST_NAME" 2>&1 | tee /tmp/unit-14-native-test.txt
-          git diff --check
-
-      - name: Commit native regression to candidate
-        run: |
-          set -eu
-          cd /tmp/mmdebstrap-candidate
-          git config user.name 'Linux Fieldwork'
-          git config user.email 'cheerleaderleo@outlook.com'
-          git add coverage.txt "tests/$TEST_NAME"
-          git commit -m 'tests: cover make_mirror update_cache worker lifecycle'
-          candidate_head=$(git rev-parse HEAD)
-          printf '%s\n' "$candidate_head" >/tmp/unit-14-native-candidate-head
-          git push origin "HEAD:refs/heads/$CANDIDATE_BRANCH"
-
-      - name: Commit durable native-test receipt
-        shell: bash
-        run: |
-          set -euo pipefail
-          candidate_head=$(cat /tmp/unit-14-native-candidate-head)
           cat >linux-fieldwork/unit-14-native-test-receipt.md <<EOF
           # Unit 14 upstream-native regression receipt
 
-          Result: PASS
+          Result: $result
+          Exit status: \`$status\`
           Candidate branch: \`$CANDIDATE_BRANCH\`
-          Candidate head: \`$candidate_head\`
+          Candidate head after run: \`$candidate_head\`
           Registered test: \`tests/$TEST_NAME\`
           Test metadata: \`coverage.txt\`
           Runner: \`ubuntu-latest\`
 
-          The native shell regression passed \`sh -n\`, shellcheck, upstream shfmt options, direct execution, and \`git diff --check\`. It extracted the actual candidate finalizer and handlers from \`make_mirror.sh\`, then exercised cleanup-time INT/QUIT/TERM, later-signal suppression, explicit-signal precedence, host-failure precedence, cleanup-failure precedence, state removal, and a clean rerun.
+          The classified gate attempted test registration, \`sh -n\`, shellcheck, upstream shfmt options, direct lifecycle execution, diff hygiene, and candidate publication. A PASS means every step completed and the test commit was pushed. A FAIL transcript identifies the first command owner.
 
           ## Output
 
           \`\`\`text
-          $(cat /tmp/unit-14-native-test.txt)
+          $(cat /tmp/unit-14-native-test.txt 2>/dev/null || printf 'classified gate did not start\n')
           \`\`\`
           EOF
           git config user.name 'Linux Fieldwork'
           git config user.email 'cheerleaderleo@outlook.com'
           git add linux-fieldwork/unit-14-native-test-receipt.md
-          git commit -m 'unit 14: record upstream-native regression pass'
+          git commit -m "unit 14: record upstream-native regression $result"
           git push origin HEAD:linux-fieldwork/unit-14-make-mirror-update-cache
+          test "$status" -eq 0
