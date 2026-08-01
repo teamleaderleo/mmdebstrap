@@ -7,21 +7,57 @@ set -eu
 : "${MMDEBSTRAP_TESTS_DEBUG:=no}"
 tmpdir="$(mktemp -d)"
 
-cleanup() {
-  rv=$?
-  rm -f "$tmpdir/log"
-  [ -e "$tmpdir" ] && rmdir "$tmpdir"
+finish() {
+  rv=$1
+
+  guest=0
   if [ -e shared/output.txt ]; then
-    res="$(cat shared/exitstatus.txt)"
-    if [ "$res" != "0" ]; then
-      # this might possibly overwrite another non-zero rv
-      rv=1
+    if [ -r shared/exitstatus.txt ]; then
+      res="$(cat shared/exitstatus.txt)" || guest=1
+      if [ "$guest" -eq 0 ] && [ "$res" != "0" ]; then
+        guest=1
+      fi
+    else
+      guest=1
     fi
   fi
-  exit $rv
+
+  cleanup_status=0
+  rm -f "$tmpdir/log" || {
+    status=$?
+    [ "$cleanup_status" -ne 0 ] || cleanup_status=$status
+  }
+  if [ -e "$tmpdir" ]; then
+    rmdir "$tmpdir" || {
+      status=$?
+      [ "$cleanup_status" -ne 0 ] || cleanup_status=$status
+    }
+  fi
+
+  if [ "$rv" -ne 0 ]; then
+    exit "$rv"
+  fi
+  if [ "$guest" -ne 0 ]; then
+    exit "$guest"
+  fi
+  exit "$cleanup_status"
 }
 
-trap cleanup INT TERM EXIT
+cleanup_exit() {
+  rv=$?
+  trap - INT TERM EXIT
+  finish "$rv"
+}
+
+cleanup_signal() {
+  rv=$1
+  trap - INT TERM EXIT
+  finish "$rv"
+}
+
+trap cleanup_exit EXIT
+trap 'cleanup_signal 130' INT
+trap 'cleanup_signal 143' TERM
 
 echo 1 >shared/exitstatus.txt
 if [ -e shared/output.txt ]; then
