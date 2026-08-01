@@ -66,6 +66,85 @@ class TypeFilterAction(argparse.Action):
         setattr(namespace, "typefilter", items)
 
 
+def _find_unescaped_delimiter(expression, delimiter, start):
+    backslashes = 0
+    for index in range(start, len(expression)):
+        char = expression[index]
+        if char == "\\":
+            backslashes += 1
+            continue
+        if char == delimiter and backslashes % 2 == 0:
+            return index
+        backslashes = 0
+    return -1
+
+
+def _unescape_delimiter(value, delimiter):
+    result = []
+    index = 0
+    while index < len(value):
+        if (
+            value[index] == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] == delimiter
+        ):
+            result.append(delimiter)
+            index += 2
+            continue
+        result.append(value[index])
+        index += 1
+    return "".join(result)
+
+
+def _sed_replacement(template, delimiter):
+    def replace(match):
+        result = []
+        index = 0
+        while index < len(template):
+            char = template[index]
+            if char == "&":
+                result.append(match.group(0))
+                index += 1
+                continue
+            if char != "\\":
+                result.append(char)
+                index += 1
+                continue
+            if index + 1 == len(template):
+                result.append("\\")
+                index += 1
+                continue
+            escaped = template[index + 1]
+            if escaped in "123456789":
+                group = match.group(int(escaped))
+                if group is not None:
+                    result.append(group)
+            elif escaped in ("&", "\\", delimiter):
+                result.append(escaped)
+            else:
+                result.append(escaped)
+            index += 2
+        return "".join(result)
+
+    return replace
+
+
+def _sed_substitute(regex, replacement, value, occurrence, global_after):
+    selected = occurrence if occurrence > 0 else 1
+    seen = 0
+
+    def replace_selected(match):
+        nonlocal seen
+        seen += 1
+        if seen < selected:
+            return match.group(0)
+        if seen == selected or global_after:
+            return replacement(match)
+        return match.group(0)
+
+    return regex.sub(replace_selected, value)
+
+
 class TransformAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         items = getattr(namespace, "trans", [])
@@ -75,30 +154,60 @@ class TransformAction(argparse.Action):
         if len(values) <= 4:
             # minimum regex: s/x//
             raise ValueError("invalid regex (too short)")
-        d = values[1]
-        if values.startswith(f"s{d}{d}"):
+        delimiter = values[1]
+        pattern_end = _find_unescaped_delimiter(values, delimiter, 2)
+        if pattern_end == -1:
+            raise ValueError("invalid regex: missing pattern delimiter")
+        replacement_end = _find_unescaped_delimiter(
+            values, delimiter, pattern_end + 1
+        )
+        if replacement_end == -1:
+            raise ValueError("invalid regex: missing replacement delimiter")
+        pattern = values[2:pattern_end]
+        replacement = values[pattern_end + 1 : replacement_end]
+        flag_text = values[replacement_end + 1 :]
+        if not pattern:
             raise ValueError("empty regex")
-        values = values.removeprefix(f"s{d}")
+
+        supported = {"g", "i", "r", "R", "s", "S", "h", "H"}
+        unsupported = sorted(
+            set(flag for flag in flag_text if flag not in "0123456789") - supported
+        )
+        if unsupported:
+            raise ValueError("unsupported transform flags: %s" % "".join(unsupported))
+        duplicates = sorted(flag for flag in supported if flag_text.count(flag) > 1)
+        if duplicates:
+            raise ValueError("duplicate transform flags: %s" % "".join(duplicates))
+
         flags = 0
-        if values.endswith(f"{d}i"):
-            # trailing flags
+        if "i" in flag_text:
             flags = re.IGNORECASE
-            values = values.removesuffix(f"{d}i")
-        # This regex only finds non-empty tokens.
-        # Finding empty tokens would require a variable length look-behind
-        # or \K in order to find escaped delimiters which is not supported by
-        # the python re module.
-        tokens = re.findall(rf"(?:\\[\\{d}]|[^{d}])+", values)
-        match len(tokens):
-            case 0:
-                raise ValueError("invalid regex: not enough terms")
-            case 1:
-                repl = ""
-            case 2:
-                repl = tokens[1]
-            case _:
-                raise ValueError("invalid regex: too many terms: %s" % tokens)
-        items.append((re.compile(tokens[0], flags), repl))
+        occurrence = 0
+        number_text = ""
+        scopes = {"r": True, "s": True, "h": True}
+        for flag in flag_text:
+            if flag in "0123456789":
+                number_text += flag
+                continue
+            if number_text:
+                occurrence = int(number_text)
+                number_text = ""
+            if flag in scopes:
+                scopes[flag] = True
+            elif flag in {"R", "S", "H"}:
+                scopes[flag.lower()] = False
+        if number_text:
+            occurrence = int(number_text)
+        pattern = _unescape_delimiter(pattern, delimiter)
+        items.append(
+            (
+                re.compile(pattern, flags),
+                _sed_replacement(replacement, delimiter),
+                occurrence,
+                "g" in flag_text,
+                scopes,
+            )
+        )
         setattr(namespace, "trans", items)
 
 
@@ -275,6 +384,15 @@ Lastly, shift user id and group id of each entry by the value given by the
                 if len(comps) <= args.strip_components:
                     continue
                 member.name = "/".join(comps[args.strip_components :])
+                member.pax_headers.pop("path", None)
+                if member.islnk():
+                    link_comps = member.linkname.split("/")
+                    if len(link_comps) <= args.strip_components:
+                        continue
+                    member.linkname = "/".join(
+                        link_comps[args.strip_components :]
+                    )
+                    member.pax_headers.pop("linkpath", None)
             member.pax_headers = {
                 k: v
                 for k, v in member.pax_headers.items()
@@ -290,8 +408,46 @@ Lastly, shift user id and group id of each entry by the value given by the
                 member.uid += args.idshift
                 member.gid += args.idshift
             if hasattr(args, "trans"):
-                for r, s in args.trans:
-                    member.name = r.sub(s, member.name)
+                original_name = member.name
+                original_linkname = member.linkname
+                for (
+                    regex,
+                    replacement,
+                    occurrence,
+                    global_after,
+                    scopes,
+                ) in args.trans:
+                    if scopes["r"]:
+                        member.name = _sed_substitute(
+                            regex,
+                            replacement,
+                            member.name,
+                            occurrence,
+                            global_after,
+                        )
+                    if member.islnk() and scopes["h"]:
+                        member.linkname = _sed_substitute(
+                            regex,
+                            replacement,
+                            member.linkname,
+                            occurrence,
+                            global_after,
+                        )
+                    elif member.issym() and scopes["s"]:
+                        member.linkname = _sed_substitute(
+                            regex,
+                            replacement,
+                            member.linkname,
+                            occurrence,
+                            global_after,
+                        )
+                if member.name != original_name:
+                    member.pax_headers.pop("path", None)
+                if (
+                    (member.islnk() or member.issym())
+                    and member.linkname != original_linkname
+                ):
+                    member.pax_headers.pop("linkpath", None)
             if member.isfile():
                 with in_tar.extractfile(member) as file:
                     out_tar.addfile(member, file)
