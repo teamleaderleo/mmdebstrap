@@ -1,0 +1,52 @@
+name: Verify unit 13 lifecycle patch
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-13-make-mirror-top-level-lifecycle
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out controlled fork branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check out Linux Fieldwork packet and focused tests
+        uses: actions/checkout@v4
+        with:
+          repository: teamleaderleo/linux-fieldwork
+          ref: upstream/unit-13-make-mirror-top-level-lifecycle
+          path: fieldwork
+          persist-credentials: false
+
+      - name: Verify exact base and apply packet patch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test "$(git hash-object make_mirror.sh)" = 6c4be092edcf23b56b63a3befe238c099c45f590
+
+          tree="$RUNNER_TEMP/unit13-tree"
+          mkdir -p "$tree/upstream/mmdebstrap"
+          cp make_mirror.sh "$tree/upstream/mmdebstrap/make_mirror.sh"
+
+          patch --batch --forward --fuzz=0 \
+            -d "$tree" -p1 \
+            -i "$GITHUB_WORKSPACE/fieldwork/upstream-packets/units/13-make-mirror-top-level-lifecycle/patches/0001-make-mirror-top-level-signal-proxy-ownership.patch"
+
+          /bin/sh -n "$tree/upstream/mmdebstrap/make_mirror.sh"
+          printf 'base blob: %s\n' "$(git hash-object make_mirror.sh)"
+          printf 'candidate blob: %s\n' "$(git hash-object "$tree/upstream/mmdebstrap/make_mirror.sh")"
+
+      - name: Run retained top-level lifecycle regressions
+        working-directory: fieldwork
+        run: |
+          set -eux
+          python3 -m unittest -v tests/test_make_mirror_signal_exit.py
+          python3 -m unittest -v tests/test_make_mirror_proxy_launch_ownership.py
