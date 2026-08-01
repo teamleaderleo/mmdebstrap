@@ -7,6 +7,12 @@ on:
     paths:
       - coverage.py
       - .github/workflows/unit-11-coverage-backend-cancellation-runner.yml
+  pull_request:
+    branches:
+      - linux-fieldwork/upstream-main-snapshot
+    paths:
+      - coverage.py
+      - .github/workflows/unit-11-coverage-backend-cancellation-runner.yml
   workflow_dispatch:
 
 permissions:
