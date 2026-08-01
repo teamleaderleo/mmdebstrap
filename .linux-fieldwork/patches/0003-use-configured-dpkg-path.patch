@@ -1,0 +1,83 @@
+diff --git a/mmdebstrap b/mmdebstrap
+--- a/mmdebstrap
++++ b/mmdebstrap
+@@ -3903,8 +3903,13 @@ sub run_prepare {
+ }
+ 
+ sub chrootless_dpkg_environment {
+-    my $root   = shift;
+-    my $tmpdir = "$root/tmp";
++    my $root     = shift;
++    my $dpkgpath = shift;
++    my $tmpdir   = "$root/tmp";
++
++    if (!defined $dpkgpath || $dpkgpath eq '') {
++        error "cannot determine chrootless maintainer-script PATH";
++    }
+ 
+     if (-l $tmpdir) {
+         error "chrootless target temporary directory is a symlink: $tmpdir";
+@@ -3919,7 +3924,6 @@ sub chrootless_dpkg_environment {
+       or error "cannot set mode 01777 on $tmpdir: $!";
+ 
+     my @names = qw(
+-      PATH
+       DEBIAN_FRONTEND
+       DEBCONF_NONINTERACTIVE_SEEN
+       LC_ALL
+@@ -3934,7 +3938,7 @@ sub chrootless_dpkg_environment {
+         push @names, qw(FAKEROOTKEY FAKED_MODE FAKEROOT_FD_BASE LD_PRELOAD
+           LD_LIBRARY_PATH);
+     }
+-    my @result = ('-i', "TMPDIR=$tmpdir");
++    my @result = ('-i', "PATH=$dpkgpath", "TMPDIR=$tmpdir");
+     foreach my $name (@names) {
+         next if !defined $ENV{$name};
+         push @result, "$name=$ENV{$name}";
+@@ -4057,7 +4061,9 @@ sub run_essential() {
+         run_dpkg_progress({
+                 ARGV => [
+                     'env',
+-                    chrootless_dpkg_environment($options->{root}),
++                    chrootless_dpkg_environment(
++                        $options->{root}, $options->{dpkgpath}
++                    ),
+                     'dpkg',
+                     '--force-not-root',
+                     '--force-script-chrootless',
+@@ -4161,7 +4167,8 @@ sub run_install() {
+     if ($options->{mode} eq 'chrootless') {
+         if (scalar @pkgs_to_install > 0) {
+             my @dpkg_environment
+-              = chrootless_dpkg_environment($options->{root});
++              = chrootless_dpkg_environment($options->{root},
++                $options->{dpkgpath});
+             my @chrootless_opts = (
+                 '-oDir::Bin::dpkg=env',
+                 (map { '-oDPkg::Options::=' . $_ } @dpkg_environment),
+@@ -6015,6 +6022,7 @@ sub main() {
+ 
+     # setting PATH for chroot, ldconfig, start-stop-daemon...
+     my $defaultpath = `eval \$(apt-config shell v DPkg::Path); printf %s \$v`;
++    $options->{dpkgpath} = $defaultpath;
+     if (length $ENV{PATH}) {
+         ## no critic (Variables::RequireLocalizedPunctuationVars)
+         $ENV{PATH} = "$ENV{PATH}:$defaultpath";
+@@ -8327,10 +8335,13 @@ By default, B<mmdebstrap> refuses to start chrootless mode when the
+ caller environment contains names commonly used for credentials or host
+ session endpoints. The check reports names but never values. It can be
+ disabled with B<--skip=check/chrootless/environment>. Package maintainer
+-scripts are additionally run with a small environment containing only
+-variables required by dpkg, debconf, locale handling, reproducibility,
+-and foreign-architecture execution. Apt itself retains its environment
+-so that proxy and repository authentication continue to work.
++scripts are additionally run with a small environment. Their PATH is
++apt's configured DPkg::Path rather than the caller's executable search path.
++The environment also contains the target temporary directory, mmdebstrap's
++fixed noninteractive debconf and C.UTF-8 locale values, reproducibility
++controls, foreign-architecture state, and fakeroot state when active. Apt
++itself retains its environment so that proxy and repository authentication
++continue to work.
+ 
+ These checks are defense in depth and do not make chrootless mode a
+ sandbox. Maintainer scripts still execute on the host and may access
