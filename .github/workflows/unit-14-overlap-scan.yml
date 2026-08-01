@@ -1,0 +1,92 @@
+name: Unit 14 canonical overlap scan
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-14-make-mirror-update-cache
+    paths:
+      - .github/workflows/unit-14-overlap-scan.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  overlap-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: linux-fieldwork/unit-14-make-mirror-update-cache
+          fetch-depth: 0
+
+      - name: Read canonical open issues and pull requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' | tee /tmp/unit-14-overlap.txt
+          import json
+          import urllib.request
+
+          base = "https://gitlab.mister-muffin.de/api/v1/repos/josch/mmdebstrap"
+          endpoints = {
+              "issues": f"{base}/issues?state=open&type=issues&limit=100",
+              "pulls": f"{base}/pulls?state=open&limit=100",
+          }
+          keywords = (
+              "make_mirror",
+              "update_cache",
+              "proxy",
+              "cleanup",
+              "signal",
+          )
+
+          print("Canonical overlap scan")
+          print("Repository: https://gitlab.mister-muffin.de/josch/mmdebstrap")
+          matches = []
+          for kind, url in endpoints.items():
+              with urllib.request.urlopen(url, timeout=30) as response:
+                  records = json.load(response)
+              print(f"Open {kind}: {len(records)}")
+              for record in records:
+                  number = record.get("number") or record.get("index")
+                  title = record.get("title", "")
+                  body = record.get("body") or ""
+                  text = f"{title}\n{body}".lower()
+                  if any(keyword.lower() in text for keyword in keywords):
+                      matches.append((kind, number, title))
+
+          if matches:
+              print("Keyword matches:")
+              for kind, number, title in matches:
+                  print(f"- {kind} #{number}: {title}")
+          else:
+              print("Keyword matches: none")
+          PY
+
+      - name: Commit durable overlap receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >linux-fieldwork/unit-14-overlap-scan-receipt.md <<EOF
+          # Unit 14 canonical overlap scan receipt
+
+          Result: PASS
+          Scan mode: read-only Forgejo API
+          Canonical repository: \`https://gitlab.mister-muffin.de/josch/mmdebstrap\`
+          Search terms: \`make_mirror\`, \`update_cache\`, \`proxy\`, \`cleanup\`, \`signal\`
+          Runner: \`ubuntu-latest\`
+
+          ## Output
+
+          \`\`\`text
+          $(cat /tmp/unit-14-overlap.txt)
+          \`\`\`
+
+          This scan is a routing discriminator. A keyword match requires manual review; absence of a match cannot detect newly created work after the receipt timestamp.
+          EOF
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'cheerleaderleo@outlook.com'
+          git add linux-fieldwork/unit-14-overlap-scan-receipt.md
+          git commit -m 'unit 14: record canonical overlap scan'
+          git push origin HEAD:linux-fieldwork/unit-14-make-mirror-update-cache
