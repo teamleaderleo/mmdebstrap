@@ -1,0 +1,66 @@
+name: Unit 14 exact-candidate matrix
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-14-make-mirror-update-cache
+    paths:
+      - linux-fieldwork/run-unit-14-candidate-matrix.py
+      - .github/workflows/unit-14-candidate-matrix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  exact-candidate-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: linux-fieldwork/unit-14-make-mirror-update-cache
+          fetch-depth: 0
+      - name: Fetch exact source candidate
+        run: |
+          set -eu
+          git fetch origin linux-fieldwork/unit-14-make-mirror-update-cache-source
+          git show FETCH_HEAD:make_mirror.sh >/tmp/unit-14-make_mirror.sh
+          test "$(git hash-object /tmp/unit-14-make_mirror.sh)" = 7d92a29a05ade7f5da397a1a9d03e601092f9465
+      - name: Fetch retained Linux Fieldwork tests
+        run: git clone --depth=1 https://github.com/teamleaderleo/linux-fieldwork.git /tmp/linux-fieldwork
+      - name: Run ten exact-candidate lifecycle cases
+        shell: bash
+        env:
+          UNIT14_SOURCE: /tmp/unit-14-make_mirror.sh
+          LINUX_FIELDWORK_REPO: /tmp/linux-fieldwork
+        run: |
+          set -euo pipefail
+          python3 linux-fieldwork/run-unit-14-candidate-matrix.py 2>&1 | tee /tmp/unit-14-matrix.txt
+      - name: Commit durable success receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_head=$(git rev-parse FETCH_HEAD)
+          cat >linux-fieldwork/unit-14-candidate-matrix-receipt.md <<EOF
+          # Unit 14 exact-candidate matrix receipt
+
+          Result: PASS
+          Candidate branch: \`linux-fieldwork/unit-14-make-mirror-update-cache-source\`
+          Candidate head: \`$candidate_head\`
+          Candidate source blob: \`7d92a29a05ade7f5da397a1a9d03e601092f9465\`
+          Runner: \`ubuntu-latest\`
+          Cases: 10 candidate-facing lifecycle tests
+
+          The adapter executed worker ownership, INT/QUIT/TERM status and rerun, cleanup failure, cleanup-time signal retention, later-signal suppression, precedence, state removal, and immediate rerun cases against the exact candidate source file.
+
+          ## Output
+
+          \`\`\`text
+          $(cat /tmp/unit-14-matrix.txt)
+          \`\`\`
+          EOF
+          git config user.name 'Linux Fieldwork'
+          git config user.email 'cheerleaderleo@outlook.com'
+          git add linux-fieldwork/unit-14-candidate-matrix-receipt.md
+          git commit -m 'unit 14: record exact-candidate matrix pass'
+          git push origin HEAD:linux-fieldwork/unit-14-make-mirror-update-cache
