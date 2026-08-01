@@ -289,6 +289,8 @@ Lastly, shift user id and group id of each entry by the value given by the
                     exit(1)
                 member.uid += args.idshift
                 member.gid += args.idshift
+                member.pax_headers.pop("uid", None)
+                member.pax_headers.pop("gid", None)
             if hasattr(args, "trans"):
                 for r, s in args.trans:
                     member.name = r.sub(s, member.name)
