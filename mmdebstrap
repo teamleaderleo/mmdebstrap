@@ -3902,7 +3902,22 @@ sub run_prepare {
     return \@chrootcmd;
 }
 
-sub chrootless_dpkg_environment() {
+sub chrootless_dpkg_environment {
+    my $root   = shift;
+    my $tmpdir = "$root/tmp";
+
+    if (-l $tmpdir) {
+        error "chrootless target temporary directory is a symlink: $tmpdir";
+    }
+    if (!-e $tmpdir) {
+        make_path($tmpdir, { mode => oct("1777") });
+    } elsif (!-d $tmpdir) {
+        error "chrootless target temporary path is not a directory:"
+          . " $tmpdir";
+    }
+    chmod oct("1777"), $tmpdir
+      or error "cannot set mode 01777 on $tmpdir: $!";
+
     my @names = qw(
       PATH
       DEBIAN_FRONTEND
@@ -3919,7 +3934,7 @@ sub chrootless_dpkg_environment() {
         push @names, qw(FAKEROOTKEY FAKED_MODE FAKEROOT_FD_BASE LD_PRELOAD
           LD_LIBRARY_PATH);
     }
-    my @result = ('-i');
+    my @result = ('-i', "TMPDIR=$tmpdir");
     foreach my $name (@names) {
         next if !defined $ENV{$name};
         push @result, "$name=$ENV{$name}";
@@ -4042,7 +4057,7 @@ sub run_essential() {
         run_dpkg_progress({
                 ARGV => [
                     'env',
-                    chrootless_dpkg_environment(),
+                    chrootless_dpkg_environment($options->{root}),
                     'dpkg',
                     '--force-not-root',
                     '--force-script-chrootless',
@@ -4145,8 +4160,9 @@ sub run_install() {
 
     if ($options->{mode} eq 'chrootless') {
         if (scalar @pkgs_to_install > 0) {
-            my @dpkg_environment = chrootless_dpkg_environment();
-            my @chrootless_opts  = (
+            my @dpkg_environment
+              = chrootless_dpkg_environment($options->{root});
+            my @chrootless_opts = (
                 '-oDir::Bin::dpkg=env',
                 (map { '-oDPkg::Options::=' . $_ } @dpkg_environment),
                 '-oDPkg::Options::=dpkg',
