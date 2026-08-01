@@ -2,7 +2,7 @@
 set -eu
 export LC_ALL=C.UTF-8
 
-trap "rm -f /tmp/mkpaxtar.pl /tmp/orig.tar /tmp/file /tmp/expected /tmp/filtered.tar" EXIT INT TERM
+trap "rm -f /tmp/mkpaxtar.pl /tmp/orig.tar /tmp/file /tmp/expected /tmp/filtered.tar /tmp/filtered2.tar /tmp/pax-id-input.tar /tmp/pax-id-shifted.tar /tmp/pax-id-roundtrip.tar" EXIT INT TERM
 
 cat <<'END' >/tmp/mkpaxtar.pl
 #!/usr/bin/env perl
@@ -12,7 +12,7 @@ use warnings;
 
 my @entries = (
     # filename            mode      type content
-    ['./PaxHeaders/file', oct(644), 'x', "57 SCHILY.xattr.security.capability=\x01\0\0\x02\0\x20\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x0a"],
+    ['./PaxHeaders/file', oct(644), 'x', "57 SCHILY.xattr.security.capability=\x01\0\0\x02\0\x20\0\0\0\0\0\0\0\0\0\0\0\0\x0a"],
     ['./file',              oct(644), 0,   'test'],
 );
 
@@ -109,3 +109,86 @@ rm /tmp/file
 # the result must be identical to the original and will thus also include the
 # correct xattr information
 cmp /tmp/orig.tar /tmp/filtered2.tar
+
+# Large numeric ownership is stored in PAX uid/gid records. Verify that
+# --idshift replaces those stale values while preserving unrelated PAX data.
+python3 - <<'PY'
+import io
+import tarfile
+
+with tarfile.open('/tmp/pax-id-input.tar', 'w', format=tarfile.PAX_FORMAT) as archive:
+    for name, uid, gid, payload, comment in (
+        ('large', 1_000_000_000, 1_000_000_001, b'large\n', 'keep-large'),
+        ('small', 1000, 1001, b'small\n', 'keep-small'),
+    ):
+        member = tarfile.TarInfo(name)
+        member.uid = uid
+        member.gid = gid
+        member.mode = 0o640
+        member.size = len(payload)
+        member.pax_headers = {'comment': comment}
+        archive.addfile(member, io.BytesIO(payload))
+PY
+
+"$MMTARFILTER" --idshift 7 </tmp/pax-id-input.tar >/tmp/pax-id-shifted.tar
+
+python3 - <<'PY'
+import tarfile
+
+
+def read(path):
+    result = {}
+    with tarfile.open(path, 'r:*') as archive:
+        for member in archive:
+            stream = archive.extractfile(member)
+            payload = b'' if stream is None else stream.read()
+            result[member.name] = (member.uid, member.gid, dict(member.pax_headers), payload)
+    return result
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+source = read('/tmp/pax-id-input.tar')
+shifted = read('/tmp/pax-id-shifted.tar')
+require(source['large'][2].get('uid') == '1000000000', 'large source uid is not PAX encoded')
+require(source['large'][2].get('gid') == '1000000001', 'large source gid is not PAX encoded')
+require('uid' not in source['small'][2], 'small source unexpectedly uses PAX uid')
+require('gid' not in source['small'][2], 'small source unexpectedly uses PAX gid')
+require(shifted['large'][0:2] == (1_000_000_007, 1_000_000_008), 'large ownership was not shifted')
+require(shifted['large'][2].get('uid') == '1000000007', 'shifted PAX uid was not regenerated')
+require(shifted['large'][2].get('gid') == '1000000008', 'shifted PAX gid was not regenerated')
+require(shifted['small'][0:2] == (1007, 1008), 'small ownership was not shifted')
+require('uid' not in shifted['small'][2], 'small shifted member unexpectedly uses PAX uid')
+require('gid' not in shifted['small'][2], 'small shifted member unexpectedly uses PAX gid')
+for name in ('large', 'small'):
+    require(shifted[name][2].get('comment') == source[name][2].get('comment'), f'{name} comment changed')
+    require(shifted[name][3] == source[name][3], f'{name} payload changed')
+PY
+
+"$MMTARFILTER" --idshift -7 </tmp/pax-id-shifted.tar >/tmp/pax-id-roundtrip.tar
+
+python3 - <<'PY'
+import tarfile
+
+
+def read(path):
+    result = {}
+    with tarfile.open(path, 'r:*') as archive:
+        for member in archive:
+            stream = archive.extractfile(member)
+            payload = b'' if stream is None else stream.read()
+            result[member.name] = (member.uid, member.gid, dict(member.pax_headers), payload)
+    return result
+
+source = read('/tmp/pax-id-input.tar')
+roundtrip = read('/tmp/pax-id-roundtrip.tar')
+for name in ('large', 'small'):
+    if roundtrip[name][0:2] != source[name][0:2]:
+        raise SystemExit(f'{name} ownership did not round trip')
+    if roundtrip[name][2].get('comment') != source[name][2].get('comment'):
+        raise SystemExit(f'{name} comment did not round trip')
+    if roundtrip[name][3] != source[name][3]:
+        raise SystemExit(f'{name} payload did not round trip')
+PY
