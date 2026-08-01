@@ -1,0 +1,22 @@
+name: Unit 14 update_cache lifecycle
+
+on:
+  push:
+    branches:
+      - linux-fieldwork/unit-14-make-mirror-update-cache
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  patch-and-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact base and zero-fuzz patch
+        run: sh linux-fieldwork/apply-unit-14.sh --check
+      - name: Apply candidate and run static gates
+        run: sh linux-fieldwork/apply-unit-14.sh --apply
+      - name: Show candidate diff
+        run: git diff -- make_mirror.sh
