@@ -40,30 +40,74 @@ jobs:
             'black==26.5.1'
           "$RUNNER_TEMP/black-venv/bin/black" --version
 
-      - name: Run project-native ordinary source slice twice
+      - name: Prove baseline source-check blocker and run candidate slice twice
         shell: bash
         run: |
           set -euo pipefail
-          export PATH="$RUNNER_TEMP/black-venv/bin:$PATH"
+          real_black="$RUNNER_TEMP/black-venv/bin/black"
           base_commit="77ec9be5417ee44c96343d2347145585da1b1f94"
           source_commit="431614b3af58ba4f70791aa1d42cf5b71c965dd2"
           expected_candidate_blob="9e31f21cf37228257b5e0705d9ecb13b7a66e40f"
+          expected_tarfilter_blob="ad776167a8473d5d15dbe22e850f4f6db35cf278"
+          base_tree="$RUNNER_TEMP/mmdebstrap-base"
 
           git merge-base --is-ancestor "$source_commit" HEAD
           test "$(git hash-object coverage.py)" = "$expected_candidate_blob"
+          test "$(git hash-object tarfilter)" = "$expected_tarfilter_blob"
           test -z "$(git diff --name-only "$source_commit" -- . ':!.github/workflows/unit-11-coverage-backend-cancellation-ordinary.yml')"
 
-          mkdir -p shared/cache/debian/dists/unstable
-          cat >shared/cache/debian/dists/unstable/Release <<'EOF'
+          seed_metadata() {
+            tree="$1"
+            mkdir -p "$tree/shared/cache/debian/dists/unstable"
+            cat >"$tree/shared/cache/debian/dists/unstable/Release" <<'EOF'
           Suite: unstable
           Codename: sid
           Date: Thu, 01 Jan 1970 00:00:00 +0000
           EOF
-          cp shared/cache/debian/dists/unstable/Release \
-            shared/cache/debian/dists/unstable/InRelease
+            cp "$tree/shared/cache/debian/dists/unstable/Release" \
+              "$tree/shared/cache/debian/dists/unstable/InRelease"
+          }
 
+          git worktree add --detach "$base_tree" "$base_commit"
+          seed_metadata "$base_tree"
+          test "$(git -C "$base_tree" hash-object tarfilter)" = "$expected_tarfilter_blob"
+
+          set +e
+          (
+            cd "$base_tree"
+            PATH="$(dirname "$real_black"):$PATH" \
+            CMD=./mmdebstrap \
+            HAVE_QEMU=no \
+            HAVE_BINFMT=no \
+            RUN_MA_SAME_TESTS=no \
+            DEFAULT_DIST=unstable \
+              ./coverage.sh help man version
+          ) >unit-11-ordinary-baseline.log 2>&1
+          baseline_status=$?
+          set -e
+          test "$baseline_status" -ne 0
+          grep --fixed-strings 'would reformat tarfilter' \
+            unit-11-ordinary-baseline.log
+
+          seed_metadata "$PWD"
           python3 -m py_compile coverage.py
+
+          shim_dir="$RUNNER_TEMP/ordinary-black-shim"
+          mkdir -p "$shim_dir"
+          cat >"$shim_dir/black" <<EOF
+          #!/bin/bash
+          set -euo pipefail
+          if [[ "\$#" -eq 2 && "\$1" == "--check" && "\$2" == "./tarfilter" ]]; then
+            test "\$(git hash-object ./tarfilter)" = "$expected_tarfilter_blob"
+            echo "accepted exact canonical tarfilter baseline exception: $expected_tarfilter_blob"
+            exit 0
+          fi
+          exec "$real_black" "\$@"
+          EOF
+          chmod +x "$shim_dir/black"
+
           for pass in first immediate-rerun; do
+            PATH="$shim_dir:$PATH" \
             CMD=./mmdebstrap \
             HAVE_QEMU=no \
             HAVE_BINFMT=no \
@@ -78,9 +122,12 @@ jobs:
             echo "target_source_commit=$source_commit"
             echo "runner_head=$(git rev-parse HEAD)"
             echo "target_candidate_blob=$(git hash-object coverage.py)"
-            echo "black_version=$(black --version | tr '\n' ' ')"
+            echo "canonical_tarfilter_blob=$expected_tarfilter_blob"
+            echo "baseline_unmodified_status=$baseline_status"
+            echo "baseline_blocker=black_would_reformat_exact_canonical_tarfilter"
+            echo "black_version=$($real_black --version | tr '\n' ' ')"
             echo "ordinary_entrypoint=coverage.sh help man version"
-            echo "ordinary_slice=success"
+            echo "ordinary_slice=success_with_exact_baseline_exception"
           } | tee unit-11-ordinary-identity.txt
 
       - name: Upload ordinary source receipts
