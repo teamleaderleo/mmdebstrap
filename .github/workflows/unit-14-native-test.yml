@@ -1,4 +1,4 @@
-name: Unit 14 upstream-native regression
+name: Unit 14 native regression and overlap
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  native-regression:
+  native-and-overlap:
     runs-on: ubuntu-latest
     env:
       CANDIDATE_BRANCH: linux-fieldwork/unit-14-make-mirror-update-cache-upstream-main
@@ -24,8 +24,8 @@ jobs:
           ref: linux-fieldwork/unit-14-make-mirror-update-cache
           fetch-depth: 0
 
-      - name: Run classified native gate
-        id: native
+      - name: Run classified native and overlap gates
+        id: gates
         continue-on-error: true
         shell: bash
         env:
@@ -55,34 +55,73 @@ jobs:
             sh -n "tests/$TEST_NAME"
             shellcheck --exclude=SC2050,SC2194,SC2016 "tests/$TEST_NAME"
             shfmt --posix --binary-next-line --case-indent --indent 2 --simplify -d "tests/$TEST_NAME"
-            sh "tests/$TEST_NAME"
+            sh "tests/$TEST_NAME" | tee /tmp/unit-14-native-output.txt
             git diff --check
 
             git config user.name 'Linux Fieldwork'
             git config user.email 'cheerleaderleo@outlook.com'
-            git add coverage.txt "tests/$TEST_NAME"
-            git commit -m 'tests: cover make_mirror update_cache worker lifecycle'
+            if ! git diff --quiet -- coverage.txt "tests/$TEST_NAME"; then
+              git add coverage.txt "tests/$TEST_NAME"
+              git commit -m 'tests: cover make_mirror update_cache worker lifecycle'
+              git push origin "HEAD:refs/heads/$CANDIDATE_BRANCH"
+            fi
             git rev-parse HEAD >/tmp/unit-14-native-candidate-head
-            git push origin "HEAD:refs/heads/$CANDIDATE_BRANCH"
-          ) >/tmp/unit-14-native-test.txt 2>&1
+
+            python3 - <<'PY' >/tmp/unit-14-overlap.txt
+            import json
+            import urllib.request
+
+            base = "https://gitlab.mister-muffin.de/api/v1/repos/josch/mmdebstrap"
+            endpoints = {
+                "issues": f"{base}/issues?state=open&type=issues&limit=100",
+                "pulls": f"{base}/pulls?state=open&limit=100",
+            }
+            keywords = (
+                "make_mirror",
+                "update_cache",
+                "proxy",
+                "cleanup",
+                "signal",
+            )
+
+            print("Canonical overlap scan")
+            print("Repository: https://gitlab.mister-muffin.de/josch/mmdebstrap")
+            matches = []
+            for kind, url in endpoints.items():
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    records = json.load(response)
+                print(f"Open {kind}: {len(records)}")
+                for record in records:
+                    number = record.get("number") or record.get("index")
+                    title = record.get("title", "")
+                    body = record.get("body") or ""
+                    text = f"{title}\n{body}".lower()
+                    if any(keyword.lower() in text for keyword in keywords):
+                        matches.append((kind, number, title))
+
+            if matches:
+                print("Keyword matches:")
+                for kind, number, title in matches:
+                    print(f"- {kind} #{number}: {title}")
+            else:
+                print("Keyword matches: none")
+            PY
+            cat /tmp/unit-14-overlap.txt
+          ) >/tmp/unit-14-combined-gates.txt 2>&1
           status=$?
-          printf '%s\n' "$status" >/tmp/unit-14-native-status
-          cat /tmp/unit-14-native-test.txt
+          printf '%s\n' "$status" >/tmp/unit-14-combined-status
+          cat /tmp/unit-14-combined-gates.txt
           exit "$status"
 
-      - name: Commit durable classified receipt
+      - name: Commit durable classified receipts
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          status=$(cat /tmp/unit-14-native-status 2>/dev/null || printf '125')
-          if [ "$status" -eq 0 ]; then
-            result=PASS
-            candidate_head=$(cat /tmp/unit-14-native-candidate-head)
-          else
-            result=FAIL
-            candidate_head=$(git ls-remote origin "refs/heads/$CANDIDATE_BRANCH" | awk '{print $1}')
-          fi
+          status=$(cat /tmp/unit-14-combined-status 2>/dev/null || printf '125')
+          if [ "$status" -eq 0 ]; then result=PASS; else result=FAIL; fi
+          candidate_head=$(cat /tmp/unit-14-native-candidate-head 2>/dev/null || git ls-remote origin "refs/heads/$CANDIDATE_BRANCH" | awk '{print $1}')
+
           cat >linux-fieldwork/unit-14-native-test-receipt.md <<EOF
           # Unit 14 upstream-native regression receipt
 
@@ -94,17 +133,39 @@ jobs:
           Test metadata: \`coverage.txt\`
           Runner: \`ubuntu-latest\`
 
-          The classified gate attempted test registration, \`sh -n\`, shellcheck, upstream shfmt options, direct lifecycle execution, diff hygiene, and candidate publication. A PASS means every step completed and the test commit was pushed. A FAIL transcript identifies the first command owner.
+          The classified gate ran test registration, \`sh -n\`, shellcheck, upstream shfmt options, direct lifecycle execution, diff hygiene, and idempotent candidate publication.
 
           ## Output
 
           \`\`\`text
-          $(cat /tmp/unit-14-native-test.txt 2>/dev/null || printf 'classified gate did not start\n')
+          $(cat /tmp/unit-14-native-output.txt 2>/dev/null || cat /tmp/unit-14-combined-gates.txt)
           \`\`\`
           EOF
+
+          cat >linux-fieldwork/unit-14-overlap-scan-receipt.md <<EOF
+          # Unit 14 canonical overlap scan receipt
+
+          Result: $result
+          Exit status: \`$status\`
+          Scan mode: read-only Forgejo API
+          Canonical repository: \`https://gitlab.mister-muffin.de/josch/mmdebstrap\`
+          Search terms: \`make_mirror\`, \`update_cache\`, \`proxy\`, \`cleanup\`, \`signal\`
+          Runner: \`ubuntu-latest\`
+
+          ## Output
+
+          \`\`\`text
+          $(cat /tmp/unit-14-overlap.txt 2>/dev/null || cat /tmp/unit-14-combined-gates.txt)
+          \`\`\`
+
+          Keyword matches require manual classification. The receipt is current only through this run.
+          EOF
+
           git config user.name 'Linux Fieldwork'
           git config user.email 'cheerleaderleo@outlook.com'
-          git add linux-fieldwork/unit-14-native-test-receipt.md
-          git commit -m "unit 14: record upstream-native regression $result"
+          git add \
+            linux-fieldwork/unit-14-native-test-receipt.md \
+            linux-fieldwork/unit-14-overlap-scan-receipt.md
+          git commit -m "unit 14: record native and overlap gates $result"
           git push origin HEAD:linux-fieldwork/unit-14-make-mirror-update-cache
           test "$status" -eq 0
